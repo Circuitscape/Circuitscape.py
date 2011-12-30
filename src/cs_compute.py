@@ -1,7 +1,7 @@
 ##
 ## Circuitscape (C) 2008, Brad McRae and Viral B. Shah. 
 ##
-## $Id: cs_compute.py 765 2011-12-09 20:22:42Z mcrae $
+## $Id: cs_compute.py 791 2011-12-28 15:18:28Z mcrae $
 ##
 
 ############## Enter True below to run in Stress Test mode
@@ -136,15 +136,20 @@ class cs_compute:
             return res
         return wrapper
 
+        
+        
 
     def cs_log(self, text,col):
         (hours,mins,secs) = elapsed_time(self.state['startTime'])
         (hours,mins,secs1) = elapsed_time(self.state['lastUpdateTime'])
         if secs1 > 10: # Force update every 10 secs
             self.state['lastUpdateTime'] = time.time()
-            if wx_available:
-                wx.SafeYield(None, True)  
-                wx.GetApp().Yield(True)
+            try:
+                if wx_available:
+                    wx.SafeYield(None, True)  
+                    wx.GetApp().Yield(True)
+            except:
+                pass
         if logger:           
             logger(text,col)
         return
@@ -152,6 +157,7 @@ class cs_compute:
 
     @print_timing
     def compute(self):
+
         #back door to network code
         if self.options['polygon_file'] == 'NETWORK': 
              self.options['data_type']='network' #can also be set in .ini file
@@ -927,7 +933,10 @@ class cs_compute:
                     #Note: This does not go through when it should.
                     (resistances,cum_current_map,max_current_map,cum_vdrop_map,solver_failed) = self.single_ground_all_pair_resistances(g_map, poly_map, points_rc,cum_current_map,max_current_map,cum_vdrop_map,reportStatus)
                 if solver_failed == True:
-                    print'Solver failed for at least one focal node pair.  \nPairs with failed solves will be marked with value of -777 \nin output resistance matrix.\n'
+                    print('Solver failed for at least one focal node pair. ' 
+                    '\nThis can happen when input resistances differ by more than' 
+                    '\n~6 orders of magnitude. Pairs with failed solves will be '
+                    '\nmarked with value of -777 in output resistance matrix.\n')
 
                 point_ids = points_rc[:,0]
 
@@ -1053,7 +1062,6 @@ class cs_compute:
                 (G, local_node_map) = self.node_pruner(g_map, poly_map, component_map, c)
                 if c==int(components.max()):
                     del component_map 
-                
                 if (useResistanceCalcShortcut==True):
                     voltmatrix = zeros((numpoints,numpoints),dtype = 'float64')     #For resistance calc shortcut
                 
@@ -1108,11 +1116,9 @@ class cs_compute:
                                         self.cs_log ('At ' + str(hours) +' hr ' + str(mins) + ' min solving focal pair ' + str(x) + ' of '+ str(y) + '.',1)
                                 src = self.grid_to_graph (points_rc[j,1], points_rc[j,2], node_map)
                                 local_src = self.grid_to_graph (points_rc[j,1], points_rc[j,2], local_node_map)
-                                
                                 if (src >=  0 and components[src] == c):
                                     # Solve resistive network (Kirchoff's laws)
                                     solver_failed = False
-                                                
                                     try:
                                         if using_G_no_deleterow:
                                             voltages = self.single_ground_solver(G, local_src, local_dst)
@@ -1201,6 +1207,15 @@ class cs_compute:
                                                 self.writeGraph(file,branch_currents,localNodeNames)
                                             #########################                 
 
+                                            
+                                            if self.options['set_focal_node_currents_to_zero']==True:
+                                                # set source and target node currents to zero
+                                                focal_node_pair_map = where(local_node_map == local_src+1, 0, 1)
+                                                focal_node_pair_map = where(local_node_map == local_dst+1, 0, focal_node_pair_map)                                                
+                                                #print'fn', focal_node_pair_map
+                                                current_map = multiply(focal_node_pair_map, current_map)
+                                                #print 'c',current_map
+                                                del focal_node_pair_map
                                             cum_current_map = cum_current_map + current_map 
                                             if self.options['write_max_cur_maps']==True:
                                                 max_current_map = maximum(max_current_map, current_map) 
@@ -1825,8 +1840,12 @@ class cs_compute:
 
         outputDir, outputFile = os.path.split(self.options['output_file'])
         outputBase, outputExtension = os.path.splitext(outputFile)
-        file = outputDir + '//' + outputBase + '_' + type + fileadd +'.asc'
 
+        inputBase, inputExtension = os.path.splitext(self.options['habitat_file']) 
+        if inputExtension == '.npy': #if read in numpy array, write one out.
+            file = outputDir + '//' + outputBase + '_' + type + fileadd +'.npy'
+        else:
+            file = outputDir + '//' + outputBase + '_' + type + fileadd +'.asc'
         writer(file, data, self.state, self.options['compress_grids'])
         
     def read_cell_map(self, filename):
@@ -1888,7 +1907,7 @@ class cs_compute:
             except IndexError:
                 raise RuntimeError('Error extracting focal node locations. Please check file format.')                
 
-        elif extension == ".asc":
+        elif extension == ".asc" or extension == ".npy":
             readingMask = False
             (ncols, nrows, xllcorner, yllcorner, cellsize, nodata) = read_header(filename)
             if cellsize!= self.state['cellsize']:

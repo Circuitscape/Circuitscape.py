@@ -1,7 +1,7 @@
 ##
 ## Circuitscape (C) 2008, Brad McRae and Viral B. Shah. 
 ##
-## $Id: cs_util.py 765 2011-12-09 20:22:42Z mcrae $
+## $Id: cs_util.py 791 2011-12-28 15:18:28Z mcrae $
 ##
 
 import ConfigParser, os, string, gzip
@@ -12,12 +12,13 @@ import time
 # import sys
 # sys.path.append('/Library/Python/2.5/site-packages/GDAL-1.5.2-py2.5-macosx-10.5-i386.egg') 
 
-##gdal_available = False #GDAL DISABLED UNTIL READ BUG RESOLVED
-##try:
-##    from osgeo import gdal_array, gdal
-##    from osgeo.gdalconst import *
-##except ImportError:
-##    gdal_available = False
+gdal_available = True #GDAL DISABLED UNTIL READ BUG RESOLVED
+try:
+    from osgeo import gdal_array, gdal
+    from osgeo.gdalconst import *
+    #print 'GDAL AVAILABLE'
+except ImportError:
+   gdal_available = False
 
 # Disable GDAL as it is error-prone for some cases for now. VS - 4/5/09
 gdal_available = False
@@ -36,6 +37,7 @@ def readConfigFile(configFile):
     
     options['set_null_voltages_to_nodata']=True 
     options['set_null_currents_to_nodata']=True 
+    options['set_focal_node_currents_to_zero']=False
     options['write_max_cur_maps']=False #fixme: need to implement for network
     options['low_memory_mode']=False        
     options['use_mask']=False
@@ -95,6 +97,7 @@ def writeConfigFile(configFile, options):
     sections['compress_grids']=section
     sections['set_null_voltages_to_nodata']=section
     sections['set_null_currents_to_nodata']=section
+    sections['set_focal_node_currents_to_zero']=section
     
     section='Mask file'
     sections['use_mask']=section
@@ -175,6 +178,7 @@ def setDefaultOptions():
     options['set_null_voltages_to_nodata']=True # Default must be false or re-do verify .ini files
     options['set_null_currents_to_nodata']=True # Default must be false or re-do verify .ini files
     options['write_max_cur_maps']=False
+    options['set_focal_node_currents_to_zero']=False
     
     return options
 
@@ -237,6 +241,10 @@ def checkOptions(options):
 def read_header(filename):
     if os.path.isfile(filename)==False:
         raise RuntimeError('File "'  + filename + '" does not exist')
+    fileBase, fileExtension = os.path.splitext(filename) 
+    if fileExtension == '.npy': #numpy array will have an associated header file
+        filename = fileBase + '.hdr'
+    
     f = open(filename, 'r')
     try:
         [ign, ncols] = string.split(f.readline())
@@ -263,7 +271,7 @@ def read_header(filename):
   
     f.close()
  
-    
+    # print 'header',ncols, nrows, xllcorner, yllcorner, cellsize, nodata 
     return ncols, nrows, xllcorner, yllcorner, cellsize, nodata 
 
 def reader(filename, type):
@@ -271,9 +279,14 @@ def reader(filename, type):
         raise RuntimeError('File "'  + filename + '" does not exist')
     (ncols, nrows, xllcorner, yllcorner, cellsize, nodata) = read_header(filename)
 
-    if gdal_available == True:
-        map = numpy.float64(gdal_array.LoadFile(filename))
-        if nodata==True:    
+    fileBase, fileExtension = os.path.splitext(filename)     
+    if fileExtension == '.npy': 
+        map = numpy.load(filename, mmap_mode=None)
+        map = map.astype('float64')
+        
+    elif gdal_available == True:
+        map = numpy.float64(gdal_array.LoadFile(filename))  
+        if nodata!=False:    
             map = where(map==nodata, -9999, map)
     else:
         if nodata==False:
@@ -289,45 +302,32 @@ def reader(filename, type):
         temp=numpy.zeros((map.size,1))
         temp[:,0]=map
         map=temp       
-
+  
     return map
 
-def writer(file, data, state, compress):
-#     if gdal_available == True:
-#         driver = gdal.GetDriverByName ('MEM')
-#         out = driver.Create (file, 
-#                              xsize=data.shape[0],
-#                              ysize=data.shape[1],
-#                              bands=1, 
-#                              eType=GDT_Float64)
-#         out.SetGeoTransform([state['xllcorner'],  # top left x
-#                              state['cellsize'],   # w-e pixel resolution
-#                              0,                   # rotation
-#                              state['yllcorner'],  # top left y
-#                              0,                   # rotation
-#                              state['cellsize'],   # n-s pixel resolution
-#                              ])
-#         band = out.GetRasterBand(1)
-#         band.SetNoDataValue(state['nodata'])
-#         gdal_array.BandWriteArray(band, data)
-
-#         driver = gdal.GetDriverByName ('AAIGrid')
-#         out_aai = driver.CreateCopy (file, out)
-#     else:
-
+def writer(file, data, state, compress):    
+    #outputDir, outputFile = os.path.split(file)
+    outputBase, outputExtension = os.path.splitext(file) 
+    
+    if outputExtension == '.npy': #read numpy array, so write one.
+        numpy.save(file, data)
+        return
+        
     if gdal_available == True:
         format = "MEM"
-        driver = gdal.GetDriverByName( format )
+        driver = gdal.GetDriverByName( format )      
         dst_ds = driver.Create( file, len(data[0]), len(data),1,gdal.GDT_Float32)
+
         ull=state['yllcorner']+(state['cellsize'])*(len(data))
         dst_ds.SetGeoTransform([state['xllcorner'],  # left x
                              state['cellsize'],   # w-e pixel resolution
                              0,                   # rotation
                              ull,                 # upper left corner y
                              0,                   # rotation
-                             state['cellsize'],   # n-s pixel resolution
-                             ])
-        dst_ds.GetRasterBand(1).WriteArray( data )
+                             state['cellsize']])   # n-s pixel resolution
+                             
+   
+        dst_ds.GetRasterBand(1).WriteArray(data)
         format = 'AAIGrid'
         driver = gdal.GetDriverByName(format)
         dst_ds_new = driver.CreateCopy(file, dst_ds) #STILL GETTING LEADING SPACES.
@@ -350,7 +350,7 @@ def writer(file, data, state, compress):
         f.write('NODATA_value  ' + str(state['nodata']) + '\n')
         
         delimiter = ''
-        fmt = ['%.6f ']*state['ncols']
+        fmt = ['%.6f ']*state['ncols'] 
         format = delimiter.join(fmt)
         for row in data:
             f.write(format % tuple(row) + '\n')
