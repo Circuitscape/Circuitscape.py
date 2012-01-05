@@ -1,24 +1,20 @@
 ##
 ## Circuitscape (C) 2008, Brad McRae and Viral B. Shah. 
 ##
-## $Id: cs_util.py 791 2011-12-28 15:18:28Z mcrae $
+## $Id: cs_util.py 800 2012-01-04 19:14:15Z mcrae $
 ##
 
 import ConfigParser, os, string, gzip
 import numpy
 import time
 
-# Code like below may be needed for GDAL
-# import sys
-# sys.path.append('/Library/Python/2.5/site-packages/GDAL-1.5.2-py2.5-macosx-10.5-i386.egg') 
-
-gdal_available = True #GDAL DISABLED UNTIL READ BUG RESOLVED
-try:
-    from osgeo import gdal_array, gdal
-    from osgeo.gdalconst import *
-    #print 'GDAL AVAILABLE'
-except ImportError:
-   gdal_available = False
+# gdal_available = True #GDAL disabled for now, but should work- BHM 01/04/12
+# try:
+    # from osgeo import gdal_array, gdal
+    # from osgeo.gdalconst import *
+    # #print 'GDAL AVAILABLE'
+# except ImportError:
+   # gdal_available = False
 
 # Disable GDAL as it is error-prone for some cases for now. VS - 4/5/09
 gdal_available = False
@@ -48,7 +44,6 @@ def readConfigFile(configFile):
     options['variable_source_file']='None' 
     options['data_type']='raster' 
     options['version']='unknown'
-
         
     for section in config.sections():
         for option in config.options(section):

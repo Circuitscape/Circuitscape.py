@@ -31,7 +31,7 @@ setup(
     setup_requires=['py2app'],
     data_files=DATA_FILES,
     options={'py2app': OPTIONS},
-    version='3.5.5',
+    version='3.5.7',
     author='Brad McRae and Viral B. Shah',
     author_email='mcrae@circuitscape.org'
 )

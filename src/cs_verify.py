@@ -1,7 +1,7 @@
 ##
 ## Circuitscape (C) 2008, Brad McRae and Viral B. Shah. 
 ##
-## $Id: cs_verify.py 777 2011-12-12 22:30:19Z mcrae $
+## $Id: cs_verify.py 793 2012-01-04 16:14:23Z mcrae $
 ##
 
 import imp, os, sys
@@ -19,7 +19,7 @@ def approxEqual(a, b):
     for i in range(0, m):
         for j in range(0, n):
             if (a[i,j] != b[i,j]):
-                if (abs(a[i,j] - b[i,j]) > 1e-6):
+                if (abs(a[i,j] - b[i,j]) > 1e-6):  
                     return False
     return True
 

@@ -1,7 +1,7 @@
 ##
 ## Circuitscape (C) 2008, Brad McRae and Viral B. Shah. 
 ##
-## $Id: cs_compute.py 791 2011-12-28 15:18:28Z mcrae $
+## $Id: cs_compute.py 798 2012-01-04 18:58:48Z mcrae $
 ##
 
 ############## Enter True below to run in Stress Test mode
@@ -9,6 +9,7 @@ stressTest = False
 stress_ncols = 5000
 stress_nrows = 5000
 #########################################################
+
 
 import sys, time, string, os, math
 import ConfigParser
@@ -35,11 +36,11 @@ from gapdt import *
 import copy
 
 pylab_available = False
-try:
-    import pylab
-    import matplotlib
-except ImportError:
-    pylab_available = False
+# try:
+    # import pylab
+    # import matplotlib
+# except ImportError:
+    # pylab_available = False
 
 umfpack_available = False #Fixme- causes error on mac OS
 try:
@@ -63,6 +64,11 @@ class cs_compute:
         self.state = {}
         self.state['amg_hierarchy'] = None
         self.options = readConfigFile(configFile)
+        if logger_func == 'Screen':
+            self.options['screenprint_log'] = True
+            logger_func = None
+        else:
+            self.options['screenprint_log'] = False
         numpy.seterr(invalid='ignore')
         numpy.seterr(divide='ignore')
         
@@ -137,8 +143,6 @@ class cs_compute:
         return wrapper
 
         
-        
-
     def cs_log(self, text,col):
         (hours,mins,secs) = elapsed_time(self.state['startTime'])
         (hours,mins,secs1) = elapsed_time(self.state['lastUpdateTime'])
@@ -152,6 +156,8 @@ class cs_compute:
                 pass
         if logger:           
             logger(text,col)
+        if self.options['screenprint_log'] == True and len(text) > 1 and col == 1: 
+            print '    --- ',text,' ---'
         return
 
 
@@ -189,7 +195,9 @@ class cs_compute:
             return result,solver_failed #Fixme: add in solver failed check
         else:
             self.load_maps()
-        
+            numNodes = (where(self.state['g_map'] > 0, 1, 0)).sum()         
+            if self.options['screenprint_log'] == True:        
+                print '    ---  Resistance/conductance map has',numNodes,' nodes.  ---'
         if self.options['scenario']=='pairwise':
             resistances,solver_failed = self.pairwise_module(self.state['g_map'], self.state['poly_map'], self.state['points_rc'])
             self.logCompleteJob()
@@ -1048,7 +1056,6 @@ class cs_compute:
            
         solver_failed_somewhere = False
         node_map = self.construct_node_map(g_map, poly_map) # Polygons burned in to node map 
-               
         (component_map, components) = self.construct_component_map(g_map, node_map)
         
         self.cs_log('Graph has ' + str(node_map.max()) + ' nodes and '+ str(components.max())+ ' components.',2)
@@ -2483,7 +2490,7 @@ class cs_compute:
             self.state['pointStrengths'] = self.readPointStrengths(self.options['variable_source_file']) 
         
         if pylab_available:
-            pylab.spy(self.state['g_map'], hold = True, cmap = matplotlib.colors.ListedColormap(['c','r']))
+            pylab.spy(self.state['g_map'], hold = True, cmap = lib.colors.ListedColormap(['c','r']))
             pylab.draw()
 
             pylab.spy(self.state['poly_map'], hold = True,  cmap = matplotlib.colors.ListedColormap(['c','g']))
