@@ -21,7 +21,7 @@ setup(
     console=['cs_run.py'],
     data_files=DATA_FILES,
     options={'py2exe': OPTIONS},
-    version='3.5.6',
+    version='3.5.7',
     author='Brad H. McRae and Viral B. Shah',
     author_email='mcrae@circuitscape.org'
 )

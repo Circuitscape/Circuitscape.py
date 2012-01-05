@@ -2,13 +2,19 @@
 ##
 ## Circuitscape (C) 2008, Brad McRae and Viral B. Shah. 
 ##
-## $Id: cs_run.py 440 2009-03-13 01:05:07Z viral $
+## $Id: cs_run.py 795 2012-01-04 18:14:31Z mcrae $
 ##
+
 
 import sys
 from cs_compute import *
-
-configFile = sys.argv[1]
-cs = cs_compute(configFile, None)
-resistances = cs.compute()
-print resistances
+if len(sys.argv) == 1:
+    print 'Error: Circuitscape configuration (.ini) file required.'
+else:
+    configFile = sys.argv[1]
+    print 'Calling Circuitscape...'
+    cs = cs_compute(configFile, 'Screen')
+    resistances = cs.compute()
+    print resistances
+    print '\nCircuitscape calculations completed.'
+    
