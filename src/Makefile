@@ -1,4 +1,4 @@
-VER=3.5.4
+VER=3.5.8
 
 all: mac src
 

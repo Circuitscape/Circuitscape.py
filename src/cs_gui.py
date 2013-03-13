@@ -1,7 +1,7 @@
 ##
 ## Circuitscape (C) 2008, 2009, 2010, Brad McRae and Viral B. Shah. 
 ##
-## $Id: cs_gui.py 795 2012-01-04 18:14:31Z mcrae $
+## $Id: cs_gui.py 805 2012-07-30 23:11:04Z mcrae $
 ##
 
 
@@ -31,7 +31,7 @@ from cs_verify import *
 class cs_gui(model.Background):
     def on_initialize(self, event):
         self.state = {}        
-        self.state['version']='3.5.7'
+        self.state['version']='3.5.8'
         #LOAD LAST self.options
         configFile = 'circuitscape.ini'
         self.options = self.LoadOptions(configFile) 

@@ -25,13 +25,23 @@ OPTIONS = {'packages': PACKAGES,
                       'CFBundleName': 'Circuitscape'
                      }
            }
+#Now also compile cs_run.py.  compiling it first ensures that dependencies needed for cs_gui also included.
+# setup(
+#     app=['cs_run.py'],
+#     setup_requires=['py2app'],
+#     data_files=DATA_FILES,
+#     options={'py2app': OPTIONS},
+#     version='3.5.7',
+#     author='Brad McRae and Viral B. Shah',
+#     author_email='mcrae@circuitscape.org'
+# )
 
 setup(
     app=['cs_gui.py'],
     setup_requires=['py2app'],
     data_files=DATA_FILES,
     options={'py2app': OPTIONS},
-    version='3.5.7',
+    version='3.5.8',
     author='Brad McRae and Viral B. Shah',
     author_email='mcrae@circuitscape.org'
-)
+    )

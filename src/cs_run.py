@@ -2,7 +2,7 @@
 ##
 ## Circuitscape (C) 2008, Brad McRae and Viral B. Shah. 
 ##
-## $Id: cs_run.py 795 2012-01-04 18:14:31Z mcrae $
+## $Id: cs_run.py 804 2012-07-30 23:05:05Z mcrae $
 ##
 
 
@@ -18,3 +18,5 @@ else:
     print resistances
     print '\nCircuitscape calculations completed.'
     
+
+   
