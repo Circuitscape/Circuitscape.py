@@ -1,7 +1,7 @@
 ##
 ## Circuitscape (C) 2008, Brad McRae and Viral B. Shah. 
 ##
-## $Id: cs_compute.py 798 2012-01-04 18:58:48Z mcrae $
+## $Id: cs_compute.py 804 2012-07-30 23:05:05Z mcrae $
 ##
 
 ############## Enter True below to run in Stress Test mode
@@ -139,6 +139,7 @@ class cs_compute:
                 for i in range(0,print_timings_spaces):
                     print" ",
                 print'%s' % func.func_name
+                sys.stdout.flush()
             return res
         return wrapper
 
@@ -158,6 +159,7 @@ class cs_compute:
             logger(text,col)
         if self.options['screenprint_log'] == True and len(text) > 1 and col == 1: 
             print '    --- ',text,' ---'
+        sys.stdout.flush()
         return
 
 
@@ -244,7 +246,11 @@ class cs_compute:
     def network_module(self): 
         solver_failed = False
         (g_graph,nodeNames) = self.read_graph(self.options['graph_file'])
-        C = self.gapdt.components(g_graph) 
+        C = self.gapdt.components(g_graph)         
+        # print C
+        # C2 = sparse.cs_graph_components(g_graph)
+        # print 'C2'
+        # print C2
         numComponents = max(C)
         self.cs_log('Graph has ' + str(g_graph.shape[0]) + ' nodes and '+ str(numComponents) + ' components.',2)
         if numComponents > 1:
@@ -1103,6 +1109,7 @@ class cs_compute:
                         else:
                             self.create_amg_hierarchy(Gsolve)
 
+
                         ################    
                         for j in range(i+1, numpoints):
                             if includedPairs[i+1,j+1]==1: #Test for pair in includedPairs
@@ -1713,6 +1720,7 @@ class cs_compute:
             # construct the MG hierarchy
             ml = []
             if using_G_no_deleterow:
+              #  scipy.io.savemat('c:\\temp\\graph.mat',mdict={'d':G})
                 ml = smoothed_aggregation_solver(G)
             else:
                 ml = ruge_stuben_solver(G)    
