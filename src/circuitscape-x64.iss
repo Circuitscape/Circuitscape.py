@@ -7,7 +7,7 @@
 ; (To generate a new GUID, click Tools | Generate GUID inside the IDE.)
 AppId={{E4376ABF-DB0A-41EA-B854-54ED7A20BD38}
 AppName=Circuitscape
-AppVerName=Circuitscape 3.5.7
+AppVerName=Circuitscape 3.5.8
 AppPublisher=Circuitscape
 AppPublisherURL=http://www.circuitscape.org/
 AppSupportURL=http://www.circuitscape.org/
