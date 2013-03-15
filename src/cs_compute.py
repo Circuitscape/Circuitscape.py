@@ -35,12 +35,6 @@ from cs_util import *
 from gapdt import *
 import copy
 
-pylab_available = False
-# try:
-    # import pylab
-    # import matplotlib
-# except ImportError:
-    # pylab_available = False
 
 umfpack_available = False #Fixme- causes error on mac OS
 try:
@@ -97,8 +91,6 @@ class cs_compute:
 
         self.options['use_reclass_table'] = False
         self.options['reclass_file'] = './reclass.txt'        
-        self.options['write_volt_drop_maps']=False
-        self.options['normalize_vdrop_maps']=False
 #         self.options['use_included_pairs'] = True #debug code
 #         self.options['included_pairs_file'] = './verify/1/include_matrix.txt' 
 #         print'DEBUG CODE ACTIVATED. EXCLUDE SET TO',self.options['included_pairs_file']
@@ -116,8 +108,6 @@ class cs_compute:
             self.options['solver'] = 'umfpack'
         
         self.gapdt = gapdt()
-        if pylab_available:
-            self.fig = pylab.figure()
 
         global logger
         logger = logger_func
@@ -165,7 +155,6 @@ class cs_compute:
 
     @print_timing
     def compute(self):
-
         #back door to network code
         if self.options['polygon_file'] == 'NETWORK': 
              self.options['data_type']='network' #can also be set in .ini file
@@ -217,10 +206,12 @@ class cs_compute:
         else:
             resistance_vector,solver_failed = self.one_to_all_module(self.state['g_map'], self.state['poly_map'], self.state['points_rc'])
             self.logCompleteJob()
-            return resistance_vector,solver_failed    
+            return resistance_vector,solver_failed 
+            
     
     def grid_to_graph (self, x, y, node_map):
         return node_map[x, y] - 1
+        
         
     def logCompleteJob(self):
         (hours,mins,secs) = elapsed_time(self.state['startTime'])
@@ -366,7 +357,6 @@ class cs_compute:
         return fullResistances,solver_failed #Fixme: need to check solver failed.
         
      
-
     def graph_list_to_graph(self,graphList):
         nodes = self.deletecol(graphList,2) 
         nodeNames = unique(asarray(nodes))
@@ -519,6 +509,7 @@ class cs_compute:
                
         return cumBranchCurrentsArray,cumNodeCurrentsArray,resistances3columns,solver_failed  
 
+        
     def append_names_to_node_currents(self,node_currents, nodeNames):
         outputNodeCurrents=zeros((len(node_currents),2),dtype='float64')
         outputNodeCurrents[:,0]=nodeNames[:]
@@ -528,6 +519,7 @@ class cs_compute:
             outputNodeCurrents[:,1]=node_currents[:]
         return outputNodeCurrents
         
+        
     def append_names_to_resistances(self, point_ids, resistances):        
         focal_labels = insert(point_ids, [0], 0, axis = 0)
         resistances = insert(resistances, [0], 0, axis = 0)
@@ -535,6 +527,7 @@ class cs_compute:
         resistances[0,:] = focal_labels
         resistances[:,0] = focal_labels
         return resistances
+        
         
     def writeCurrentsNetwork(self, branch_currents, node_currents, fileadd):
         """Writes currents from network operations.
@@ -863,6 +856,7 @@ class cs_compute:
                 
         return poly_map_temp
 
+        
     #FIXME: Reconcile this module with the one above, consolidate.
     def get_poly_map_temp2(self,poly_map,point_map,points_rc_unique_temp,includedPairs,i):
         if poly_map == []:
@@ -897,8 +891,7 @@ class cs_compute:
             focalNodes = points_rc[:,0]
             savetxt(self.options['focal_node_copy'],focalNodes)            
         ##############
-    
-    
+        
         if self.options['write_cur_maps'] == True:
             cum_current_map = zeros((self.state['nrows'],self.state['ncols']),dtype = 'float64') 
             if self.options['write_max_cur_maps']==True:
@@ -908,13 +901,8 @@ class cs_compute:
         else:
             cum_current_map = []
             max_current_map=[]
-        if self.options['write_volt_drop_maps'] == True:
-            cum_vdrop_map = zeros((self.state['nrows'],self.state['ncols']),dtype = 'float64') 
-        else:
-            cum_vdrop_map = []
-            
-            
 
+         
         # If there are no focal regions, pass all points to single_ground_all_pair_resistances,
         # otherwise, pass one point at a time.
         if self.options['point_file_contains_polygons']==False:
@@ -931,7 +919,7 @@ class cs_compute:
                 
                 reportStatus = True
                 try:
-                    (resistances,cum_current_map,max_current_map,cum_vdrop_map,solver_failed) = self.single_ground_all_pair_resistances(g_map, poly_map, points_rc,cum_current_map,max_current_map,cum_vdrop_map,reportStatus)
+                    (resistances,cum_current_map,max_current_map,solver_failed) = self.single_ground_all_pair_resistances(g_map, poly_map, points_rc,cum_current_map,max_current_map, reportStatus)
                 except MemoryError: #Give it a try, but starting again never seems to helps even from GUI.
                     self.enable_low_memory(True) #This doesn't seem to really clear out memory or truly restart.
                     if self.options['write_cur_maps'] == True:
@@ -945,7 +933,7 @@ class cs_compute:
                         max_current_map=[]
                         
                     #Note: This does not go through when it should.
-                    (resistances,cum_current_map,max_current_map,cum_vdrop_map,solver_failed) = self.single_ground_all_pair_resistances(g_map, poly_map, points_rc,cum_current_map,max_current_map,cum_vdrop_map,reportStatus)
+                    (resistances,cum_current_map,max_current_map,solver_failed) = self.single_ground_all_pair_resistances(g_map, poly_map, points_rc,cum_current_map,max_current_map,reportStatus)
                 if solver_failed == True:
                     print('Solver failed for at least one focal node pair. ' 
                     '\nThis can happen when input resistances differ by more than' 
@@ -998,7 +986,7 @@ class cs_compute:
                         self.cs_log ('At ' + str(hours) +' hr ' + str(mins) + ' min solving focal pair ' + str(x) + ' of '+ str(y) + '.',1)
                         reportStatus = False
                         
-                        (pairwise_resistance,cum_current_map,max_current_map,cum_vdrop_map,solver_failed) = self.single_ground_all_pair_resistances(g_map, poly_map_temp, points_rc_temp,cum_current_map,max_current_map,cum_vdrop_map,reportStatus)
+                        (pairwise_resistance,cum_current_map,max_current_map,solver_failed) = self.single_ground_all_pair_resistances(g_map, poly_map_temp, points_rc_temp,cum_current_map,max_current_map,reportStatus)
     
                         del poly_map_temp
                         if solver_failed == True:
@@ -1038,15 +1026,11 @@ class cs_compute:
                 if self.options['write_max_cur_maps']==True:      
                     self.write_aaigrid('max_curmap', '', max_current_map)
 
-        if self.options['write_volt_drop_maps']==True:  #Fixme: need to add vdrop maps into one-to-all mode
-            if solver_failed==False:
-                self.write_aaigrid('cum_volt_gradient_map', '', cum_vdrop_map)
-
         return resistances,solver_failed
     
     
     @print_timing
-    def single_ground_all_pair_resistances(self, g_map, poly_map, points_rc,cum_current_map,max_current_map,cum_vdrop_map,reportStatus):
+    def single_ground_all_pair_resistances(self, g_map, poly_map, points_rc,cum_current_map,max_current_map,reportStatus):
         lastWriteTime = time.time()
         numpoints = points_rc.shape[0]
         if (self.options['use_included_pairs']==False) or (self.options['point_file_contains_polygons']==True):
@@ -1054,7 +1038,7 @@ class cs_compute:
         else:
             includedPairs = self.state['includedPairs']
         
-        if (self.options['point_file_contains_polygons']==True) or (self.options['write_volt_drop_maps'] == True) or (self.options['write_cur_maps'] == True) or (self.options['write_volt_maps'] == True) or (self.options['use_included_pairs']==True): 
+        if (self.options['point_file_contains_polygons']==True) or  (self.options['write_cur_maps'] == True) or (self.options['write_volt_maps'] == True) or (self.options['use_included_pairs']==True): 
            useResistanceCalcShortcut = False
         else:     
            useResistanceCalcShortcut = True # We use this when there are no focal regions.  It saves time when we are also not creating maps
@@ -1241,14 +1225,6 @@ class cs_compute:
                            
 
 
-                                        if self.options['write_volt_drop_maps']==True:  #Fixme: need to add vdrop maps into one-to-all mode
-                                            voltage_map = self.create_voltage_map(local_node_map,voltages) 
-                                            vdrop_map=self.create_vdrop_map(voltage_map, node_map)
-                                            self.write_aaigrid('volt_gradient_map', '_' + frompoint + '_' + topoint, vdrop_map)
-                                            ind = self.state['g_map'] == 0
-                                            vdrop_map[where(ind)] = 0                                            
-                                            cum_vdrop_map = cum_vdrop_map + vdrop_map
-                                            del vdrop_map
                                         (hours,mins,secs) = elapsed_time(lastWriteTime)
                                         if secs > 120: 
                                             lastWriteTime = time.time()
@@ -1281,8 +1257,9 @@ class cs_compute:
             # file = outputDir + '//' + outputBase + '_branch_currents_cum_baseline.txt'
             # nodeNames=arange(1,node_map.max()+1)
             # self.writeGraph(file,cumBranchCurrents,nodeNames)
-        return resistances,cum_current_map,max_current_map,cum_vdrop_map,solver_failed_somewhere
+        return resistances,cum_current_map,max_current_map,solver_failed_somewhere
 
+        
     @print_timing
     def single_ground_solver(self, G, src, dst):#G here
         n = G.shape[0]
@@ -1313,6 +1290,7 @@ class cs_compute:
 
         return voltages
 
+        
     @print_timing
     def advanced_module(self, g_map, poly_map, source_map, ground_map,source_id, G, node_map, component_map, componentWithPoints): 
         if node_map==None:
@@ -1451,8 +1429,8 @@ class cs_compute:
 
         return voltages,cum_current_map,solver_failed
 
+        
     def resolve_conflicts(self, sources, grounds):
-
         finitegrounds = where(grounds<Inf,grounds,0)
         if (where(finitegrounds==0, 0, 1)).sum()==0:
             finitegrounds = [-9999]
@@ -1475,6 +1453,7 @@ class cs_compute:
 
         return (sources, grounds, finitegrounds)
 
+        
     @print_timing
     def multiple_solver(self, G, sources, grounds, finitegrounds):
         if finitegrounds[0]==-9999:#Fixme: no need to do this, right?
@@ -1510,7 +1489,8 @@ class cs_compute:
                 node = infgroundlist[numinfgrounds - ground] 
                 voltages = asmatrix(insert(voltages,node,0)).T
         return asarray(voltages).reshape(voltages.size)
-                    
+            
+            
     @print_timing
     def construct_node_map(self, g_map, poly_map):
         node_map = zeros(g_map.shape, dtype = 'int32')
@@ -1562,6 +1542,7 @@ class cs_compute:
         g_graph = G + G.T
         return g_graph
 
+        
     def writeGraph(self,filename,graph,nodeNames):
         graphNcol = self.convert_graph_to_3_col(graph,nodeNames)
         savetxt(filename,graphNcol)
@@ -1584,6 +1565,7 @@ class cs_compute:
         graphNcol[:,2] = Gcoo.data[mask]
         return graphNcol
         
+        
     def get_horiz_neighbors(self, g_map):
         m = g_map.shape[0]
         n = g_map.shape[1]
@@ -1596,6 +1578,7 @@ class cs_compute:
 
         return (s_horiz, t_horiz)
 
+        
     def get_vert_neighbors(self, g_map):
         m = g_map.shape[0]
         n = g_map.shape[1]
@@ -1608,6 +1591,7 @@ class cs_compute:
         
         return (s_vert, t_vert)
 
+        
     def get_diag1_neighbors(self, g_map):
         m = g_map.shape[0]
         n = g_map.shape[1]
@@ -1623,6 +1607,7 @@ class cs_compute:
         
         return (s_dr, t_dr)
 
+        
     def get_diag2_neighbors(self, g_map):
         m = g_map.shape[0]
         n = g_map.shape[1]
@@ -1637,6 +1622,7 @@ class cs_compute:
         t_dl      = where(r_[z2, c_[g_map_udl, z1]].flatten())
                         
         return (s_dl, t_dl)
+        
         
     def get_conductances(self, g_map, node_map):
         (s_horiz, t_horiz) = self.get_horiz_neighbors(g_map)
@@ -1694,15 +1680,11 @@ class cs_compute:
         node_map_pruned = self.construct_node_map (g_map_pruned, poly_map_pruned)
         prunedMap = True
         G_pruned = self.construct_g_graph (g_map_pruned, node_map_pruned, prunedMap) #G here
-
-        if pylab_available:
-            pylab.spy(selector)
-            pylab.draw()
-
         G = self.laplacian(G_pruned) #G here
         
         return (G, node_map_pruned)#G here
 
+        
     @print_timing
     def laplacian(self, G): #G here
         n = G.shape[0]
@@ -1713,6 +1695,7 @@ class cs_compute:
 
         return G
 
+        
     @print_timing
     def create_amg_hierarchy(self, G): #G here
         if self.options['solver'] == 'amg' or self.options['solver'] == 'cg+amg':
@@ -1728,6 +1711,7 @@ class cs_compute:
   
         return
 
+        
     @print_timing
     def solve_linear_system(self, G, rhs): #G here
         gc.collect()
@@ -1780,6 +1764,7 @@ class cs_compute:
 
         return asarray(node_currents)[0]
 
+        
     def get_node_currents_posneg (self, G, voltages, finitegrounds, pos):
         branch_currents = self.get_branch_currents(G,voltages,pos)
         branch_currents = branch_currents-branch_currents.T #Can cause memory error
@@ -1804,6 +1789,7 @@ class cs_compute:
 
         return branch_currents.sum(0)
     
+    
     def get_branch_currents(self,G,voltages,pos):    
         branch_currents = self.get_branch_currents_posneg(G,voltages,pos)
         n = G.shape[0]
@@ -1811,6 +1797,7 @@ class cs_compute:
         branch_currents = sparse.csr_matrix((branch_currents, (G.row[mask], G.col[mask])), shape = (n,n)) #SQUARE MATRIX, SAME DIMENSIONS AS GRAPH
         return branch_currents
 
+        
     def get_branch_currents_posneg(self,G,voltages,pos):
         mask = G.row < G.col
         if pos==True:
@@ -1847,9 +1834,6 @@ class cs_compute:
                 ind = self.state['g_map'] == 0
                 data[where(ind)] = self.state['nodata']
                 del ind                
-        elif type == 'volt_gradient_map' or type == 'cum_volt_gradient_map':
-            if self.options['write_volt_drop_maps'] == False: 
-                return
         else:
             return
 
@@ -1862,6 +1846,7 @@ class cs_compute:
         else:
             file = outputDir + '//' + outputBase + '_' + type + fileadd +'.asc'
         writer(file, data, self.state, self.options['compress_grids'])
+        
         
     def read_cell_map(self, filename):
         (ncols, nrows, xllcorner, yllcorner, cellsize, nodata) = read_header(filename)
@@ -1910,7 +1895,6 @@ class cs_compute:
                 points = loadtxt(filename)
             except ValueError:
                 raise RuntimeError('File "'  + filename + '" is not in correct text list format. \n If it is an ASCII grid, please use .asc extension.')                
-
             
             points_rc = zeros(points.shape,dtype = 'int32')
             try:
@@ -1969,6 +1953,7 @@ class cs_compute:
         
         return points_rc
         
+        
     def read_poly_map(self, filename,readingMask):  
         (ncols, nrows, xllcorner, yllcorner, cellsize, nodata) = read_header(filename)
         if cellsize!= self.state['cellsize']:
@@ -1996,6 +1981,7 @@ class cs_compute:
 
         return map
 
+        
     def read_source_and_ground_maps(self, source_filename, ground_filename): 
         #FIXME: reader does not currently handle infinite inputs for ground conductances.
         if os.path.isfile(source_filename)==False:
@@ -2025,9 +2011,7 @@ class cs_compute:
                 raise RuntimeError('Current source raster must have same xllcorner and yllcorner as habitat raster') 
             if xllcorner!= self.state['xllcorner']:
                 raise RuntimeError('Current source raster must have same xllcorner and yllcorner as habitat raster') 
-                
-                
-                
+               
             source_map = reader(source_filename, 'float64')
             source_map = where(source_map == -9999,0,source_map)
 
@@ -2120,6 +2104,7 @@ class cs_compute:
 
         return includedPairs
 
+        
     def readPointStrengths(self, filename):
         if os.path.isfile(filename)==False:
             raise RuntimeError('File "'  + filename + '" does not exist')
@@ -2242,6 +2227,7 @@ class cs_compute:
 
         return map
 
+        
     def getVoltmatrix(self,i,j,numpoints,local_node_map,voltages,points_rc,resistances,voltmatrix):                                            
        voltvector = zeros((numpoints,1),dtype = 'float64')  
        voltage_map = self.create_voltage_map(local_node_map,voltages) 
@@ -2279,6 +2265,7 @@ class cs_compute:
         keepcols = arange(0, n)
         return A[keeprows][:,keepcols]
 
+        
     def deletecol(self, A, delcol):
         m = A.shape[0]
         n = A.shape[1]
@@ -2286,6 +2273,7 @@ class cs_compute:
         keepcols = delete (arange(0, n), delcol)
         return A[keeprows][:,keepcols]
 
+        
     def writeResistances(self, point_ids, resistances):
         # print 'RES'
         # print resistances
@@ -2313,6 +2301,7 @@ class cs_compute:
             pass 
         return outputResistances
         
+        
     def writeResistances3columns(self, resistances3Columns):    
         fileName = self.options['output_file']
         outputDir, outputFile = os.path.split(fileName)
@@ -2336,6 +2325,7 @@ class cs_compute:
                 resistances3columns[x,2] = resistances[i,j]
                 x = x+1
         return resistances3columns        
+        
         
     def saveIncompleteResistances(self, resistances):
         fileName = self.options['output_file']
@@ -2413,6 +2403,7 @@ class cs_compute:
                     break                    
         return points_rc_unique          
         
+        
     def checkPointsInComponent(self,c,numpoints,components,points_rc,node_map):
         points_in_this_component = False            
         for pt1 in range(0, numpoints): 
@@ -2425,6 +2416,7 @@ class cs_compute:
                         break        
         return points_in_this_component    
 
+        
     def getstrengthMap(self,points_rc_unique,pointStrengths):
         if self.options['use_variable_source_strengths']==True:
             if self.options['scenario'] == 'one-to-all': 
@@ -2437,6 +2429,7 @@ class cs_compute:
             return strengthMap,strengths_rc
         else:
             return None,None
+        
         
     def get_strengths_rc(self,pointStrengths,points_rc_unique):
         strengths_rc = zeros(points_rc_unique.shape,dtype = 'float64')
@@ -2453,6 +2446,7 @@ class cs_compute:
                 strengths_rc[point,0] = 1
         return strengths_rc        
 
+        
     @print_timing
     def load_maps(self):
         self.cs_log('Reading maps',1)
@@ -2486,10 +2480,6 @@ class cs_compute:
             self.state['source_map'] = []
             self.state['ground_map'] = []
 
-            
-            
-            
-
         if self.options['use_included_pairs']==True:
             self.state['includedPairs'] = self.readincludedPairs(self.options['included_pairs_file'])
         
@@ -2497,17 +2487,33 @@ class cs_compute:
         if self.options['use_variable_source_strengths']==True:
             self.state['pointStrengths'] = self.readPointStrengths(self.options['variable_source_file']) 
         
-        if pylab_available:
-            pylab.spy(self.state['g_map'], hold = True, cmap = lib.colors.ListedColormap(['c','r']))
-            pylab.draw()
-
-            pylab.spy(self.state['poly_map'], hold = True,  cmap = matplotlib.colors.ListedColormap(['c','g']))
-            pylab.draw()
-
         self.cs_log('Processing maps',1)
         return 
         
         
+    def writeResistancesOneToAll(self,resistances,string):
+        fileName = self.options['output_file']
+        outputDir, outputFile = os.path.split(fileName)
+        outputBase, outputExtension = os.path.splitext(outputFile)
+        if self.options['scenario'] == 'one-to-all':
+            outputFile = outputDir + '//' + outputBase + '_resistances' + string + outputExtension
+        else:
+            outputFile = outputDir + '//' + outputBase + '_results' + string + outputExtension     
+        savetxt (outputFile, resistances) 
+        
+        #remove partial result file        
+        if string=='':        
+            if self.options['scenario'] == 'one-to-all':
+                oldFile = outputDir + '//' + outputBase + '_resistances_incomplete' + string + outputExtension
+            else:
+                oldFile = outputDir + '//' + outputBase + '_results_incomplete' + string + outputExtension
+            try:
+                os.remove(oldFile)
+            except:
+                pass 
+        return
+
+
 #################### BEGIN STRESS TESTING CODE ############################################
     def run_stress_test(self,stress_ncols,stress_nrows):
         ##### 
@@ -2546,101 +2552,7 @@ class cs_compute:
 #################### END STRESS TESTING CODE ############################################
 
 #    raw_input('Hit any key to continue')    #debug code
-
-
-    def create_vdrop_map(self, volt_map, node_map):
-#         print 'nodes'
-#         print node_map
-        #FIXME: Not sure yet how polymap affects this... 
-        if self.options['normalize_vdrop_maps']==True:
-            volt_map=volt_map / min(volt_map)
-        up=logical_and(node_map,self.shift_down(node_map))
-        vdiff_up = where(up,volt_map-self.shift_down(volt_map),0)
-#         r_ratio_up=where(up,((1/g_map)/((1/g_map)+(1/(self.shift_down(g_map))))),0) FIXME: need something like this, but problematic with polygons?  Maybe not....
-        vdiff_up[0,:]=0
-
-        left=logical_and(node_map,self.shift_right(node_map))
-        vdiff_left = where(left,volt_map-self.shift_right(volt_map),0)
-        vdiff_left[:,0]=0
-
-        right=logical_and(node_map,self.shift_left(node_map))               
-        vdiff_right = where(right,volt_map-self.shift_left(volt_map),0)
-        vdiff_right[:,self.state['ncols']-1]=0
-
-        down=logical_and(node_map,self.shift_up(node_map))
-        vdiff_down = where(down,volt_map-self.shift_up(volt_map),0)
-        vdiff_down[self.state['nrows']-1,:]=0
-        
-        if self.options['connect_four_neighbors_only'] == False:
-            ul=logical_and(node_map,self.shift_right(self.shift_down(node_map)))
-            vdiff_ul = where(ul,volt_map-self.shift_right(self.shift_down(volt_map)),0) #FIXME: doesn't consider that shifted cell may not be a node (or does it?)
-            vdiff_ul[0,:]=0
-            vdiff_ul[:,0]=0
-    
-            ur=logical_and(node_map,self.shift_left(self.shift_down(node_map)))
-            vdiff_ur = where(ur,volt_map-self.shift_left(self.shift_down(volt_map)),0)
-            vdiff_ur[0,:]=0
-            vdiff_ur[:,self.state['ncols']-1]=0
-    
-            dl=logical_and(node_map,self.shift_right(self.shift_up(node_map)))
-            vdiff_dl = where(dl,volt_map - self.shift_right(self.shift_up(volt_map)),0)
-            vdiff_dl[self.state['nrows']-1,:]=0
-            vdiff_dl[:,0]=0
-    
-            dr=logical_and(node_map,self.shift_left(self.shift_up(node_map)))
-            vdiff_dr = where(dr,volt_map-self.shift_left(self.shift_up(volt_map)),0)
-            vdiff_dr[self.state['nrows']-1,:]=0
-            vdiff_dr[:,self.state['ncols']-1]=0
-
-        else:
-            vdiff_ul=zeros(volt_map.shape,dtype='int32')
-            vdiff_ur=vdiff_ul
-            vdiff_dl=vdiff_ul
-            vdiff_dr=vdiff_ul
-            
-
-        vdrop_3d=numpy.zeros((8,self.state['nrows'],self.state['ncols']),dtype='float64')
-        vdrop_3d[0,:,:]=vdiff_ul
-        vdrop_3d[1,:,:]=vdiff_up
-        vdrop_3d[2,:,:]=vdiff_ur
-        
-        vdrop_3d[3,:,:]=vdiff_left
-        vdrop_3d[4,:,:]=vdiff_right
-        vdrop_3d[5,:,:]=vdiff_dl
-        vdrop_3d[6,:,:]=vdiff_down
-        vdrop_3d[7,:,:]=vdiff_dr
-        
-
-        
-        vdrop_3d=numpy.sort(vdrop_3d, axis=0)        
-        
-        vdrop_min=where(vdrop_3d[0,:,:]<0,vdrop_3d[0,:,:],0)
-        vdrop_max=where(vdrop_3d[7,:,:]>0,vdrop_3d[7,:,:],0)
-        vdrop_map=(vdrop_max-vdrop_min)/2 #FIXME: scale by per-cell resistances!
-
-        ind = node_map == 0
-        vdrop_map[where(ind)] = self.state['nodata']
-
-        return vdrop_map
-
-
-    def shift_up(self,cells):
-        return concatenate((cells[1:], cells[:1]))
-
-    def shift_up(self,cells):
-        return concatenate((cells[1:], cells[:1]))
-    
-    def shift_down(self,cells):
-        return concatenate((cells[-1:], cells[:-1]))
-    
-    def shift_left(self,cells):
-        return transpose(self.shift_up(transpose(cells)))
-    
-    def shift_right(self,cells):
-        return transpose(self.shift_down(transpose(cells)))
-        
-
-
+       
 
     # Not implemented at this time
     def advanced_module_network(self,G,sources,grounds,nodeNames):
@@ -2753,32 +2665,6 @@ class cs_compute:
         print 'focal nodes'
         print focalNodes
         return resistances,solver_failed
-
-
-
-
-
-    def writeResistancesOneToAll(self,resistances,string):
-        fileName = self.options['output_file']
-        outputDir, outputFile = os.path.split(fileName)
-        outputBase, outputExtension = os.path.splitext(outputFile)
-        if self.options['scenario'] == 'one-to-all':
-            outputFile = outputDir + '//' + outputBase + '_resistances' + string + outputExtension
-        else:
-            outputFile = outputDir + '//' + outputBase + '_results' + string + outputExtension     
-        savetxt (outputFile, resistances) 
-        
-        #remove partial result file        
-        if string=='':        
-            if self.options['scenario'] == 'one-to-all':
-                oldFile = outputDir + '//' + outputBase + '_resistances_incomplete' + string + outputExtension
-            else:
-                oldFile = outputDir + '//' + outputBase + '_results_incomplete' + string + outputExtension
-            try:
-                os.remove(oldFile)
-            except:
-                pass 
-        return
 
 
 
