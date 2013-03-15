@@ -172,8 +172,8 @@ def setDefaultOptions():
     options['included_pairs_file']='None' 
     options['use_variable_source_strengths']=False
     options['variable_source_file']='None' 
-    options['set_null_voltages_to_nodata']=True # Default must be false or re-do verify .ini files
-    options['set_null_currents_to_nodata']=True # Default must be false or re-do verify .ini files
+    options['set_null_voltages_to_nodata']=True # Default must be false or will need to  re-do verify .ini files
+    options['set_null_currents_to_nodata']=True # Default must be false or will need to re-do verify .ini files
     options['write_max_cur_maps']=False
     options['set_focal_node_currents_to_zero']=False
     
@@ -283,9 +283,7 @@ def read_header(filename):
     return ncols, nrows, xllcorner, yllcorner, cellsize, nodata 
 
 def reader(filename, type):
-    """Reads rasters saved as ASCII grids or numpy arrays into Circuitscape.
-
-    """    
+    """Reads rasters saved as ASCII grids or numpy arrays into Circuitscape."""    
     if os.path.isfile(filename)==False:      
         raise RuntimeError('File "'  + filename + '" does not exist')
     (ncols, nrows, xllcorner, yllcorner, cellsize, nodata) = read_header(filename)
@@ -318,9 +316,7 @@ def reader(filename, type):
 
     
 def writer(file, data, state, compress):  
-    """Writes rasters to ASCII grid or numpy formats.
-
-    """     
+    """Writes rasters to ASCII grid or numpy formats."""     
     outputBase, outputExtension = os.path.splitext(file) 
     
     if outputExtension == '.npy': # Data came in as numpy array, so write same.
@@ -373,9 +369,7 @@ def writer(file, data, state, compress):
 
 
 def elapsed_time(startTime): 
-    """Returns elapsed time given a start time.
-    
-    """    
+    """Returns elapsed time given a start time."""    
     now=time.time()
     elapsed=now-startTime
     secs=int(elapsed)
