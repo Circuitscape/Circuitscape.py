@@ -22,8 +22,9 @@ gdal_available = False
 from string import split
 from numpy import loadtxt, where
     
+    
 def readConfigFile(configFile):
-
+    """Loads .ini file with run options."""    
     if os.path.isfile(configFile)==False:
         raise RuntimeError('File "'  + configFile + '" does not exist')
 
@@ -53,8 +54,9 @@ def readConfigFile(configFile):
                 options[option]=config.get(section, option)
     return options
 
+    
 def writeConfigFile(configFile, options):
-   
+    """Saves .ini file with run options."""    
     config = ConfigParser.ConfigParser()
  
     sections={}
@@ -135,8 +137,8 @@ def writeConfigFile(configFile, options):
     f.close()
  
 
-
 def setDefaultOptions():
+    """Sets options to default values."""    
     options = {}
     options['data_type']='raster' 
     options['version']='unknown'
@@ -177,7 +179,13 @@ def setDefaultOptions():
     
     return options
 
+    
 def checkOptions(options):
+    """Checks to make sure sufficient options are passed to Circuitscape to 
+    
+    complete a run.
+    
+    """    
     if options['scenario']=='not entered':
         all_options_entered=False
         message = 'Please choose a scenario' 
@@ -234,6 +242,11 @@ def checkOptions(options):
 
 
 def read_header(filename):
+    """Reads header for ASCII grids (standard input) or numpy arrays (used
+
+    for faster read/write when calling Circuitscape from ArcGIS python code).
+    
+    """    
     if os.path.isfile(filename)==False:
         raise RuntimeError('File "'  + filename + '" does not exist')
     fileBase, fileExtension = os.path.splitext(filename) 
@@ -270,6 +283,9 @@ def read_header(filename):
     return ncols, nrows, xllcorner, yllcorner, cellsize, nodata 
 
 def reader(filename, type):
+    """Reads rasters saved as ASCII grids or numpy arrays into Circuitscape.
+
+    """    
     if os.path.isfile(filename)==False:      
         raise RuntimeError('File "'  + filename + '" does not exist')
     (ncols, nrows, xllcorner, yllcorner, cellsize, nodata) = read_header(filename)
@@ -300,11 +316,14 @@ def reader(filename, type):
   
     return map
 
-def writer(file, data, state, compress):    
-    #outputDir, outputFile = os.path.split(file)
+    
+def writer(file, data, state, compress):  
+    """Writes rasters to ASCII grid or numpy formats.
+
+    """     
     outputBase, outputExtension = os.path.splitext(file) 
     
-    if outputExtension == '.npy': #read numpy array, so write one.
+    if outputExtension == '.npy': # Data came in as numpy array, so write same.
         numpy.save(file, data)
         return
         
@@ -354,6 +373,9 @@ def writer(file, data, state, compress):
 
 
 def elapsed_time(startTime): 
+    """Returns elapsed time given a start time.
+    
+    """    
     now=time.time()
     elapsed=now-startTime
     secs=int(elapsed)
@@ -365,118 +387,3 @@ def elapsed_time(startTime):
 
 
 
-
-
-
-    # try:
-#         options['low_memory_mode']=config.getboolean("circuitscape options", "low_memory_mode")
-#     except:
-#         options['low_memory_mode']=False        
-#     options['habitat_file']=config.get("circuitscape options", "habitat_file")
-#     options['scenario']=config.get("circuitscape options", "scenario")
-#     options['habitat_file']=config.get("circuitscape options", "habitat_file")
-#     options['habitat_map_is_resistances']=config.getboolean("circuitscape options", "habitat_map_is_resistances")
-#     options['point_file']=config.get("circuitscape options", "point_file")
-#     try:
-#         options['point_file_contains_polygons']=config.getboolean("circuitscape options", "point_file_contains_polygons")
-#     except:
-#         options['point_file_contains_polygons']=config.get("circuitscape options", "point_file_contains_polygons")        
-#     options['connect_four_neighbors_only']=config.getboolean("circuitscape options", "connect_four_neighbors_only")
-#     options['connect_using_avg_resistances']=config.getboolean("circuitscape options", "connect_using_avg_resistances")
-#     options['use_polygons']=config.getboolean("circuitscape options", "use_polygons")   
-#     options['polygon_file']=config.get("circuitscape options", "polygon_file")
-# 
-#     try:
-#         options['use_mask']=config.getboolean("BETA options", "use_mask")
-#     except:
-#         options['use_mask']=False
-#     try:
-#         options['mask_file']=config.get("BETA options", "mask_file")    
-#     except:    
-#         options['mask_file']='None' 
-#     try:
-#         options['use_included_pairs']=config.getboolean("BETA options", "use_included_pairs")
-#     except:
-#         options['use_included_pairs']=False
-# 
-#     try:
-#         options['included_pairs_file']=config.get("BETA options", "included_pairs_file")    
-#     except:
-#         options['included_pairs_file']='None' 
-# 
-# 
-#     try:
-#         options['use_variable_source_strengths']=config.getboolean("BETA options", "use_variable_source_strengths")
-#     except:
-#         options['use_variable_source_strengths']=False
-# 
-#     try:
-#         options['variable_source_file']=config.get("BETA options", "variable_source_file")        
-#     except:
-#         options['variable_source_file']='None' 
-#     
-#     options['source_file']=config.get("circuitscape options", "source_file")
-#     options['ground_file']=config.get("circuitscape options", "ground_file")
-#     try:
-#         options['ground_file_is_resistances']=config.getboolean("circuitscape options", "ground_file_is_resistances")
-#     except:
-#         options['ground_file_is_resistances']=config.get("circuitscape options", "ground_file_is_resistances")        
-#     options['use_unit_currents']=config.getboolean("circuitscape options", "use_unit_currents")
-#     options['use_direct_grounds']=config.getboolean("circuitscape options", "use_direct_grounds")
-#     options['remove_src_or_gnd']=config.get("circuitscape options", "remove_src_or_gnd")
-#     options['output_file']=config.get("circuitscape options", "output_file")
-#     options['write_cur_maps']=config.getboolean("circuitscape options", "write_cur_maps")
-#     options['write_cum_cur_map_only']=config.getboolean("circuitscape options", "write_cum_cur_map_only")
-#     options['log_transform_maps']=config.getboolean("circuitscape options", "log_transform_maps")
-#     options['write_volt_maps']=config.getboolean("circuitscape options", "write_volt_maps")
-#     options['solver']=config.get("circuitscape options", "solver")
-#     options['compress_grids']=config.getboolean("circuitscape options", "compress_grids")
-#     options['print_timings'] = config.getboolean("circuitscape options", "print_timings")
-#   
-
-
-
-
-# 
-#     config.add_section("circuitscape options")
-#     config.add_section("BETA options")
-    
-        #Need following options to be boolean 
-#     config.set("circuitscape options", "iterate", options['iterate'])        
-#     if options['ground_file_is_resistances']=='not entered':
-#         options['ground_file_is_resistances'] = False
-#     if options['point_file_contains_polygons']=='not entered':
-#         options['point_file_contains_polygons'] = False
-#     config.set("circuitscape options", "low_memory_mode", options['low_memory_mode'])       
-#     config.set("circuitscape options", "scenario", options['scenario'])
-#     config.set("circuitscape options", "habitat_file", options['habitat_file'])
-#     config.set("circuitscape options", "habitat_map_is_resistances", options['habitat_map_is_resistances'])
-#     config.set("circuitscape options", "point_file", options['point_file'])
-#     config.set("circuitscape options", "point_file_contains_polygons", options['point_file_contains_polygons'])
-#     config.set("circuitscape options", "connect_four_neighbors_only", options['connect_four_neighbors_only'])
-#     config.set("circuitscape options", "connect_using_avg_resistances", options['connect_using_avg_resistances'])
-#     config.set("circuitscape options", "use_polygons", options['use_polygons'])
-#     config.set("circuitscape options", "polygon_file", options['polygon_file'])
-# 
-#     config.set("circuitscape options", "source_file", options['source_file'])
-#     config.set("circuitscape options", "ground_file", options['ground_file'])
-#     config.set("circuitscape options", "ground_file_is_resistances", options['ground_file_is_resistances'])
-#     config.set("circuitscape options", "use_unit_currents", options['use_unit_currents'])
-#     config.set("circuitscape options", "use_direct_grounds", options['use_direct_grounds'])
-#     config.set("circuitscape options", "remove_src_or_gnd", options['remove_src_or_gnd'])
-#     config.set("circuitscape options", "output_file", options['output_file'])
-#     config.set("circuitscape options", "write_cur_maps", options['write_cur_maps'])
-#     config.set("circuitscape options", "write_cum_cur_map_only", options['write_cum_cur_map_only'])
-#     config.set("circuitscape options", "log_transform_maps", options['log_transform_maps'])#
-#     config.set("circuitscape options", "write_volt_maps", options['write_volt_maps'])
-#     config.set("circuitscape options", "solver", options['solver'])
-#     config.set("circuitscape options", "compress_grids", options['compress_grids'])
-#     config.set("circuitscape options", "print_timings", options['print_timings'])
-# 
-#     config.set("BETA options", "use_mask", options['use_mask'])
-#     config.set("BETA options", "mask_file", options['mask_file']) 
-#     config.set("BETA options", "use_included_pairs", options['use_included_pairs'])
-#     config.set("BETA options", "included_pairs_file", options['included_pairs_file']) 
-#     config.set("BETA options", "use_variable_source_strengths", options['use_variable_source_strengths'])
-#     config.set("BETA options", "variable_source_file", options['variable_source_file']) 
-    
