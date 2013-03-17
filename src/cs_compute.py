@@ -2212,14 +2212,14 @@ class cs_compute:
         
     def getVoltmatrix(self,i,j,numpoints,local_node_map,voltages,points_rc,resistances,voltmatrix):                                            
         """Docstring."""  
-       voltvector = zeros((numpoints,1),dtype = 'float64')  
-       voltage_map = self.create_voltage_map(local_node_map,voltages) 
-       for point in range(1,numpoints):
-           voltageAtPoint = voltage_map[points_rc[point,1], points_rc[point,2]]
-           voltageAtPoint = 1-(voltageAtPoint/resistances[i, j])
-           voltvector[point] = voltageAtPoint
-       voltmatrix[:,j] = voltvector[:,0] 
-       return voltmatrix
+        voltvector = zeros((numpoints,1),dtype = 'float64')  
+        voltage_map = self.create_voltage_map(local_node_map,voltages) 
+        for point in range(1,numpoints):
+            voltageAtPoint = voltage_map[points_rc[point,1], points_rc[point,2]]
+            voltageAtPoint = 1-(voltageAtPoint/resistances[i, j])
+            voltvector[point] = voltageAtPoint
+        voltmatrix[:,j] = voltvector[:,0] 
+        return voltmatrix
 
 
     def getShortcutResistances(self,anchorPoint,voltmatrix,numpoints,resistances,shortcutResistances): #FIXME: no solver failed capability
