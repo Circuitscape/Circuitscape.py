@@ -42,12 +42,9 @@ try:
 except ImportError:
     umfpack_available = False
 
-
-# Set this to True to use -1 and +1 for currents
-# Set this to False for the original
-using_G_no_deleterow = True
-
-
+using_G_no_deleterow = True # Set this to True to use -1 and +1 for currents
+                            # Set this to False for the original method
+                            
 print_timings_spaces = 0
 print_timings = False
 
@@ -117,6 +114,7 @@ class cs_compute:
         
         
     def print_timing(func):
+        """Prints time elapsed for functions with print_timings decorator."""  
         def wrapper(*arg):
             global print_timings_spaces
             print_timings_spaces +=  2
@@ -135,6 +133,7 @@ class cs_compute:
 
         
     def cs_log(self, text,col):
+        """Prints updates to GUI or python window."""  
         (hours,mins,secs) = elapsed_time(self.state['startTime'])
         (hours,mins,secs1) = elapsed_time(self.state['lastUpdateTime'])
         if secs1 > 10: # Force update every 10 secs
@@ -155,7 +154,8 @@ class cs_compute:
 
     @print_timing
     def compute(self):
-        #back door to network code
+        """Main function for Circuitscape."""  
+        # Code below provides a back door to network mode, because not incorporated into GUI yet
         if self.options['polygon_file'] == 'NETWORK': 
              self.options['data_type']='network' #can also be set in .ini file
         if self.options['data_type']=='network': 
@@ -163,10 +163,12 @@ class cs_compute:
             self.options['graph_file'] = self.options['habitat_file']
             self.options['focal_node_file'] = self.options['point_file']
         
+        
         self.state['startTime'] = time.time()
         self.state['lastUpdateTime'] = time.time()        
         self.cs_log('',1)
         self.cs_log('',2)
+
         #Test write privileges by writing config file to output directory
         fileName = self.options['output_file']
         outputDir, outputFile = os.path.split(fileName)
@@ -181,7 +183,7 @@ class cs_compute:
             print 'Calling stress test code'
             self.run_stress_test(stress_ncols,stress_nrows)
         elif self.options['data_type']=='network':
-            result,solver_failed = self.network_module()
+            result,solver_failed = self.network_module() # Call module for solving arbitrary graphs (not raster grids)
             self.logCompleteJob()
             return result,solver_failed #Fixme: add in solver failed check
         else:
@@ -210,10 +212,12 @@ class cs_compute:
             
     
     def grid_to_graph (self, x, y, node_map):
+        """Returns node corresponding to x,y coordinates in input grid."""  
         return node_map[x, y] - 1
         
         
     def logCompleteJob(self):
+        """Writes total time elapsed at end of run."""  
         (hours,mins,secs) = elapsed_time(self.state['startTime'])
         if hours>0:
             self.cs_log('Job took ' + str(hours) +' hours ' + str(mins) + ' minutes to complete.',2)
@@ -222,6 +226,7 @@ class cs_compute:
  
   
     def get_overlap_polymap(self,point,point_map,poly_map_temp,new_poly_num): 
+        """Docstring."""  
         point_poly = where(point_map == point, 1, 0) 
         poly_point_overlap = multiply(point_poly,poly_map_temp)
         overlap_vals = unique(asarray(poly_point_overlap))
@@ -235,13 +240,10 @@ class cs_compute:
 
     @print_timing
     def network_module(self): 
+        """Solves arbitrary graphs instead of raster grids."""  
         solver_failed = False
         (g_graph,nodeNames) = self.read_graph(self.options['graph_file'])
         C = self.gapdt.components(g_graph)         
-        # print C
-        # C2 = sparse.cs_graph_components(g_graph)
-        # print 'C2'
-        # print C2
         numComponents = max(C)
         self.cs_log('Graph has ' + str(g_graph.shape[0]) + ' nodes and '+ str(numComponents) + ' components.',2)
         if numComponents > 1:
@@ -355,43 +357,15 @@ class cs_compute:
         self.writeResistances3columns(fullResistances)
         
         return fullResistances,solver_failed #Fixme: need to check solver failed.
-        
-     
-    def graph_list_to_graph(self,graphList):
-        nodes = self.deletecol(graphList,2) 
-        nodeNames = unique(asarray(nodes))
-        nodes[where(nodes>= 0)] = self.gapdt.relabel(nodes[where(nodes>= 0)], 0)
-        node1 = nodes[:,0]
-        node2 = nodes[:,1]
-        data = graphList[:,2]
 
-        numnodes = nodeNames.shape[0]
-        G = sparse.csr_matrix((data, (node1, node2)), shape = (numnodes, numnodes))       
-
-        Gdense=G.todense()
-        graph = maximum(Gdense, Gdense.T) # To handle single or double entries for elements BHM 06/28/11
-        graph = sparse.csr_matrix(graph)
-
-        return graph, nodeNames
-            
-
-    def getVariableSources(self,numnodes,focalNodes):       
-        variableSources = ones(numnodes,dtype = 'float64')
-        if self.options['use_variable_source_strengths']==True:
-            pointStrengths = self.readPointStrengths(self.options['variable_source_file']) 
-            variableSourceNames = pointStrengths[:,0]
-            variableSourceNodes = self.namesToNodes(focalNodes,variableSourceNames)
-            try:
-                for i in range (0,len(variableSourceNames)):
-                    variableSources[variableSourceNodes[i]] = pointStrengths[variableSourceNodes[i],1]
-            except IndexError:
-                raise RuntimeError('Error assinging variable source strengths. Please make sure focal node names match.')                
-        return variableSources
-     
-   
+          
     def pairwise_module_network(self,G,focalNodes,nodeNames,numComponents):
-        """returns branch currents in 3-col format plus 3-column voltages, resistances, 2-col node currents.
-            writes currents voltages and for each pair.
+        """Overhead module to solves arbitrary graphs in pairwise mode.
+        
+        Returns branch currents in 3-col format plus 3-column voltages,
+        resistances, 2-col node currents.
+
+        Writes currents voltages and for each pair.
 
         """
         solver_failed = False
@@ -410,8 +384,9 @@ class cs_compute:
             useResistanceCalcShortcut = False
         else:
             useResistanceCalcShortcut = True
+            # This uses a quicker way to calculate pairwise resistances.  There may be something even quicker, I'm looking into this. BHM 3-15-2013
             print 'Using shortcut'
-            shortcutResistances = -1 * ones((numpoints, numpoints), dtype = 'float64') #temp bhm
+            shortcutResistances = -1 * ones((numpoints, numpoints), dtype = 'float64') 
             voltmatrix = zeros((numpoints,numpoints),dtype = 'float64')     
         dstPoint = 0
         anchorPoint = 0            
@@ -456,7 +431,7 @@ class cs_compute:
                         resistances[j, i] = -777
     
                     if (useResistanceCalcShortcut==True) and (dstPoint==1) and (solver_failed==False): #this occurs for first i that is in component
-                        anchorPoint = i #for use later in shortcult resistance calc
+                        anchorPoint = i #for use later in shortcut resistance calc
                         voltmatrix = self.getVoltmatrixNetwork(i,j,numpoints,voltages,resistances,voltmatrix,focalNodes,nodeNames) 
     
                     if (self.options['write_cur_maps'] == True) and (solver_failed==False):
@@ -466,11 +441,7 @@ class cs_compute:
                         
                         # Append node names and convert to array format
                         branchCurrentsArray = self.convert_graph_to_3_col(branch_currents,nodeNames)
-                        # print 'Branch temp'
-                        # print branchCurrentsArray
                         nodeCurrentsArray = self.append_names_to_node_currents(node_currents, nodeNames)
-                        # print 'Node Array'
-                        # print nodeCurrentsArray
                         
                         if self.options['write_cum_cur_map_only']==False:                
                             fileadd=str(int(focalNodes[i])) + '_' + str(int(focalNodes[j]))
@@ -511,6 +482,7 @@ class cs_compute:
 
         
     def append_names_to_node_currents(self,node_currents, nodeNames):
+        """Adds names of focal nodes to node current lists."""    
         outputNodeCurrents=zeros((len(node_currents),2),dtype='float64')
         outputNodeCurrents[:,0]=nodeNames[:]
         try:
@@ -521,6 +493,7 @@ class cs_compute:
         
         
     def append_names_to_resistances(self, point_ids, resistances):        
+        """Adds names of focal nodes to resistance matrices."""  
         focal_labels = insert(point_ids, [0], 0, axis = 0)
         resistances = insert(resistances, [0], 0, axis = 0)
         resistances = insert(resistances, [0], 0, axis = 1)
@@ -545,6 +518,7 @@ class cs_compute:
 
 
     def writeVoltagesNetwork(self, voltages, nodeNames, fileadd):
+        """Saves voltage values from solving arbitrary graphs to disk."""  
         outputVoltages=zeros((len(voltages),2),dtype='float64')
         if nodeNames != None:
              outputVoltages[:,0]=nodeNames[:]
@@ -557,6 +531,7 @@ class cs_compute:
 
         
     def getCurrentsNetwork(self,G,voltages,finitegrounds):
+        """Returns node and branch currents given voltages in arbitrary graphs."""  
         G =  G.tocoo()
         node_currents = self.get_node_currents(voltages, G, finitegrounds)
         node_currents_col = zeros((node_currents.shape[0],1),dtype = 'float64')
@@ -568,6 +543,7 @@ class cs_compute:
     
     
     def getVoltmatrixNetwork(self,i,j,numpoints,voltages,resistances,voltmatrix,focalNodes,nodeNames):                                            
+       """Docstring."""  
        voltvector = zeros((numpoints,1),dtype = 'float64')  
        for point in range(1,numpoints):
            node=self.nameToNode(nodeNames,focalNodes[point])
@@ -579,12 +555,14 @@ class cs_compute:
              
              
     def nameToNode(self, nodeNames,name):
+        """Returns node index given node ID."""  
         nodeNames = nodeNames.tolist()
         node = nodeNames.index(name)
         return node
 
 
     def namesToNodes(self, nodeNames,names):
+        """Returns node indices given node IDs."""  
         nodeNames = nodeNames.tolist()
         nodes = zeros(len(names),dtype = 'int32')
 
@@ -594,7 +572,8 @@ class cs_compute:
 
         
     def read_graph(self, filename):
-        graphList = self.load_graph(filename,graphType='graph/network',datatype='float64')
+        """Reads arbitrary graph from disk. Returns sparse adjacency matrix and node names ."""  
+        graphList = self.load_graph(filename,datatype='float64')
 
         try:
             zeros_in_resistance_graph = False           
@@ -634,7 +613,8 @@ class cs_compute:
 
 
     def readFocalNodes(self, filename):
-        focalNodes = self.load_graph(filename,graphType='focal node',datatype='int32')
+        """Loads list of focal nodes for arbitrary graph."""  
+        focalNodes = self.load_graph(filename,datatype='int32')
         try:    
             if filename==self.options['graph_file']:#If graph was used as focal node file, then just want first two columns for focalNodes.
                 focalNodes = self.deletecol(focalNodes, 2)
@@ -644,7 +624,8 @@ class cs_compute:
         return focalNodes
         
         
-    def load_graph(self,filename,graphType,datatype):
+    def load_graph(self,filename,datatype):
+        """Returns data for arbitrary graph or focal node list from file."""  
         if os.path.isfile(filename)==False:
             raise RuntimeError('File "'  + filename + '" does not exist')
         f = open(filename, 'r')
@@ -659,45 +640,9 @@ class cs_compute:
         return graphObject
         
 
-    def readSourcesGroundsNetwork(self, G, nodeNames, sourceFile,groundFile):
-        if os.path.isfile(sourceFile)==False:
-            raise RuntimeError('File "'  + sourceFile + '" does not exist')   
-        if os.path.isfile(groundFile)==False:
-            raise RuntimeError('File "'  + groundFile + '" does not exist')               
-        rawSources = loadtxt(sourceFile, dtype = 'float64')
-        rawGrounds = loadtxt(groundFile, dtype = 'float64')
-
-        if self.options['ground_file_is_resistances']==True:
-            rawGrounds[:,1] = 1 / rawGrounds[:,1]
-        if self.options['use_direct_grounds']==True:
-            rawGrounds[:,1] = where(rawGrounds[:,1],Inf,0)
-        
-        numnodes = G.shape[0]
-        sourceNodes = self.namesToNodes(nodeNames,rawSources[:,0]) 
-        sources = zeros((numnodes),dtype = 'float64')
-        sources[sourceNodes[:]] = rawSources[:,1] 
-        
-        groundNodes = self.namesToNodes(nodeNames,rawGrounds[:,0]) 
-        grounds = zeros((numnodes),dtype = 'float64')
-        grounds[groundNodes[:]] = rawGrounds[:,1] 
-
-        conflicts = logical_and(sources,grounds)
-        if self.options['remove_src_or_gnd']=='rmvsrc':
-            sources = where(conflicts,0,sources)
-        elif self.options['remove_src_or_gnd']=='rmvgnd':
-            grounds = where(conflicts,0,grounds)
-        elif self.options['remove_src_or_gnd']=='rmvall':
-            sources = where(conflicts,0,sources)
-            grounds = where(conflicts,0,grounds)
-        if size(where(sources)) == 0:
-            raise RuntimeError('No valid sources detected. Please check source file') 
-        if size(where(grounds)) == 0:
-            raise RuntimeError('No valid grounds detected. Please check ground file') 
-        return sources, grounds
-
-
     @print_timing
     def one_to_all_module(self, g_map, poly_map, points_rc):
+        """Overhead module for one-to-all AND all-to-one modes with raster data."""  
         lastWriteTime = time.time()
 
         if self.options['use_included_pairs']==True: #Prune points
@@ -834,13 +779,12 @@ class cs_compute:
                 if self.options['write_max_cur_maps']==True:
                     self.write_aaigrid('max_curmap', '', max_current_map)
 
-        #remove partial result file        
-         
         self.writeResistancesOneToAll(resistance_vector,'')
        
         return resistance_vector,solver_failed_somewhere 
 
     def get_poly_map_temp(self,poly_map,point_map,point_ids,includedPairs,point1):
+        """Docstring."""  
         if poly_map == []:
             poly_map_temp = point_map
         else:
@@ -859,6 +803,7 @@ class cs_compute:
         
     #FIXME: Reconcile this module with the one above, consolidate.
     def get_poly_map_temp2(self,poly_map,point_map,points_rc_unique_temp,includedPairs,i):
+        """Docstring."""  
         if poly_map == []:
             poly_map_temp = point_map
         else:
@@ -874,6 +819,7 @@ class cs_compute:
 
 
     def pairwise_module(self, g_map, poly_map, points_rc):
+        """Overhead module for pairwise mode with raster data."""  
         ########################    
         #GENERATE BASELINE RESULTS FOR TESTING NETWORK CODE 
         if self.options['write_baseline_results']==True:        
@@ -1031,6 +977,11 @@ class cs_compute:
     
     @print_timing
     def single_ground_all_pair_resistances(self, g_map, poly_map, points_rc,cum_current_map,max_current_map,reportStatus):
+        """Handles pairwise resistance/current/voltage calculations.  
+        
+        Called once when focal points are used, called multiple times when focal regions are used.
+
+        """  
         lastWriteTime = time.time()
         numpoints = points_rc.shape[0]
         if (self.options['use_included_pairs']==False) or (self.options['point_file_contains_polygons']==True):
@@ -1063,7 +1014,7 @@ class cs_compute:
                     voltmatrix = zeros((numpoints,numpoints),dtype = 'float64')     #For resistance calc shortcut
                 
                 dstPoint = 0
-                anchorPoint = 0
+                anchorPoint = 0 #For resistance calc shortcut
                 
                 ##############
                 for i in range(0, numpoints):
@@ -1179,7 +1130,6 @@ class cs_compute:
                                                 current_map = self.create_current_map(voltages, G, local_node_map, finitegrounds)                                                                                    
                                             G = G.tocsr()
 
-
                                             ########################    
                                             #BASELINE RESULTS FOR NETWORK CODE Comparison
                                             if self.options['write_baseline_results']==True:
@@ -1204,7 +1154,6 @@ class cs_compute:
 
                                                 self.writeGraph(file,branch_currents,localNodeNames)
                                             #########################                 
-
                                             
                                             if self.options['set_focal_node_currents_to_zero']==True:
                                                 # set source and target node currents to zero
@@ -1222,8 +1171,6 @@ class cs_compute:
                                                    current_map = where(current_map>0,log10(current_map),self.state['nodata'])
                                                 self.write_aaigrid('curmap', '_' + frompoint + '_' + topoint, current_map)
                                             del current_map    
-                           
-
 
                                         (hours,mins,secs) = elapsed_time(lastWriteTime)
                                         if secs > 120: 
@@ -1232,7 +1179,7 @@ class cs_compute:
                         if (useResistanceCalcShortcut==True and i==anchorPoint): #this happens once per component. Anchorpoint is the first i in component
                             shortcutResistances = self.getShortcutResistances(anchorPoint,voltmatrix,numpoints,resistances,shortcutResistances)
                                                 
-                        if using_G_no_deleterow:#G here
+                        if using_G_no_deleterow:
                             G[local_dst, local_dst] = G_dst_dst
 
                     #End for
@@ -1249,7 +1196,6 @@ class cs_compute:
         for i in range(0,numpoints):
             resistances[i, i] = 0
 
-
         # if self.options['write_baseline_results']==True:
             # fileName = self.options['output_file']
             # outputDir, outputFile = os.path.split(fileName)
@@ -1261,7 +1207,8 @@ class cs_compute:
 
         
     @print_timing
-    def single_ground_solver(self, G, src, dst):#G here
+    def single_ground_solver(self, G, src, dst):
+        """Solver used for pairwise mode."""  
         n = G.shape[0]
         rhs = zeros(n, dtype = 'float64')
         if using_G_no_deleterow:
@@ -1271,7 +1218,6 @@ class cs_compute:
                 rhs[dst] = -1
                 rhs[src] = 1
                 voltages = self.solve_linear_system (G, rhs)
-
         else:
             if src==dst:
                 voltages = zeros(n+1, dtype = 'float64')
@@ -1293,6 +1239,7 @@ class cs_compute:
         
     @print_timing
     def advanced_module(self, g_map, poly_map, source_map, ground_map,source_id, G, node_map, component_map, componentWithPoints): 
+        """Overhead module for advanced mode with raster data."""  
         if node_map==None:
             oneToAllStreamline = False
         else:
@@ -1340,7 +1287,7 @@ class cs_compute:
                 del rows, cols, values, local_source_map, local_ground_map 
 
                 if oneToAllStreamline==False:
-                    (G, node_map) = self.node_pruner(g_map, poly_map, component_map, c)#G here
+                    (G, node_map) = self.node_pruner(g_map, poly_map, component_map, c)
 
                 numnodes = node_map.max()
                 sources = zeros(numnodes)
@@ -1362,7 +1309,7 @@ class cs_compute:
 
                 solver_called = True
                 try:
-                    voltages = self.multiple_solver(G, sources, grounds, finitegrounds) #G here
+                    voltages = self.multiple_solver(G, sources, grounds, finitegrounds) 
                     del sources, grounds
                     if c==int(cmax):
                         del g_map, poly_map, ground_map
@@ -1381,7 +1328,7 @@ class cs_compute:
                         cum_voltage_map +=  self.create_voltage_map(node_map,voltages) 
                     if self.options['write_cur_maps'] == True:
                         G = G.tocoo()
-                        cum_current_map +=  self.create_current_map(voltages, G, node_map, finitegrounds) #G here
+                        cum_current_map +=  self.create_current_map(voltages, G, node_map, finitegrounds) 
                 
         if self.options['write_volt_maps'] == True: 
             if solver_failed==False:
@@ -1431,6 +1378,7 @@ class cs_compute:
 
         
     def resolve_conflicts(self, sources, grounds):
+        """Handles conflicting grounds and sources for advanced mode according to user preferences."""  
         finitegrounds = where(grounds<Inf,grounds,0)
         if (where(finitegrounds==0, 0, 1)).sum()==0:
             finitegrounds = [-9999]
@@ -1456,6 +1404,7 @@ class cs_compute:
         
     @print_timing
     def multiple_solver(self, G, sources, grounds, finitegrounds):
+        """Solver used for advanced mode."""  
         if finitegrounds[0]==-9999:#Fixme: no need to do this, right?
             finitegrounds = zeros(G.shape[0],dtype = 'int32') #create dummy vector for pairwise case
             Gsolve = G + sparse.spdiags(finitegrounds.T, 0, G.shape[0], G.shape[0]) 
@@ -1493,6 +1442,7 @@ class cs_compute:
             
     @print_timing
     def construct_node_map(self, g_map, poly_map):
+        """Creates a grid of node numbers corresponding to raster pixels with non-zero conductances."""  
         node_map = zeros(g_map.shape, dtype = 'int32')
         node_map[g_map.nonzero()] = arange(1, sum(g_map>0)+1, dtype = 'int32')
 
@@ -1519,6 +1469,11 @@ class cs_compute:
 
     @print_timing
     def construct_component_map(self, g_map, node_map):
+        """Assigns component numbers to grid corresponding to pixels with non-zero conductances.
+        
+        Nodes with the same component number are in single, connected components.
+        
+        """  
         prunedMap = False
         G = self.construct_g_graph(g_map, node_map, prunedMap) 
         C = self.gapdt.components(G) 
@@ -1534,9 +1489,10 @@ class cs_compute:
 
     @print_timing
     def construct_g_graph(self, g_map, node_map,prunedMap):
+        """Docstring."""  
         numnodes = node_map.max()
         (node1, node2, conductances) = self.get_conductances(g_map, node_map)
-        G = sparse.csr_matrix((conductances, (node1, node2)), shape = (numnodes, numnodes))#G here, but not laplacian.  Memory hogging operation?
+        G = sparse.csr_matrix((conductances, (node1, node2)), shape = (numnodes, numnodes)) # Memory hogging operation?
         if self.options['write_baseline_results']==True and prunedMap == False: #Just do this for full graph when writing baseline results
             self.writeGraph(self.options['graph_copy'],G,None)
         g_graph = G + G.T
@@ -1544,12 +1500,14 @@ class cs_compute:
 
         
     def writeGraph(self,filename,graph,nodeNames):
+        """Docstring."""  
         graphNcol = self.convert_graph_to_3_col(graph,nodeNames)
         savetxt(filename,graphNcol)
         return
             
      
     def convert_graph_to_3_col(self,graph,nodeNames): 
+        """Docstring."""  
         Gcoo =  graph.tocoo()
         mask = Gcoo.data > 0
         
@@ -1567,6 +1525,7 @@ class cs_compute:
         
         
     def get_horiz_neighbors(self, g_map):
+        """Docstring."""  
         m = g_map.shape[0]
         n = g_map.shape[1]
 
@@ -1580,6 +1539,7 @@ class cs_compute:
 
         
     def get_vert_neighbors(self, g_map):
+        """Docstring."""  
         m = g_map.shape[0]
         n = g_map.shape[1]
 
@@ -1593,6 +1553,7 @@ class cs_compute:
 
         
     def get_diag1_neighbors(self, g_map):
+        """Docstring."""  
         m = g_map.shape[0]
         n = g_map.shape[1]
 
@@ -1609,6 +1570,7 @@ class cs_compute:
 
         
     def get_diag2_neighbors(self, g_map):
+        """Docstring."""  
         m = g_map.shape[0]
         n = g_map.shape[1]
 
@@ -1625,6 +1587,7 @@ class cs_compute:
         
         
     def get_conductances(self, g_map, node_map):
+        """Docstring."""  
         (s_horiz, t_horiz) = self.get_horiz_neighbors(g_map)
         (s_vert,  t_vert)  = self.get_vert_neighbors(g_map)
 
@@ -1670,6 +1633,7 @@ class cs_compute:
 
     @print_timing
     def node_pruner(self, g_map, poly_map, component_map, keep_component):
+        """Docstring."""  
         selector = component_map == keep_component
         
         g_map_pruned = selector * g_map
@@ -1679,14 +1643,15 @@ class cs_compute:
 
         node_map_pruned = self.construct_node_map (g_map_pruned, poly_map_pruned)
         prunedMap = True
-        G_pruned = self.construct_g_graph (g_map_pruned, node_map_pruned, prunedMap) #G here
-        G = self.laplacian(G_pruned) #G here
+        G_pruned = self.construct_g_graph (g_map_pruned, node_map_pruned, prunedMap) 
+        G = self.laplacian(G_pruned) 
         
-        return (G, node_map_pruned)#G here
+        return (G, node_map_pruned)
 
         
     @print_timing
-    def laplacian(self, G): #G here
+    def laplacian(self, G): 
+        """Docstring."""  
         n = G.shape[0]
 
         # FIXME: Potential for memory savings, if assignment is used
@@ -1697,7 +1662,8 @@ class cs_compute:
 
         
     @print_timing
-    def create_amg_hierarchy(self, G): #G here
+    def create_amg_hierarchy(self, G): 
+        """Docstring."""  
         if self.options['solver'] == 'amg' or self.options['solver'] == 'cg+amg':
             self.state['amg_hierarchy'] = None
             # construct the MG hierarchy
@@ -1713,7 +1679,8 @@ class cs_compute:
 
         
     @print_timing
-    def solve_linear_system(self, G, rhs): #G here
+    def solve_linear_system(self, G, rhs): 
+        """Docstring."""  
         gc.collect()
         # Solve G*x = rhs
         x = []
@@ -1739,6 +1706,7 @@ class cs_compute:
 
     @print_timing
     def create_voltage_map(self, node_map, voltages):
+        """Docstring."""  
         voltage_map = numpy.zeros((self.state['nrows'], self.state['ncols']), dtype = 'float64')
         ind = node_map > 0
         voltage_map[where(ind)] = asarray(voltages[node_map[ind]-1]).flatten()
@@ -1747,7 +1715,8 @@ class cs_compute:
 
 ######################### BEGIN CURRENT MAPPING CODE ########################################
     @print_timing
-    def create_current_map(self, voltages, G, node_map, finitegrounds):#G here
+    def create_current_map(self, voltages, G, node_map, finitegrounds):
+        """Docstring."""  
         gc.collect()
         node_currents = self.get_node_currents(voltages, G, finitegrounds)
         (rows, cols) = where(node_map)
@@ -1758,6 +1727,7 @@ class cs_compute:
         return current_map
 
     def get_node_currents(self, voltages, G, finitegrounds):
+        """Docstring."""  
         node_currents_pos = self.get_node_currents_posneg (G, voltages, finitegrounds, True) 
         node_currents_neg = self.get_node_currents_posneg (G, voltages, finitegrounds, False)
         node_currents = where(node_currents_neg > node_currents_pos, node_currents_neg, node_currents_pos)
@@ -1766,6 +1736,7 @@ class cs_compute:
 
         
     def get_node_currents_posneg (self, G, voltages, finitegrounds, pos):
+        """Docstring."""  
         branch_currents = self.get_branch_currents(G,voltages,pos)
         branch_currents = branch_currents-branch_currents.T #Can cause memory error
         
@@ -1791,6 +1762,7 @@ class cs_compute:
     
     
     def get_branch_currents(self,G,voltages,pos):    
+        """Docstring."""  
         branch_currents = self.get_branch_currents_posneg(G,voltages,pos)
         n = G.shape[0]
         mask = G.row < G.col
@@ -1799,6 +1771,7 @@ class cs_compute:
 
         
     def get_branch_currents_posneg(self,G,voltages,pos):
+        """Docstring."""  
         mask = G.row < G.col
         if pos==True:
              vdiff = voltages[G.row[mask]]              
@@ -1820,6 +1793,7 @@ class cs_compute:
         
     ### FILE I/O ###
     def write_aaigrid(self, type, fileadd, data):
+        """Docstring."""  
         if type == 'voltmap':
             if self.options['write_volt_maps'] == False: 
                 return
@@ -1849,6 +1823,7 @@ class cs_compute:
         
         
     def read_cell_map(self, filename):
+        """Docstring."""  
         (ncols, nrows, xllcorner, yllcorner, cellsize, nodata) = read_header(filename)
         self.state['ncols'] = ncols
         self.state['nrows'] = nrows
@@ -1886,6 +1861,7 @@ class cs_compute:
 
 
     def read_point_map(self, filename):
+        """Docstring."""  
         if os.path.isfile(filename)==False:
             raise RuntimeError('File "'  + filename + '" does not exist')
         base, extension = os.path.splitext(filename)
@@ -1955,6 +1931,7 @@ class cs_compute:
         
         
     def read_poly_map(self, filename,readingMask):  
+        """Docstring."""  
         (ncols, nrows, xllcorner, yllcorner, cellsize, nodata) = read_header(filename)
         if cellsize!= self.state['cellsize']:
             print'\n********\nWarning: Short-circuit region or mask raster has different \ncell size than habitat raster. \nCircuitscape will try to crudely resample the raster. \nWe recommend using the "Export to Circuitscape" ArcGIS tool to create ASCII grids with compatible cell size and extent.'
@@ -1983,6 +1960,7 @@ class cs_compute:
 
         
     def read_source_and_ground_maps(self, source_filename, ground_filename): 
+        """Docstring."""  
         #FIXME: reader does not currently handle infinite inputs for ground conductances.
         if os.path.isfile(source_filename)==False:
             raise RuntimeError('File "'  + source_filename + '" does not exist')
@@ -2075,6 +2053,7 @@ class cs_compute:
 
 
     def readincludedPairs(self, filename):
+        """Docstring."""  
         if os.path.isfile(filename)==False:
             raise RuntimeError('File "'  + filename + '" does not exist')
         
@@ -2106,6 +2085,7 @@ class cs_compute:
 
         
     def readPointStrengths(self, filename):
+        """Docstring."""  
         if os.path.isfile(filename)==False:
             raise RuntimeError('File "'  + filename + '" does not exist')
         
@@ -2126,6 +2106,7 @@ class cs_compute:
 
 
     def enable_low_memory(self, restart):
+        """Docstring."""  
         self.state['amg_hierarchy'] = None
         gc.collect()
         if self.options['low_memory_mode']==True:
@@ -2159,6 +2140,7 @@ class cs_compute:
 
 
     def resampleMap(self,filename,readingMask):
+        """Docstring."""  
         try:
             (ncols, nrows, xllcorner, yllcorner, cellsize, nodata) = read_header(filename)
             map = reader(filename, 'int32')
@@ -2229,6 +2211,7 @@ class cs_compute:
 
         
     def getVoltmatrix(self,i,j,numpoints,local_node_map,voltages,points_rc,resistances,voltmatrix):                                            
+        """Docstring."""  
        voltvector = zeros((numpoints,1),dtype = 'float64')  
        voltage_map = self.create_voltage_map(local_node_map,voltages) 
        for point in range(1,numpoints):
@@ -2240,6 +2223,7 @@ class cs_compute:
 
 
     def getShortcutResistances(self,anchorPoint,voltmatrix,numpoints,resistances,shortcutResistances): #FIXME: no solver failed capability
+        """Docstring."""  
         point1 = anchorPoint
         for pointx in range(0, numpoints): #point1 is source node, i.e. the 1 in R12.  point 2 is the dst node. TEMP was range(1, numpoints-1)
             R1x = resistances[point1,pointx]
@@ -2259,6 +2243,11 @@ class cs_compute:
 
 
     def deleterow(self, A, delrow):
+        """Deletes rows from a matrix
+
+        From gapdt.py by Viral Shah
+
+        """
         m = A.shape[0]
         n = A.shape[1]
         keeprows = delete (arange(0, m), delrow)
@@ -2267,6 +2256,11 @@ class cs_compute:
 
         
     def deletecol(self, A, delcol):
+        """Deletes columns from a matrix
+
+        From gapdt.py by Viral Shah
+
+        """
         m = A.shape[0]
         n = A.shape[1]
         keeprows = arange(0, m)
@@ -2275,12 +2269,8 @@ class cs_compute:
 
         
     def writeResistances(self, point_ids, resistances):
-        # print 'RES'
-        # print resistances
+        """Writes resistance file to disk."""  
         outputResistances = self.append_names_to_resistances(point_ids, resistances)
-
-        # print 'OUTRES'
-        # print outputResistances        
         fileName = self.options['output_file']
         outputDir, outputFile = os.path.split(fileName)
         outputBase, outputExtension = os.path.splitext(outputFile)
@@ -2303,6 +2293,7 @@ class cs_compute:
         
         
     def writeResistances3columns(self, resistances3Columns):    
+        """Docstring."""  
         fileName = self.options['output_file']
         outputDir, outputFile = os.path.split(fileName)
         outputBase, outputExtension = os.path.splitext(outputFile)       
@@ -2314,6 +2305,7 @@ class cs_compute:
         
         
     def convertResistances3cols(self, resistances):
+        """Docstring."""  
         numPoints = resistances.shape[0]-1
         numEntries = numPoints*(numPoints-1)/2
         resistances3columns = zeros((numEntries,3),dtype = 'float64') 
@@ -2328,6 +2320,7 @@ class cs_compute:
         
         
     def saveIncompleteResistances(self, resistances):
+        """Docstring."""  
         fileName = self.options['output_file']
         outputDir, outputFile = os.path.split(fileName)
         outputBase, outputExtension = os.path.splitext(outputFile)
@@ -2337,6 +2330,7 @@ class cs_compute:
 
 
     def pruneIncludedPairsNetwork(self,focalNodes):
+        """Docstring."""  
         includedPairs = (self.state['includedPairs'])
         includeList = list(includedPairs[0,:])
         point = 0
@@ -2366,6 +2360,7 @@ class cs_compute:
 
 
     def pruneIncludedPairs(self,points_rc):
+        """Docstring."""  
         includedPairs = (self.state['includedPairs'])
         includeList = list(includedPairs[0,:])
         point = 0
@@ -2395,6 +2390,7 @@ class cs_compute:
     
     
     def get_points_rc_unique(self,point_ids,points_rc):
+        """Docstring."""  
         points_rc_unique = zeros((point_ids.size,3), int)
         for i in range(0, point_ids.size):
             for j in range(0, points_rc.shape[0]):
@@ -2405,6 +2401,7 @@ class cs_compute:
         
         
     def checkPointsInComponent(self,c,numpoints,components,points_rc,node_map):
+        """Docstring."""  
         points_in_this_component = False            
         for pt1 in range(0, numpoints): 
             if points_in_this_component == False:
@@ -2418,6 +2415,7 @@ class cs_compute:
 
         
     def getstrengthMap(self,points_rc_unique,pointStrengths):
+        """Docstring."""  
         if self.options['use_variable_source_strengths']==True:
             if self.options['scenario'] == 'one-to-all': 
                 strengths_rc = self.get_strengths_rc(self.state['pointStrengths'],points_rc_unique)
@@ -2432,6 +2430,7 @@ class cs_compute:
         
         
     def get_strengths_rc(self,pointStrengths,points_rc_unique):
+        """Docstring."""  
         strengths_rc = zeros(points_rc_unique.shape,dtype = 'float64')
         strengths_rc[:,1] = points_rc_unique[:,1]
         strengths_rc[:,2] = points_rc_unique[:,2]
@@ -2449,6 +2448,7 @@ class cs_compute:
         
     @print_timing
     def load_maps(self):
+        """Docstring."""  
         self.cs_log('Reading maps',1)
         self.cs_log('',2)
         self.state['g_map'] = self.read_cell_map(self.options['habitat_file'])
@@ -2492,6 +2492,7 @@ class cs_compute:
         
         
     def writeResistancesOneToAll(self,resistances,string):
+        """Docstring."""  
         fileName = self.options['output_file']
         outputDir, outputFile = os.path.split(fileName)
         outputBase, outputExtension = os.path.splitext(outputFile)
@@ -2516,6 +2517,7 @@ class cs_compute:
 
 #################### BEGIN STRESS TESTING CODE ############################################
     def run_stress_test(self,stress_ncols,stress_nrows):
+        """Docstring."""  
         ##### 
         pointfile_contains_polys = False
         #############################
@@ -2554,8 +2556,13 @@ class cs_compute:
 #    raw_input('Hit any key to continue')    #debug code
        
 
+
+       
+       
+       
     # Not implemented at this time
     def advanced_module_network(self,G,sources,grounds,nodeNames):
+        """Not implemented yet.  Represents functionality we'll want to have in 4.0"""  
         (sources, grounds, finitegrounds) = self.resolve_conflicts(sources, grounds)
         try:
             voltages = self.multiple_solver(G, sources, grounds, finitegrounds)
@@ -2573,8 +2580,10 @@ class cs_compute:
         
         return voltages, solver_failed
         
+        
     # Not implemented at this time        
     def one_to_all_module_network(self,G,focalNodes,nodeNames):
+        """Not implemented yet.  Represents functionality we'll want to have in 4.0"""  
         solver_failed = False
         if self.options['use_included_pairs']==True: #Prune points
             focalNodes = self.pruneIncludedPairsNetwork(focalNodes)          
@@ -2666,7 +2675,89 @@ class cs_compute:
         print focalNodes
         return resistances,solver_failed
 
+    # Not implemented at this time   
+    def graph_list_to_graph(self,graphList):
+        """Converts 3-column adjacency list to sparse adjacency matrix.
+        
+        NOT IMPLEMENTED CURRENTLY
+        
+        """  
+        nodes = self.deletecol(graphList,2) 
+        nodeNames = unique(asarray(nodes))
+        nodes[where(nodes>= 0)] = self.gapdt.relabel(nodes[where(nodes>= 0)], 0)
+        node1 = nodes[:,0]
+        node2 = nodes[:,1]
+        data = graphList[:,2] # Edge weights
+
+        numnodes = nodeNames.shape[0]
+        G = sparse.csr_matrix((data, (node1, node2)), shape = (numnodes, numnodes))       
+
+        Gdense=G.todense()
+        graph = maximum(Gdense, Gdense.T) # To handle single or double entries for elements BHM 06/28/11
+        graph = sparse.csr_matrix(graph)
+
+        return graph, nodeNames
 
 
+    # Not implemented at this time   
+    def getVariableSources(self,numnodes,focalNodes):       
+        """Returns souce strengths assigned to focal nodes by user.        
 
+        NOT IMPLEMENTED CURRENTLY
 
+        """  
+        variableSources = ones(numnodes,dtype = 'float64')
+        if self.options['use_variable_source_strengths']==True:
+            pointStrengths = self.readPointStrengths(self.options['variable_source_file']) 
+            variableSourceNames = pointStrengths[:,0]
+            variableSourceNodes = self.namesToNodes(focalNodes,variableSourceNames)
+            try:
+                for i in range (0,len(variableSourceNames)):
+                    variableSources[variableSourceNodes[i]] = pointStrengths[variableSourceNodes[i],1]
+            except IndexError:
+                raise RuntimeError('Error assinging variable source strengths. Please make sure focal node names match.')                
+        return variableSources
+
+        
+    # Not implemented at this time   
+    def readSourcesGroundsNetwork(self, G, nodeNames, sourceFile,groundFile):
+        """Reads source and ground files for advanced network mode.
+        
+        NOT IMPLEMENTED CURRENTLY
+
+        """  
+        if os.path.isfile(sourceFile)==False:
+            raise RuntimeError('File "'  + sourceFile + '" does not exist')   
+        if os.path.isfile(groundFile)==False:
+            raise RuntimeError('File "'  + groundFile + '" does not exist')               
+        rawSources = loadtxt(sourceFile, dtype = 'float64')
+        rawGrounds = loadtxt(groundFile, dtype = 'float64')
+
+        if self.options['ground_file_is_resistances']==True:
+            rawGrounds[:,1] = 1 / rawGrounds[:,1]
+        if self.options['use_direct_grounds']==True:
+            rawGrounds[:,1] = where(rawGrounds[:,1],Inf,0)
+        
+        numnodes = G.shape[0]
+        sourceNodes = self.namesToNodes(nodeNames,rawSources[:,0]) 
+        sources = zeros((numnodes),dtype = 'float64')
+        sources[sourceNodes[:]] = rawSources[:,1] 
+        
+        groundNodes = self.namesToNodes(nodeNames,rawGrounds[:,0]) 
+        grounds = zeros((numnodes),dtype = 'float64')
+        grounds[groundNodes[:]] = rawGrounds[:,1] 
+
+        conflicts = logical_and(sources,grounds)
+        if self.options['remove_src_or_gnd']=='rmvsrc':
+            sources = where(conflicts,0,sources)
+        elif self.options['remove_src_or_gnd']=='rmvgnd':
+            grounds = where(conflicts,0,grounds)
+        elif self.options['remove_src_or_gnd']=='rmvall':
+            sources = where(conflicts,0,sources)
+            grounds = where(conflicts,0,grounds)
+        if size(where(sources)) == 0:
+            raise RuntimeError('No valid sources detected. Please check source file') 
+        if size(where(grounds)) == 0:
+            raise RuntimeError('No valid grounds detected. Please check ground file') 
+        return sources, grounds
+        
