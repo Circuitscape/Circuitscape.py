@@ -4,7 +4,9 @@
 ## $Id: cs_compute.py 804 2012-07-30 23:05:05Z mcrae $
 ##
 
-############## Enter True below to run in Stress Test mode
+#########################################################
+## Enter True below to run in Stress Test mode using grid 
+## with number of columns and rows specified
 stressTest = False
 stress_ncols = 5000
 stress_nrows = 5000
@@ -212,7 +214,7 @@ class cs_compute:
             
     
     def grid_to_graph (self, x, y, node_map):
-        """Returns node corresponding to x,y coordinates in input grid."""  
+        """Returns node corresponding to x-y coordinates in input grid."""  
         return node_map[x, y] - 1
         
         
@@ -543,15 +545,20 @@ class cs_compute:
     
     
     def getVoltmatrixNetwork(self,i,j,numpoints,voltages,resistances,voltmatrix,focalNodes,nodeNames):                                            
-       """Docstring."""  
-       voltvector = zeros((numpoints,1),dtype = 'float64')  
-       for point in range(1,numpoints):
+        """Returns a matrix of pairwise voltage differences between focal nodes when operating on arbitrary graphs.
+        
+        Used for shortcut calculations of effective resistance when no
+        voltages or currents are mapped.
+        
+        """  
+        voltvector = zeros((numpoints,1),dtype = 'float64')  
+        for point in range(1,numpoints):
            node=self.nameToNode(nodeNames,focalNodes[point])
            voltageAtPoint = voltages[node] 
            voltageAtPoint = 1-(voltageAtPoint/resistances[i, j])
            voltvector[point] = voltageAtPoint
-       voltmatrix[:,j] = voltvector[:,0] 
-       return voltmatrix             
+        voltmatrix[:,j] = voltvector[:,0] 
+        return voltmatrix             
              
              
     def nameToNode(self, nodeNames,name):
@@ -784,7 +791,11 @@ class cs_compute:
         return resistance_vector,solver_failed_somewhere 
 
     def get_poly_map_temp(self,poly_map,point_map,point_ids,includedPairs,point1):
-        """Docstring."""  
+        """Returns polygon map for each solve given source and destination nodes.  
+        
+        Used in all-to-one and one-to-all modes only.
+        
+        """  
         if poly_map == []:
             poly_map_temp = point_map
         else:
@@ -801,9 +812,12 @@ class cs_compute:
         return poly_map_temp
 
         
-    #FIXME: Reconcile this module with the one above, consolidate.
     def get_poly_map_temp2(self,poly_map,point_map,points_rc_unique_temp,includedPairs,i):
-        """Docstring."""  
+        """Returns polygon map for each solve given source and destination nodes.  
+        
+        Used in all-to-one and one-to-all modes when included/excluded pairs are used.
+        
+        """  
         if poly_map == []:
             poly_map_temp = point_map
         else:
@@ -1489,7 +1503,7 @@ class cs_compute:
 
     @print_timing
     def construct_g_graph(self, g_map, node_map,prunedMap):
-        """Docstring."""  
+        """Construct sparse adjacency matrix given raster maps of conductances and nodes."""  
         numnodes = node_map.max()
         (node1, node2, conductances) = self.get_conductances(g_map, node_map)
         G = sparse.csr_matrix((conductances, (node1, node2)), shape = (numnodes, numnodes)) # Memory hogging operation?
@@ -1500,14 +1514,14 @@ class cs_compute:
 
         
     def writeGraph(self,filename,graph,nodeNames):
-        """Docstring."""  
+        """Save graph to disk in 3-column format."""  
         graphNcol = self.convert_graph_to_3_col(graph,nodeNames)
         savetxt(filename,graphNcol)
         return
             
      
     def convert_graph_to_3_col(self,graph,nodeNames): 
-        """Docstring."""  
+        """Converts a sparse adjacency matrix to 3-column format."""  
         Gcoo =  graph.tocoo()
         mask = Gcoo.data > 0
         
@@ -1525,7 +1539,7 @@ class cs_compute:
         
         
     def get_horiz_neighbors(self, g_map):
-        """Docstring."""  
+        """Returns values of horizontal neighbors in conductance map."""  
         m = g_map.shape[0]
         n = g_map.shape[1]
 
@@ -1539,7 +1553,7 @@ class cs_compute:
 
         
     def get_vert_neighbors(self, g_map):
-        """Docstring."""  
+        """Returns values of vertical neighbors in conductance map."""  
         m = g_map.shape[0]
         n = g_map.shape[1]
 
@@ -1553,7 +1567,7 @@ class cs_compute:
 
         
     def get_diag1_neighbors(self, g_map):
-        """Docstring."""  
+        """Returns values of 1st diagonal neighbors in conductance map."""  
         m = g_map.shape[0]
         n = g_map.shape[1]
 
@@ -1570,7 +1584,7 @@ class cs_compute:
 
         
     def get_diag2_neighbors(self, g_map):
-        """Docstring."""  
+        """Returns values of 2nd diagonal neighbors in conductance map."""  
         m = g_map.shape[0]
         n = g_map.shape[1]
 
@@ -1587,7 +1601,11 @@ class cs_compute:
         
         
     def get_conductances(self, g_map, node_map):
-        """Docstring."""  
+        """Calculates conductances between adjacent nodes given a raster conductance map.
+        
+        Returns an adjacency matrix with values representing node-to-node conductance values.
+        
+        """  
         (s_horiz, t_horiz) = self.get_horiz_neighbors(g_map)
         (s_vert,  t_vert)  = self.get_vert_neighbors(g_map)
 
@@ -1633,7 +1651,11 @@ class cs_compute:
 
     @print_timing
     def node_pruner(self, g_map, poly_map, component_map, keep_component):
-        """Docstring."""  
+        """Removes nodes outside of component being operated on.
+        
+        Returns node map and adjacency matrix that only include nodes in keep_component.
+        
+        """  
         selector = component_map == keep_component
         
         g_map_pruned = selector * g_map
@@ -1651,7 +1673,7 @@ class cs_compute:
         
     @print_timing
     def laplacian(self, G): 
-        """Docstring."""  
+        """Returns Laplacian of graph."""  
         n = G.shape[0]
 
         # FIXME: Potential for memory savings, if assignment is used
@@ -1663,7 +1685,7 @@ class cs_compute:
         
     @print_timing
     def create_amg_hierarchy(self, G): 
-        """Docstring."""  
+        """Creates AMG hierarchy."""  
         if self.options['solver'] == 'amg' or self.options['solver'] == 'cg+amg':
             self.state['amg_hierarchy'] = None
             # construct the MG hierarchy
@@ -1680,7 +1702,7 @@ class cs_compute:
         
     @print_timing
     def solve_linear_system(self, G, rhs): 
-        """Docstring."""  
+        """Solves system of equations."""  
         gc.collect()
         # Solve G*x = rhs
         x = []
@@ -1704,9 +1726,10 @@ class cs_compute:
 
         return x 
 
+        
     @print_timing
     def create_voltage_map(self, node_map, voltages):
-        """Docstring."""  
+        """Creates raster map of voltages given node voltage vector."""  
         voltage_map = numpy.zeros((self.state['nrows'], self.state['ncols']), dtype = 'float64')
         ind = node_map > 0
         voltage_map[where(ind)] = asarray(voltages[node_map[ind]-1]).flatten()
@@ -1716,7 +1739,7 @@ class cs_compute:
 ######################### BEGIN CURRENT MAPPING CODE ########################################
     @print_timing
     def create_current_map(self, voltages, G, node_map, finitegrounds):
-        """Docstring."""  
+        """Creates raster current map given node voltage vector, adjacency matrix, etc."""  
         gc.collect()
         node_currents = self.get_node_currents(voltages, G, finitegrounds)
         (rows, cols) = where(node_map)
@@ -1727,7 +1750,7 @@ class cs_compute:
         return current_map
 
     def get_node_currents(self, voltages, G, finitegrounds):
-        """Docstring."""  
+        """Calculates currents at nodes."""  
         node_currents_pos = self.get_node_currents_posneg (G, voltages, finitegrounds, True) 
         node_currents_neg = self.get_node_currents_posneg (G, voltages, finitegrounds, False)
         node_currents = where(node_currents_neg > node_currents_pos, node_currents_neg, node_currents_pos)
@@ -1736,7 +1759,7 @@ class cs_compute:
 
         
     def get_node_currents_posneg (self, G, voltages, finitegrounds, pos):
-        """Docstring."""  
+        """Calculates positive or negative node currents based on pos flag."""  
         branch_currents = self.get_branch_currents(G,voltages,pos)
         branch_currents = branch_currents-branch_currents.T #Can cause memory error
         
@@ -1762,7 +1785,7 @@ class cs_compute:
     
     
     def get_branch_currents(self,G,voltages,pos):    
-        """Docstring."""  
+        """Calculates branch currents."""  
         branch_currents = self.get_branch_currents_posneg(G,voltages,pos)
         n = G.shape[0]
         mask = G.row < G.col
@@ -1771,7 +1794,7 @@ class cs_compute:
 
         
     def get_branch_currents_posneg(self,G,voltages,pos):
-        """Docstring."""  
+        """Calculates positive or negative node currents based on pos flag."""  
         mask = G.row < G.col
         if pos==True:
              vdiff = voltages[G.row[mask]]              
@@ -1793,7 +1816,7 @@ class cs_compute:
         
     ### FILE I/O ###
     def write_aaigrid(self, type, fileadd, data):
-        """Docstring."""  
+        """Writes ASCII grid.  This is main raster output format for Circuitscape."""  
         if type == 'voltmap':
             if self.options['write_volt_maps'] == False: 
                 return
@@ -1823,7 +1846,7 @@ class cs_compute:
         
         
     def read_cell_map(self, filename):
-        """Docstring."""  
+        """Reads resistance or conductance raster into memory, converts former to conductance format."""  
         (ncols, nrows, xllcorner, yllcorner, cellsize, nodata) = read_header(filename)
         self.state['ncols'] = ncols
         self.state['nrows'] = nrows
@@ -1861,7 +1884,11 @@ class cs_compute:
 
 
     def read_point_map(self, filename):
-        """Docstring."""  
+        """Reads map or text list of focal nodes from disk.  
+        
+        File extension is used to determine whether format is ascii grid, numpy array, or text list.
+        
+        """  
         if os.path.isfile(filename)==False:
             raise RuntimeError('File "'  + filename + '" does not exist')
         base, extension = os.path.splitext(filename)
@@ -1882,7 +1909,7 @@ class cs_compute:
             except IndexError:
                 raise RuntimeError('Error extracting focal node locations. Please check file format.')                
 
-        elif extension == ".asc" or extension == ".npy":
+        elif extension == ".asc" or extension == ".npy": # We use Numpy format for quickly passing grids between ArcGIS and Circuitscape.
             readingMask = False
             (ncols, nrows, xllcorner, yllcorner, cellsize, nodata) = read_header(filename)
             if cellsize!= self.state['cellsize']:
@@ -1931,7 +1958,7 @@ class cs_compute:
         
         
     def read_poly_map(self, filename,readingMask):  
-        """Docstring."""  
+        """Reads short-circuit region map (aka polygon map) from disk."""  
         (ncols, nrows, xllcorner, yllcorner, cellsize, nodata) = read_header(filename)
         if cellsize!= self.state['cellsize']:
             print'\n********\nWarning: Short-circuit region or mask raster has different \ncell size than habitat raster. \nCircuitscape will try to crudely resample the raster. \nWe recommend using the "Export to Circuitscape" ArcGIS tool to create ASCII grids with compatible cell size and extent.'
@@ -1960,7 +1987,7 @@ class cs_compute:
 
         
     def read_source_and_ground_maps(self, source_filename, ground_filename): 
-        """Docstring."""  
+        """Reads srouce and ground raster maps from disk."""  
         #FIXME: reader does not currently handle infinite inputs for ground conductances.
         if os.path.isfile(source_filename)==False:
             raise RuntimeError('File "'  + source_filename + '" does not exist')
@@ -2053,7 +2080,13 @@ class cs_compute:
 
 
     def readincludedPairs(self, filename):
-        """Docstring."""  
+        """Reads matrix denoting node pairs to include/exclude from calculations.
+        
+        FIXME: matrices are an inconvenient way for users to specify pairs.  Using a 
+        2- or 3-column format would be easier.
+        
+        """  
+        
         if os.path.isfile(filename)==False:
             raise RuntimeError('File "'  + filename + '" does not exist')
         
@@ -2085,7 +2118,11 @@ class cs_compute:
 
         
     def readPointStrengths(self, filename):
-        """Docstring."""  
+        """Reads list of variable source strengths from disk.  
+        
+        This code also used for reading file for reclassifying input data.
+        
+        """  
         if os.path.isfile(filename)==False:
             raise RuntimeError('File "'  + filename + '" does not exist')
         
@@ -2106,7 +2143,7 @@ class cs_compute:
 
 
     def enable_low_memory(self, restart):
-        """Docstring."""  
+        """Runs circuitscape in low memory mode.  Not incredibly helpful it seems."""  
         self.state['amg_hierarchy'] = None
         gc.collect()
         if self.options['low_memory_mode']==True:
@@ -2140,7 +2177,7 @@ class cs_compute:
 
 
     def resampleMap(self,filename,readingMask):
-        """Docstring."""  
+        """Code to crudely resample input raster if raster headers don't match (i.e. different extents or cell sizes used)."""  
         try:
             (ncols, nrows, xllcorner, yllcorner, cellsize, nodata) = read_header(filename)
             map = reader(filename, 'int32')
@@ -2211,7 +2248,12 @@ class cs_compute:
 
         
     def getVoltmatrix(self,i,j,numpoints,local_node_map,voltages,points_rc,resistances,voltmatrix):                                            
-        """Docstring."""  
+        """Returns a matrix of pairwise voltage differences between focal nodes.
+        
+        Used for shortcut calculations of effective resistance when no
+        voltages or currents are mapped.
+        
+        """  
         voltvector = zeros((numpoints,1),dtype = 'float64')  
         voltage_map = self.create_voltage_map(local_node_map,voltages) 
         for point in range(1,numpoints):
@@ -2223,9 +2265,13 @@ class cs_compute:
 
 
     def getShortcutResistances(self,anchorPoint,voltmatrix,numpoints,resistances,shortcutResistances): #FIXME: no solver failed capability
-        """Docstring."""  
+        """Calculates all resistances to each focal node at once.
+        
+        Greatly speeds up resistance calculations if not mapping currents or voltages.
+        
+        """  
         point1 = anchorPoint
-        for pointx in range(0, numpoints): #point1 is source node, i.e. the 1 in R12.  point 2 is the dst node. TEMP was range(1, numpoints-1)
+        for pointx in range(0, numpoints): #point1 is source node, i.e. the 1 in R12.  point 2 is the dst node.
             R1x = resistances[point1,pointx]
             if R1x!= -1:
                 shortcutResistances[point1,pointx] = R1x
@@ -2293,7 +2339,7 @@ class cs_compute:
         
         
     def writeResistances3columns(self, resistances3Columns):    
-        """Docstring."""  
+        """Writes effective resistances to disk in 3 column format."""  
         fileName = self.options['output_file']
         outputDir, outputFile = os.path.split(fileName)
         outputBase, outputExtension = os.path.splitext(outputFile)       
@@ -2305,7 +2351,7 @@ class cs_compute:
         
         
     def convertResistances3cols(self, resistances):
-        """Docstring."""  
+        """Converts resistances from matrix to 3-column format."""  
         numPoints = resistances.shape[0]-1
         numEntries = numPoints*(numPoints-1)/2
         resistances3columns = zeros((numEntries,3),dtype = 'float64') 
@@ -2320,7 +2366,11 @@ class cs_compute:
         
         
     def saveIncompleteResistances(self, resistances):
-        """Docstring."""  
+        """Saves resistances from ongoing calculations.  Helpful for debugging
+        
+        or recovering partial results after crash or user abort.
+        
+        """  
         fileName = self.options['output_file']
         outputDir, outputFile = os.path.split(fileName)
         outputBase, outputExtension = os.path.splitext(outputFile)
@@ -2330,7 +2380,7 @@ class cs_compute:
 
 
     def pruneIncludedPairsNetwork(self,focalNodes):
-        """Docstring."""  
+        """Remove excluded points from focal node list when using extra file that lists pairs to include/exclude in network mode."""   
         includedPairs = (self.state['includedPairs'])
         includeList = list(includedPairs[0,:])
         point = 0
@@ -2360,7 +2410,7 @@ class cs_compute:
 
 
     def pruneIncludedPairs(self,points_rc):
-        """Docstring."""  
+        """Remove excluded points from focal node list when using extra file that lists pairs to include/exclude."""  
         includedPairs = (self.state['includedPairs'])
         includeList = list(includedPairs[0,:])
         point = 0
@@ -2390,7 +2440,7 @@ class cs_compute:
     
     
     def get_points_rc_unique(self,point_ids,points_rc):
-        """Docstring."""  
+        """Return a list of unique focal node IDs and x-y coordinates."""  
         points_rc_unique = zeros((point_ids.size,3), int)
         for i in range(0, point_ids.size):
             for j in range(0, points_rc.shape[0]):
@@ -2401,7 +2451,7 @@ class cs_compute:
         
         
     def checkPointsInComponent(self,c,numpoints,components,points_rc,node_map):
-        """Docstring."""  
+        """Checks to see if there are focal points in a given component."""  
         points_in_this_component = False            
         for pt1 in range(0, numpoints): 
             if points_in_this_component == False:
@@ -2415,7 +2465,12 @@ class cs_compute:
 
         
     def getstrengthMap(self,points_rc_unique,pointStrengths):
-        """Docstring."""  
+        """Returns map and coordinates of point strengths when variable
+        
+        source strengths are used.
+        
+        
+        """  
         if self.options['use_variable_source_strengths']==True:
             if self.options['scenario'] == 'one-to-all': 
                 strengths_rc = self.get_strengths_rc(self.state['pointStrengths'],points_rc_unique)
@@ -2430,7 +2485,11 @@ class cs_compute:
         
         
     def get_strengths_rc(self,pointStrengths,points_rc_unique):
-        """Docstring."""  
+        """Returns coordinates of point strengths when variable
+        
+        source strengths are used.
+        
+        """  
         strengths_rc = zeros(points_rc_unique.shape,dtype = 'float64')
         strengths_rc[:,1] = points_rc_unique[:,1]
         strengths_rc[:,2] = points_rc_unique[:,2]
@@ -2448,7 +2507,7 @@ class cs_compute:
         
     @print_timing
     def load_maps(self):
-        """Docstring."""  
+        """Loads all raster maps into self.state."""  
         self.cs_log('Reading maps',1)
         self.cs_log('',2)
         self.state['g_map'] = self.read_cell_map(self.options['habitat_file'])
@@ -2492,7 +2551,7 @@ class cs_compute:
         
         
     def writeResistancesOneToAll(self,resistances,string):
-        """Docstring."""  
+        """Saves effective resistances from one-to-all calculations to disk."""  
         fileName = self.options['output_file']
         outputDir, outputFile = os.path.split(fileName)
         outputBase, outputExtension = os.path.splitext(outputFile)
@@ -2517,7 +2576,11 @@ class cs_compute:
 
 #################### BEGIN STRESS TESTING CODE ############################################
     def run_stress_test(self,stress_ncols,stress_nrows):
-        """Docstring."""  
+        """Runs circuitscape with grids of user-defined size to 
+        
+        test for memory failure points.
+        
+        """        
         ##### 
         pointfile_contains_polys = False
         #############################

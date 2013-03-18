@@ -642,6 +642,7 @@ class cs_gui(model.Background):
 
 
     def checkHeaders(self):
+        """Checks to make sure headers (with cell size, number of cols, etc) match for input rasters."""  
         if self.options['data_type']=='network':
             return
         (ncols, nrows, xllcorner, yllcorner, cellsize, nodata)=read_header(self.options['habitat_file'])
@@ -862,7 +863,7 @@ class cs_gui(model.Background):
             self.components.srcFileText.foregroundColor=(180,180,180)
             
     def LoadOptions(self,configFile):
-
+        """Sets options based on configuration file from last run or sets default options if no file exists."""  
         if os.path.isfile(configFile):
             try:
                 options = readConfigFile(configFile)
