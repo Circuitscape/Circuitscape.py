@@ -228,7 +228,7 @@ class cs_compute:
  
   
     def get_overlap_polymap(self,point,point_map,poly_map_temp,new_poly_num): 
-        """Docstring."""  
+        """Creates a map of polygons (aka short-circuit or zero resistance regions) overlapping a focal node."""  
         point_poly = where(point_map == point, 1, 0) 
         poly_point_overlap = multiply(point_poly,poly_map_temp)
         overlap_vals = unique(asarray(poly_point_overlap))
@@ -395,14 +395,11 @@ class cs_compute:
         
         x = 0
         for i in range(0, numpoints):
-
             if range(i, numpoints) == []:
                 break
             if (useResistanceCalcShortcut==True) and (dstPoint>0):
                 break #No need to continue, we've got what we need to calculate resistances
-         
-            dstPoint = dstPoint+1
-            
+            dstPoint = dstPoint+1            
             if using_G_no_deleterow: #Fixme: right now this is assumed in network mode
                 dst = self.nameToNode(nodeNames,focalNodes[i])
                 G_dst_dst = G[dst, dst] 
@@ -506,6 +503,7 @@ class cs_compute:
         
     def writeCurrentsNetwork(self, branch_currents, node_currents, fileadd):
         """Writes currents from network operations.
+        
            Inputs are arrays with node names.
 
         """       
@@ -1189,8 +1187,8 @@ class cs_compute:
                                         (hours,mins,secs) = elapsed_time(lastWriteTime)
                                         if secs > 120: 
                                             lastWriteTime = time.time()
-                                            self.saveIncompleteResistances(resistances)#save incomplete resistances
-                        if (useResistanceCalcShortcut==True and i==anchorPoint): #this happens once per component. Anchorpoint is the first i in component
+                                            self.saveIncompleteResistances(resistances)# Save incomplete resistances
+                        if (useResistanceCalcShortcut==True and i==anchorPoint): # This happens once per component. Anchorpoint is the first i in component
                             shortcutResistances = self.getShortcutResistances(anchorPoint,voltmatrix,numpoints,resistances,shortcutResistances)
                                                 
                         if using_G_no_deleterow:
@@ -2366,9 +2364,9 @@ class cs_compute:
         
         
     def saveIncompleteResistances(self, resistances):
-        """Saves resistances from ongoing calculations.  Helpful for debugging
+        """Saves resistances from ongoing calculations.  
         
-        or recovering partial results after crash or user abort.
+        Helpful for debugging or recovering partial results after crash or user abort.
         
         """  
         fileName = self.options['output_file']
@@ -2465,12 +2463,7 @@ class cs_compute:
 
         
     def getstrengthMap(self,points_rc_unique,pointStrengths):
-        """Returns map and coordinates of point strengths when variable
-        
-        source strengths are used.
-        
-        
-        """  
+        """Returns map and coordinates of point strengths when variable source strengths are used."""  
         if self.options['use_variable_source_strengths']==True:
             if self.options['scenario'] == 'one-to-all': 
                 strengths_rc = self.get_strengths_rc(self.state['pointStrengths'],points_rc_unique)
@@ -2485,11 +2478,7 @@ class cs_compute:
         
         
     def get_strengths_rc(self,pointStrengths,points_rc_unique):
-        """Returns coordinates of point strengths when variable
-        
-        source strengths are used.
-        
-        """  
+        """Returns coordinates of point strengths when variable source strengths are used."""  
         strengths_rc = zeros(points_rc_unique.shape,dtype = 'float64')
         strengths_rc[:,1] = points_rc_unique[:,1]
         strengths_rc[:,2] = points_rc_unique[:,2]
@@ -2576,11 +2565,7 @@ class cs_compute:
 
 #################### BEGIN STRESS TESTING CODE ############################################
     def run_stress_test(self,stress_ncols,stress_nrows):
-        """Runs circuitscape with grids of user-defined size to 
-        
-        test for memory failure points.
-        
-        """        
+        """Runs circuitscape with grids of user-defined size to test for memory failure points."""        
         ##### 
         pointfile_contains_polys = False
         #############################
@@ -2618,14 +2603,17 @@ class cs_compute:
 
 #    raw_input('Hit any key to continue')    #debug code
        
-
-
-       
        
        
     # Not implemented at this time
     def advanced_module_network(self,G,sources,grounds,nodeNames):
-        """Not implemented yet.  Represents functionality we'll want to have in 4.0"""  
+        """Overhead module for advanced mode with arbitrary graphs.
+        
+        Represents functionality we'll want to have in 4.0.
+        
+        NOT IMPLEMENTED YET
+        
+        """  
         (sources, grounds, finitegrounds) = self.resolve_conflicts(sources, grounds)
         try:
             voltages = self.multiple_solver(G, sources, grounds, finitegrounds)
