@@ -1,9 +1,3 @@
-##
-## Circuitscape (C) 2008, Brad McRae and Viral B. Shah. 
-##
-## $Id: cs_compute.py 804 2012-07-30 23:05:05Z mcrae $
-##
-
 #########################################################
 ## Enter True below to run in Stress Test mode using grid 
 ## with number of columns and rows specified
@@ -50,7 +44,7 @@ using_G_no_deleterow = True # Set this to True to use -1 and +1 for currents
 print_timings_spaces = 0
 print_timings = False
 
-class cs_compute:
+class circuitscape:
         
     def __init__(self, configFile, logger_func):
         gc.enable()

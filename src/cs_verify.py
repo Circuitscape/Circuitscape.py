@@ -8,9 +8,7 @@ import imp, os, sys
 
 import unittest
 from cs_util import *
-from cs_compute import *
-
-
+from circuitscape import *
 
 def approxEqual(a, b):
     m = a.shape[0]
@@ -32,7 +30,7 @@ def cs_verifyall():
 def test_sg(ut, test_name):
     #print test_name
     configFile='.//verify//config_files//' + test_name + '.ini'
-    cs = cs_compute(configFile, None)
+    cs = circuitscape(configFile, None)
     resistances_computed,solver_failed = cs.compute()
     resistances_saved=loadtxt('.//verify//baseline_results//' + test_name + '_resistances.txt') 
     
@@ -59,7 +57,7 @@ def test_sg(ut, test_name):
 def test_network_sg(ut, test_name):
     #print test_name
     configFile='.//verify//config_files//' + test_name + '.ini'
-    cs = cs_compute(configFile, None)
+    cs = circuitscape(configFile, None)
 
     # These baseline outputs generated using rasters, with outputs written in graph format using 'write_baseline_results' option.
     resistances_computed,solver_failed = cs.compute()
@@ -86,7 +84,7 @@ def test_network_sg(ut, test_name):
 def test_one_to_all(ut, test_name):
     #print test_name
     configFile='.//verify//config_files//' + test_name + '.ini'
-    cs = cs_compute(configFile, None)
+    cs = circuitscape(configFile, None)
     resistances_computed,solver_failed = cs.compute()
 
     resistances_saved=loadtxt('.//verify//baseline_results//' + test_name + '_resistances.txt') 
@@ -110,7 +108,7 @@ def test_one_to_all(ut, test_name):
 def test_all_to_one(ut, test_name):
     #print test_name
     configFile='.//verify//config_files//' + test_name + '.ini'
-    cs = cs_compute(configFile, None)
+    cs = circuitscape(configFile, None)
     resistances_computed,solver_failed = cs.compute()
 
     current_map_1_computed=reader('.//verify//output//' + test_name + '_curmap_1.asc', 'float64') 
@@ -131,7 +129,7 @@ def test_all_to_one(ut, test_name):
 def test_mg(ut, test_name):
     #print test_name
     configFile='.//verify//config_files//' + test_name + '.ini'
-    cs = cs_compute(configFile, None)
+    cs = circuitscape(configFile, None)
     voltages = cs.compute()
    
     cum_current_map_computed=reader('.//verify//output//' + test_name + '_curmap.asc', 'float64') 
