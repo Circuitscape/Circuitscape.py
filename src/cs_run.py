@@ -7,16 +7,13 @@
 
 
 import sys
-from cs_compute import *
+from circuitscape import *
+
 if len(sys.argv) == 1:
     print 'Error: Circuitscape configuration (.ini) file required.'
 else:
     configFile = sys.argv[1]
-    print 'Calling Circuitscape...'
-    cs = cs_compute(configFile, 'Screen')
+    cs = circuitscape(configFile, 'Screen')
     resistances = cs.compute()
     print resistances
-    print '\nCircuitscape calculations completed.'
-    
 
-   
