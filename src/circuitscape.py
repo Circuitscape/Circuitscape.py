@@ -31,16 +31,6 @@ from cs_util import *
 from gapdt import *
 import copy
 
-
-umfpack_available = False #Fixme- causes error on mac OS
-try:
-    import scipy.sparse.linalg.dsolve.umfpack as um
-except ImportError:
-    umfpack_available = False
-
-using_G_no_deleterow = True # Set this to True to use -1 and +1 for currents
-                            # Set this to False for the original method
-                            
 print_timings_spaces = 0
 print_timings = False
 
@@ -96,9 +86,6 @@ class circuitscape:
 #         self.options['mask_file'] = './verify/1/mask.asc' 
 #         print'DEBUG CODE ACTIVATED. MASK FILE SET TO',self.options['mask_file']
 ###################################################################################
-        
-        if umfpack_available:
-            self.options['solver'] = 'umfpack'
         
         self.gapdt = gapdt()
 
@@ -394,13 +381,12 @@ class circuitscape:
             if (useResistanceCalcShortcut==True) and (dstPoint>0):
                 break #No need to continue, we've got what we need to calculate resistances
             dstPoint = dstPoint+1            
-            if using_G_no_deleterow: #Fixme: right now this is assumed in network mode
-                dst = self.nameToNode(nodeNames,focalNodes[i])
-                G_dst_dst = G[dst, dst] 
-                G[dst,dst] = 0
-                self.state['amg_hierarchy'] = None
-                gc.collect()
-                self.create_amg_hierarchy(G)         
+            dst = self.nameToNode(nodeNames,focalNodes[i])
+            G_dst_dst = G[dst, dst] 
+            G[dst,dst] = 0
+            self.state['amg_hierarchy'] = None
+            gc.collect()
+            self.create_amg_hierarchy(G)         
             
             for j in range(i+1, numpoints):
                 x = x+1
@@ -453,8 +439,7 @@ class circuitscape:
             if (useResistanceCalcShortcut==True) and (i==anchorPoint): #this happens once per component. Anchorpoint is the first i in component
                 shortcutResistances = self.getShortcutResistances(anchorPoint,voltmatrix,numpoints,resistances,shortcutResistances)
              
-            if using_G_no_deleterow:
-                G[dst,dst] = G_dst_dst
+            G[dst,dst] = G_dst_dst
              
         if self.options['write_cur_maps'] == True:
             cumBranchCurrentsArray = self.convert_graph_to_3_col(cumBranchCurrents,nodeNames)
@@ -1036,29 +1021,18 @@ class circuitscape:
                         dstPoint = dstPoint+1
                         Gsolve = []
                     
-                        if using_G_no_deleterow:
-                            G_dst_dst = G[local_dst, local_dst] 
-                            G[local_dst,local_dst] = 0
+                        G_dst_dst = G[local_dst, local_dst] 
+                        G[local_dst,local_dst] = 0
     
-                        else:
-                            Gsolve = self.gapdt.deleterowcol(G, delrow = local_dst, delcol = local_dst)
-    
-                        if using_G_no_deleterow:
-                            self.state['amg_hierarchy'] = None
-                            gc.collect()
-                            self.create_amg_hierarchy(G)
-                        else:
-                            self.create_amg_hierarchy(Gsolve)
-
+                        self.state['amg_hierarchy'] = None
+                        gc.collect()
+                        self.create_amg_hierarchy(G)
 
                         ################    
                         for j in range(i+1, numpoints):
                             if includedPairs[i+1,j+1]==1: #Test for pair in includedPairs
                                 if self.state['amg_hierarchy']==None: #Called in case of memory error in current mapping
-                                    if using_G_no_deleterow:
-                                        self.create_amg_hierarchy(G)
-                                    else:
-                                        self.create_amg_hierarchy(Gsolve)                            
+                                    self.create_amg_hierarchy(G)
                                
                                 if reportStatus==True:
                                     x = x+1
@@ -1075,10 +1049,8 @@ class circuitscape:
                                     # Solve resistive network (Kirchoff's laws)
                                     solver_failed = False
                                     try:
-                                        if using_G_no_deleterow:
-                                            voltages = self.single_ground_solver(G, local_src, local_dst)
-                                        else:
-                                            voltages = self.single_ground_solver(Gsolve, local_src, local_dst)
+                                        voltages = self.single_ground_solver(G, local_src, local_dst)
+
                                     except:
                                         solver_failed = True
                                         solver_failed_somewhere = True
@@ -1185,8 +1157,7 @@ class circuitscape:
                         if (useResistanceCalcShortcut==True and i==anchorPoint): # This happens once per component. Anchorpoint is the first i in component
                             shortcutResistances = self.getShortcutResistances(anchorPoint,voltmatrix,numpoints,resistances,shortcutResistances)
                                                 
-                        if using_G_no_deleterow:
-                            G[local_dst, local_dst] = G_dst_dst
+                        G[local_dst, local_dst] = G_dst_dst
 
                     #End for
                     self.state['amg_hierarchy'] = None
@@ -1217,28 +1188,12 @@ class circuitscape:
         """Solver used for pairwise mode."""  
         n = G.shape[0]
         rhs = zeros(n, dtype = 'float64')
-        if using_G_no_deleterow:
-            if src==dst:
-                voltages = zeros(n, dtype = 'float64')
-            else:
-                rhs[dst] = -1
-                rhs[src] = 1
-                voltages = self.solve_linear_system (G, rhs)
+        if src==dst:
+            voltages = zeros(n, dtype = 'float64')
         else:
-            if src==dst:
-                voltages = zeros(n+1, dtype = 'float64')
-            else:
-            
-                if src <=  dst:
-                    rhs[src] = 1
-                else:
-                    rhs[src-1] = 1
-                
-                x = self.solve_linear_system (G, rhs)
-             
-                voltages = zeros(n+1, dtype = 'float64')
-                keep = delete (arange(0, n+1, dtype = 'int32'), dst)
-                voltages[keep] = x
+            rhs[dst] = -1
+            rhs[src] = 1
+            voltages = self.solve_linear_system (G, rhs)
 
         return voltages
 
@@ -1682,11 +1637,8 @@ class circuitscape:
             self.state['amg_hierarchy'] = None
             # construct the MG hierarchy
             ml = []
-            if using_G_no_deleterow:
-              #  scipy.io.savemat('c:\\temp\\graph.mat',mdict={'d':G})
-                ml = smoothed_aggregation_solver(G)
-            else:
-                ml = ruge_stuben_solver(G)    
+            #  scipy.io.savemat('c:\\temp\\graph.mat',mdict={'d':G})
+            ml = smoothed_aggregation_solver(G)
             self.state['amg_hierarchy'] = ml
   
         return
@@ -1705,16 +1657,9 @@ class circuitscape:
             if flag !=  0 or linalg.norm(G*x-rhs) > 1e-3:
                 raise RuntimeError('CG did not converge. May need more iterations.') 
 
-        if self.options['solver'] == 'umfpack':
-            umfpack = um.UmfpackContext()
-            x = umfpack( um.UMFPACK_A, G, rhs )
-            
         if self.options['solver'] == 'amg':
             ml = self.state['amg_hierarchy']
             x = ml.solve(rhs, tol = 1e-6);
-            
-        if self.options['solver'] == 'superlu':
-            x = sparse.linalg.spsolve(G, rhs)
 
         return x 
 
