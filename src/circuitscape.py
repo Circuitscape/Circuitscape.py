@@ -158,10 +158,7 @@ class circuitscape:
         else:
             raise RuntimeError('Output directory ' + outputDir + ' does not exist!')    
         
-        if stressTest==True:
-            print 'Calling stress test code'
-            self.run_stress_test(stress_ncols,stress_nrows)
-        elif self.options['data_type']=='network':
+        if self.options['data_type']=='network':
             result,solver_failed = self.network_module() # Call module for solving arbitrary graphs (not raster grids)
             self.logCompleteJob()
             return result,solver_failed #Fixme: add in solver failed check
