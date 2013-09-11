@@ -1,7 +1,6 @@
+## !/usr/bin/python
 ##
-## Circuitscape (C) 2008, Brad McRae and Viral B. Shah. 
-##
-## $Id: cs_verify.py 793 2012-01-04 16:14:23Z mcrae $
+## Circuitscape (C) 2013, Brad McRae and Viral B. Shah. 
 ##
 
 import imp, os, sys

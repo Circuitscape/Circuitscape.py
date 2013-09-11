@@ -25,7 +25,7 @@ from PythonCard import dialog, model
 from PythonCard.components import button, checkbox, choice, image, staticline, statictext, textfield
 
 from cs_util import *
-from cs_compute import *
+from circuitscape import *
 from cs_verify import *
 
 class cs_gui(model.Background):
@@ -184,7 +184,7 @@ class cs_gui(model.Background):
                 print 'Processing',configFile,'\n'
                 self.statusBar.SetStatusText('Batch start ' + str(startTimeHMS) + '. Running job ' + str(job) +'/' +str(numjobs),0)
                 try:
-                    cs = cs_compute(selection,self.statusBar.SetStatusText)
+                    cs = circuitscape(selection,self.statusBar.SetStatusText)
                 except RuntimeError, error:
                     message=str(error)
                     dial = wx.MessageDialog(None, message, 'Error', wx.OK | wx.ICON_ERROR)
@@ -514,7 +514,7 @@ class cs_gui(model.Background):
             startTime = time.strftime('%H:%M:%S')
             self.statusBar.SetStatusText('Job started ' + str(startTime),0)
             try:
-                cs = cs_compute('circuitscape.ini',self.statusBar.SetStatusText)
+                cs = circuitscape('circuitscape.ini',self.statusBar.SetStatusText)
             except RuntimeError, error:
                 message=str(error)
                 dial = wx.MessageDialog(None, message, 'Error', wx.OK | wx.ICON_ERROR)

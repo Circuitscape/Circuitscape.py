@@ -1,11 +1,7 @@
-#########################################################
-## Enter True below to run in Stress Test mode using grid 
-## with number of columns and rows specified
-stressTest = False
-stress_ncols = 5000
-stress_nrows = 5000
-#########################################################
-
+#!/usr/bin/python
+##
+## Circuitscape (C) 2013, Brad McRae and Viral B. Shah. 
+##
 
 import sys, time, string, os, math
 import ConfigParser
@@ -2501,49 +2497,6 @@ class circuitscape:
                 pass 
         return
 
-
-#################### BEGIN STRESS TESTING CODE ############################################
-    def run_stress_test(self,stress_ncols,stress_nrows):
-        """Runs circuitscape with grids of user-defined size to test for memory failure points."""        
-        ##### 
-        pointfile_contains_polys = False
-        #############################
-        print'\n****************STRESS TEST CODE ENABLED *************************'
-        self.state['ncols'] = stress_ncols
-        self.state['nrows'] = stress_nrows
-        print'nrows = ',self.state['ncols']
-        print'ncols = ',self.state['nrows'],'\n'
-        self.state['xllcorner'] = 0
-        self.state['yllcorner'] = 0
-        self.state['cellsize'] = 1
-        self.state['nodata'] = -9999            
-        self.state['g_map'] = ones((self.state['nrows'], self.state['ncols']), dtype = 'float64')
-        g_map = self.state['g_map'] #TEMP
-#         g_map[500,:] = 0.002
-#         g_map[1001,:] = 0.002        
-        self.state['g_map'] = g_map
-        self.state['poly_map'] = []
-        self.options['write_cur_maps'] = False
-#         self.state['points_rc'] =  array([[1,2,2],[2,40,40],[3,60,60],[4,80,80],[5,100,100],[6,120,120],[7,140,140],[8,160,160],[9,180,180],[10,200,200],[11,1600,400],[12,1640,440],[13,1660,460],[14,1680,480],[15,1700,500],[16,1900,500],[17,1900,500],[18,1900,700],[19,1900,900],[20,980,4],[21,1840,900]])        
-        self.state['points_rc'] =  array([[1,1,1],[2,20,20],[3,30,30],[4,40,40],[5,50,50],[6,60,60],[7,70,70],[8,80,80],[9,90,90],[10,100,100],[11,800,200],[12,820,220],[13,830,230],[14,840,240],[15,850,250],[16,950,250],[17,950,250],[18,950,350],[19,950,450],[20,490,2],[21,920,450]]) 
-        if pointfile_contains_polys==True:            
-            self.state['points_rc'] =  array([[1,1,1],[1,10,110],[2,100,100],[3,200,200]])             
-            self.options['point_file_contains_polygons'] = True
-            print'Point file contains polygons.'
-        if self.options['scenario']=='advanced':    
-            self.state['source_map'] = zeros((self.state['nrows'], self.state['ncols']), dtype = 'float64')
-            self.state['ground_map'] = zeros((self.state['nrows'], self.state['ncols']), dtype = 'float64') 
-            self.state['source_map'][10,10] = 1
-            self.state['source_map'][100,100] = 2
-            self.state['ground_map'][20,20] = 1
-            self.state['ground_map'][200,200] = 2 
-        return 
-#################### END STRESS TESTING CODE ############################################
-
-#    raw_input('Hit any key to continue')    #debug code
-       
-       
-       
     # Not implemented at this time
     def advanced_module_network(self,G,sources,grounds,nodeNames):
         """Overhead module for advanced mode with arbitrary graphs.
