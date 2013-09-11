@@ -1,6 +1,7 @@
 VER=3.5.8
 
-all: mac src
+test:
+	python verify.py
 
 mac: clean
 	python setup-mac.py py2app --iconfile circuitscape.icns
@@ -11,3 +12,5 @@ src: clean
 
 clean:
 	rm -fr dist build Output/Circuitscape-$(VER).dmg Output/Circuitscape-$(VER).tar.gz *~ *# *.pyc
+
+all: mac src
