@@ -1,10 +1,6 @@
 #!/usr/bin/python
 ##
-## Circuitscape (C) 2008, Brad McRae and Viral B. Shah. 
-##
-## $Id: cs_run.py 804 2012-07-30 23:05:05Z mcrae $
-##
-
+## Circuitscape (C) 2013, Brad McRae and Viral B. Shah. 
 
 import sys
 from circuitscape import *
