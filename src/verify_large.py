@@ -7,8 +7,8 @@
 import imp, os, sys
 
 import unittest
-from cs_util import *
-from cs_compute import *
+from util import *
+from circuitscape import *
 
 print 'Verifying code with Large Test Problems.'
 
@@ -35,7 +35,7 @@ def cs_verifyall():
 
 def test_sg(ut, test_name):
     configFile='..//Large_Test_Problems//verify//config_files//' + test_name + '.ini'
-    cs = cs_compute(configFile, None)
+    cs = circuitscape(configFile, None)
     resistances_computed,solver_failed = cs.compute()
 
     resistances_saved=loadtxt('..//Large_Test_Problems//verify//baseline_results//' + test_name + '_resistances.txt') 
@@ -56,7 +56,7 @@ def test_sg(ut, test_name):
 
 def test_one_to_all(ut, test_name):
     configFile='..//Large_Test_Problems//verify//config_files//' + test_name + '.ini'
-    cs = cs_compute(configFile, None)
+    cs = circuitscape(configFile, None)
     resistances_computed,solver_failed = cs.compute()
 
     resistances_saved=loadtxt('..//Large_Test_Problems//verify//baseline_results//' + test_name + '_resistances.txt') 
@@ -77,7 +77,7 @@ def test_one_to_all(ut, test_name):
         
 def test_mg(ut, test_name):
     configFile='..//Large_Test_Problems//verify//config_files//' + test_name + '.ini'
-    cs = cs_compute(configFile, None)
+    cs = circuitscape(configFile, None)
     voltages = cs.compute()
    
     cum_current_map_computed=reader('..//Large_Test_Problems//verify//output//' + test_name + '_curmap.asc', 'float64') 
