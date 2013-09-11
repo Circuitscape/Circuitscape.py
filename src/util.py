@@ -1,7 +1,5 @@
 ##
-## Circuitscape (C) 2008, Brad McRae and Viral B. Shah. 
-##
-## $Id: cs_util.py 800 2012-01-04 19:14:15Z mcrae $
+## Circuitscape (C) 2013, Brad McRae and Viral B. Shah. 
 ##
 
 import ConfigParser, os, string, gzip

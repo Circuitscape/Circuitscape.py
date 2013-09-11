@@ -23,7 +23,7 @@ from numpy import *
 from scipy import sparse
 from pyamg import *
 
-from cs_util import *
+from util import *
 from gapdt import *
 import copy
 
@@ -111,7 +111,7 @@ class circuitscape:
         return wrapper
 
         
-    def cs_log(self, text,col):
+    def log(self, text,col):
         """Prints updates to GUI or python window."""  
         (hours,mins,secs) = elapsed_time(self.state['startTime'])
         (hours,mins,secs1) = elapsed_time(self.state['lastUpdateTime'])
@@ -145,8 +145,8 @@ class circuitscape:
         
         self.state['startTime'] = time.time()
         self.state['lastUpdateTime'] = time.time()        
-        self.cs_log('',1)
-        self.cs_log('',2)
+        self.log('',1)
+        self.log('',2)
 
         #Test write privileges by writing config file to output directory
         fileName = self.options['output_file']
@@ -174,7 +174,7 @@ class circuitscape:
 
         elif self.options['scenario'] == 'advanced':
             self.options['write_max_cur_maps']=False
-            self.cs_log ('Calling solver module.',1)
+            self.log ('Calling solver module.',1)
             voltages,current_map,solver_failed = self.advanced_module(self.state['g_map'], self.state['poly_map'], self.state['source_map'], self.state['ground_map'],None,None,None,None,None)
             self.logCompleteJob()
             if solver_failed == True:
@@ -196,9 +196,9 @@ class circuitscape:
         """Writes total time elapsed at end of run."""  
         (hours,mins,secs) = elapsed_time(self.state['startTime'])
         if hours>0:
-            self.cs_log('Job took ' + str(hours) +' hours ' + str(mins) + ' minutes to complete.',2)
+            self.log('Job took ' + str(hours) +' hours ' + str(mins) + ' minutes to complete.',2)
         else:
-            self.cs_log('Job took ' + str(mins) +' minutes ' + str(secs) + ' seconds to complete.',2)
+            self.log('Job took ' + str(mins) +' minutes ' + str(secs) + ' seconds to complete.',2)
  
   
     def get_overlap_polymap(self,point,point_map,poly_map_temp,new_poly_num): 
@@ -221,7 +221,7 @@ class circuitscape:
         (g_graph,nodeNames) = self.read_graph(self.options['graph_file'])
         C = self.gapdt.components(g_graph)         
         numComponents = max(C)
-        self.cs_log('Graph has ' + str(g_graph.shape[0]) + ' nodes and '+ str(numComponents) + ' components.',2)
+        self.log('Graph has ' + str(g_graph.shape[0]) + ' nodes and '+ str(numComponents) + ' components.',2)
         if numComponents > 1:
             full_graph = g_graph
         else:
@@ -386,10 +386,10 @@ class circuitscape:
                 (hours,mins,secs) = elapsed_time(self.state['startTime'])
                 if useResistanceCalcShortcut==True:
                     y = numpoints
-                    self.cs_log ('At ' + str(hours) +' hr ' + str(mins) + ' min solving focal node ' + str(x) + ' of '+ str(y) + '.',1)
+                    self.log ('At ' + str(hours) +' hr ' + str(mins) + ' min solving focal node ' + str(x) + ' of '+ str(y) + '.',1)
                 else:
                     y = numpoints*(numpoints-1)/2
-                    self.cs_log ('At ' + str(hours) +' hr ' + str(mins) + ' min solving focal pair ' + str(x) + ' of '+ str(y) + '.',1)            
+                    self.log ('At ' + str(hours) +' hr ' + str(mins) + ' min solving focal pair ' + str(x) + ' of '+ str(y) + '.',1)            
                 if includedPairs[i+1,j+1]==1:
                     src = self.nameToNode(nodeNames,focalNodes[j])
                     try:
@@ -651,7 +651,7 @@ class circuitscape:
             node_map = self.construct_node_map(g_map, poly_map_temp) #******WANT POLYS BURNED IN 
             (component_map, components) = self.construct_component_map(g_map, node_map)
             pointComponents = where(unique_point_map, component_map, 0)#TODO use this to choose component to operate on below, unless all points in same component
-            self.cs_log('Graph has ' + str(node_map.max()) + ' nodes and '+ str(components.max()) + ' components.',2)
+            self.log('Graph has ' + str(node_map.max()) + ' nodes and '+ str(components.max()) + ' components.',2)
             del node_map
             uniquePointComponentList = unique(pointComponents)
             numComponentsWithPoints = uniquePointComponentList.size
@@ -666,12 +666,12 @@ class circuitscape:
         else:
             node_map = self.construct_node_map(g_map, poly_map) #******WANT POLYS BURNED IN 
             (component_map, components) = self.construct_component_map(g_map, node_map)
-            self.cs_log('Graph has ' + str(node_map.max()) + ' nodes and '+ str(components.max()) + ' components.',2)
+            self.log('Graph has ' + str(node_map.max()) + ' nodes and '+ str(components.max()) + ' components.',2)
             del node_map, component_map, components
 
         for i in range(0, point_ids.size): #These are the 'src' nodes, i.e. the 'one' in all-to-one and one-to-all
             (hours,mins,secs) = elapsed_time(self.state['startTime'])
-            self.cs_log ('At ' + str(hours) +' hr ' + str(mins) + ' min solving focal node ' + str(i+1) + ' of ' + str(point_ids.size) + '.',1)
+            self.log ('At ' + str(hours) +' hr ' + str(mins) + ' min solving focal node ' + str(i+1) + ' of ' + str(point_ids.size) + '.',1)
 
             if self.options['use_included_pairs']==True: # Done above otherwise    
                 #######################   
@@ -913,7 +913,7 @@ class circuitscape:
                         x = x+1
                         y = numpoints*(numpoints-1)/2
                         (hours,mins,secs) = elapsed_time(self.state['startTime'])
-                        self.cs_log ('At ' + str(hours) +' hr ' + str(mins) + ' min solving focal pair ' + str(x) + ' of '+ str(y) + '.',1)
+                        self.log ('At ' + str(hours) +' hr ' + str(mins) + ' min solving focal pair ' + str(x) + ' of '+ str(y) + '.',1)
                         reportStatus = False
                         
                         (pairwise_resistance,cum_current_map,max_current_map,solver_failed) = self.single_ground_all_pair_resistances(g_map, poly_map_temp, points_rc_temp,cum_current_map,max_current_map,reportStatus)
@@ -983,7 +983,7 @@ class circuitscape:
         node_map = self.construct_node_map(g_map, poly_map) # Polygons burned in to node map 
         (component_map, components) = self.construct_component_map(g_map, node_map)
         
-        self.cs_log('Graph has ' + str(node_map.max()) + ' nodes and '+ str(components.max())+ ' components.',2)
+        self.log('Graph has ' + str(node_map.max()) + ' nodes and '+ str(components.max())+ ' components.',2)
         resistances = -1 * ones((numpoints, numpoints), dtype = 'float64')         #Inf creates trouble in python 2.5 on Windows. Use -1 instead.
         
         x = 0
@@ -1032,10 +1032,10 @@ class circuitscape:
                                     (hours,mins,secs) = elapsed_time(self.state['startTime'])
                                     if useResistanceCalcShortcut==True:
                                         y = numpoints
-                                        self.cs_log ('At ' + str(hours) +' hr ' + str(mins) + ' min solving focal node ' + str(x) + ' of '+ str(y) + '.',1)
+                                        self.log ('At ' + str(hours) +' hr ' + str(mins) + ' min solving focal node ' + str(x) + ' of '+ str(y) + '.',1)
                                     else:
                                         y = numpoints*(numpoints-1)/2
-                                        self.cs_log ('At ' + str(hours) +' hr ' + str(mins) + ' min solving focal pair ' + str(x) + ' of '+ str(y) + '.',1)
+                                        self.log ('At ' + str(hours) +' hr ' + str(mins) + ' min solving focal pair ' + str(x) + ' of '+ str(y) + '.',1)
                                 src = self.grid_to_graph (points_rc[j,1], points_rc[j,2], node_map)
                                 local_src = self.grid_to_graph (points_rc[j,1], points_rc[j,2], local_node_map)
                                 if (src >=  0 and components[src] == c):
@@ -1079,14 +1079,14 @@ class circuitscape:
                                         if self.options['write_volt_maps'] == True:
                                             if reportStatus==True:
                                                 (hours,mins,secs) = elapsed_time(self.state['startTime'])
-                                                self.cs_log ('At ' + str(hours) +' hr ' + str(mins) + ' min writing voltage map ' + str(x) + ' of ' + str(y) + '.',1)
+                                                self.log ('At ' + str(hours) +' hr ' + str(mins) + ' min writing voltage map ' + str(x) + ' of ' + str(y) + '.',1)
                                             voltage_map = self.create_voltage_map(local_node_map,voltages) 
                                             self.write_aaigrid('voltmap', '_' + frompoint + '_' + topoint, voltage_map)
                                             del voltage_map
                                         if self.options['write_cur_maps'] == True:
                                             if reportStatus==True:
                                                 (hours,mins,secs) = elapsed_time(self.state['startTime'])
-                                                self.cs_log ('At ' + str(hours) +' hr ' + str(mins) + ' min writing current map ' + str(x) + ' of ' + str(y) + '.',1)
+                                                self.log ('At ' + str(hours) +' hr ' + str(mins) + ' min writing current map ' + str(x) + ' of ' + str(y) + '.',1)
                                             finitegrounds = [-9999] #create dummy value for pairwise case
                                             
                                             try:
@@ -1205,7 +1205,7 @@ class circuitscape:
             node_map = self.construct_node_map(g_map, poly_map)
             (component_map, components) = self.construct_component_map(g_map, node_map)
         if self.options['scenario']=='advanced':
-            self.cs_log('Graph has ' + str(node_map.max()) + ' nodes and '+ str(components.max())+ ' components.',2)
+            self.log('Graph has ' + str(node_map.max()) + ' nodes and '+ str(components.max())+ ' components.',2)
             
         if self.options['write_cur_maps'] == True:
             cum_current_map = zeros((self.state['nrows'],self.state['ncols']),dtype = 'float64')         
@@ -2429,8 +2429,8 @@ class circuitscape:
     @print_timing
     def load_maps(self):
         """Loads all raster maps into self.state."""  
-        self.cs_log('Reading maps',1)
-        self.cs_log('',2)
+        self.log('Reading maps',1)
+        self.log('',2)
         self.state['g_map'] = self.read_cell_map(self.options['habitat_file'])
         if self.options['use_polygons']:
             self.state['poly_map'] = self.read_poly_map(self.options['polygon_file'],readingMask = False)
@@ -2467,7 +2467,7 @@ class circuitscape:
         if self.options['use_variable_source_strengths']==True:
             self.state['pointStrengths'] = self.readPointStrengths(self.options['variable_source_file']) 
         
-        self.cs_log('Processing maps',1)
+        self.log('Processing maps',1)
         return 
         
         
@@ -2564,7 +2564,7 @@ class circuitscape:
                         
             x = x+1
             (hours,mins,secs) = elapsed_time(self.state['startTime'])
-            self.cs_log ('At ' + str(hours) +' hr ' + str(mins) + ' min solving focal node ' + str(x) + ' of '+ str(numpoints) + '.',1)
+            self.log ('At ' + str(hours) +' hr ' + str(mins) + ' min solving focal node ' + str(x) + ' of '+ str(numpoints) + '.',1)
 
             node = focalNodeLocs[i]
             if self.options['scenario'] == 'one-to-all':
