@@ -7,6 +7,7 @@ import sys, time, string, os, math
 import ConfigParser
 import gc
 import traceback
+import pdb
 
 import numpy, scipy, pyamg
 
@@ -27,8 +28,6 @@ from pyamg import *
 from util import *
 import copy
 
-import pdb
-
 print_timings_spaces = 0
 print_timings = False
 
@@ -47,43 +46,8 @@ class circuitscape:
         numpy.seterr(invalid='ignore')
         numpy.seterr(divide='ignore')
         
-###################################################################################
-##############  OPTIONS FOR BETA CODE --EXPERIMENTAL AND NOT FOR USE ##############
-        #self.options['data_type']='raster' # use 'network' for new network code
-        
-        # write results from raster to compare with network runs. writes copy
-        # of graph plus copy of focal node list for network input.
-        self.options['write_baseline_results']=False
-
-        if self.options['data_type']=='network': 
-            self.options['write_baseline_results']=False
-
-        if self.options['write_baseline_results']==True:
-            print '***Writing baseline results for comparison with network results***'
-            #writes copy of graph.  Used to compare network mode
-            #results with verified raster test cases.        
-            self.options['use_polygons']=False 
-            self.options['use_included_pairs']=False
-            outputDir, outputFile = os.path.split(self.options['output_file'])
-            outputBase, outputExtension = os.path.splitext(outputFile)
-            self.options['graph_copy'] = outputDir + '//_' + outputBase + 'graph_conductances.txt'
-            self.options['focal_node_copy'] = outputDir + '//_' + outputBase + 'focal_nodes.txt'
-            self.options['node_map_copy'] = outputDir + '//_' + outputBase + 'node_map_copy.txt'
-
         self.options['use_reclass_table'] = False
         self.options['reclass_file'] = './reclass.txt'        
-#         self.options['use_included_pairs'] = True #debug code
-#         self.options['included_pairs_file'] = './verify/1/include_matrix.txt' 
-#         print'DEBUG CODE ACTIVATED. EXCLUDE SET TO',self.options['included_pairs_file']
-#         
-#         self.options['use_variable_source_strengths'] = True #debug code
-#         self.options['variable_source_file'] = './verify/1/variable_source_list.txt' 
-#         print'DEBUG CODE ACTIVATED. VARIABLE SOURCE FILE SET TO',self.options['variable_source_file']
-
-#         self.options['use_mask'] = True #debug code
-#         self.options['mask_file'] = './verify/1/mask.asc' 
-#         print'DEBUG CODE ACTIVATED. MASK FILE SET TO',self.options['mask_file']
-###################################################################################
         
         global logger
         logger = logger_func
@@ -134,15 +98,14 @@ class circuitscape:
     @print_timing
     def compute(self):
         """Main function for Circuitscape."""  
+
         # Code below provides a back door to network mode, because not incorporated into GUI yet
         if self.options['polygon_file'] == 'NETWORK': 
              self.options['data_type']='network' #can also be set in .ini file
         if self.options['data_type']=='network': 
-            self.options['write_baseline_results']=False
             self.options['graph_file'] = self.options['habitat_file']
             self.options['focal_node_file'] = self.options['point_file']
-        
-        
+
         self.state['startTime'] = time.time()
         self.state['lastUpdateTime'] = time.time()        
         self.log('',1)
@@ -212,7 +175,6 @@ class circuitscape:
             poly_map_temp = where(poly_map_temp==overlap_vals[a],new_poly_num,poly_map_temp)
         poly_map_temp = where(point_map == point, new_poly_num, poly_map_temp) 
         return poly_map_temp
-
 
     @print_timing
     def network_module(self): 
@@ -450,6 +412,7 @@ class circuitscape:
         resistances3columns = self.convertResistances3cols(outputResistances) 
                
         return cumBranchCurrentsArray,cumNodeCurrentsArray,resistances3columns,solver_failed  
+
 
         
     def append_names_to_node_currents(self,node_currents, nodeNames):
@@ -804,24 +767,7 @@ class circuitscape:
 
     def pairwise_module(self, g_map, poly_map, points_rc):
         """Overhead module for pairwise mode with raster data."""  
-        ########################    
-        #GENERATE BASELINE RESULTS FOR TESTING NETWORK CODE 
-        if self.options['write_baseline_results']==True:        
-            # Redo points_rc to have actual node numbers
-            # and write list of focal nodes for comparison with network mode
-            # Note: this will not work with included pairs.
-            self.state['node_map'] = self.construct_node_map(g_map, poly_map)            
-            for i in range(points_rc.shape[0]-1,-1,-1):
-                nodeNum = self.grid_to_graph (points_rc[i,1], points_rc[i,2], self.state['node_map'])            
-                points_rc[i,0] = nodeNum
-                if nodeNum==-1: # If focal node is in nodata region
-                    points_rc = deleterow(points_rc, i)
-            i = argsort(points_rc[:,0])
-            points_rc = points_rc[i]
-            focalNodes = points_rc[:,0]
-            savetxt(self.options['focal_node_copy'],focalNodes)            
-        ##############
-        
+
         if self.options['write_cur_maps'] == True:
             cum_current_map = zeros((self.state['nrows'],self.state['ncols']),dtype = 'float64') 
             if self.options['write_max_cur_maps']==True:
@@ -931,21 +877,6 @@ class circuitscape:
         #Add row and column headers and write resistances to disk
         resistances = self.writeResistances(point_ids, resistances)
 
-        ############
-        #BASELINE RESULTS FOR NETWORK CODE COMPARISON
-        if self.options['write_baseline_results']==True:
-            cum_currents=cum_current_map.flatten()
-            nodeNames = self.state['node_map'].flatten()
-            ind=where(nodeNames)
-            cum_currents=cum_currents[ind]
-            nodeNames=nodeNames[ind]
-            cum_currents_final = zeros((len(nodeNames),2),dtype = 'float64')            
-            cum_currents_final[:,0]=nodeNames-1
-            cum_currents_final[:,1]=cum_currents
-            fileadd='cum_baseline'
-            self.writeCurrentsNetwork(None, cum_currents_final, fileadd)
-        ############
-        
         if self.options['write_cur_maps'] == True:
             if solver_failed==False:
                 if self.options['log_transform_maps'] == True:
@@ -1066,16 +997,6 @@ class circuitscape:
                                                 anchorPoint = i #for use later in shortcult resistance calc
                                                 voltmatrix = self.getVoltmatrix(i,j,numpoints,local_node_map,voltages,points_rc,resistances,voltmatrix)                                          
 
-                                        ########################    
-                                        #BASELINE RESULTS FOR NETWORK CODE Comparison
-                                        if self.options['write_baseline_results']==True:
-                                            fileadd=frompoint + '_' + topoint +'_baseline'
-                                            ind=where(local_node_map > 0)
-                                            localNodeNames = self.state['node_map'][ind]-1
-                                            self.writeVoltagesNetwork(voltages, localNodeNames, fileadd)
-                                        ########################    
-
-
                                         if self.options['write_volt_maps'] == True:
                                             if reportStatus==True:
                                                 (hours,mins,secs) = elapsed_time(self.state['startTime'])
@@ -1101,31 +1022,6 @@ class circuitscape:
                                                 current_map = self.create_current_map(voltages, G, local_node_map, finitegrounds)                                                                                    
                                             G = G.tocsr()
 
-                                            ########################    
-                                            #BASELINE RESULTS FOR NETWORK CODE Comparison
-                                            if self.options['write_baseline_results']==True:
-                                                #if i==0 and j==1:
-                                                    #cumBranchCurrents = sparse.csr_matrix((G.shape)) #can't do cum easily- loops through components
-                                                G =  G.tocoo()
-                                                branch_currents = self.get_branch_currents(G,voltages,True) #Fixme: add up cumulative map too.
-                                                branch_currents = absolute(branch_currents) 
-                                                G = G.tocsr()
-                                                outputDir, outputFile = os.path.split(self.options['output_file'])
-                                                outputBase, outputExtension = os.path.splitext(outputFile)
-                                                file = outputDir + '//' + outputBase + '_branch_currents_' + frompoint + '_' + topoint +'_baseline.txt'
-                                                
-                                                # print 'LOCAL'
-                                                # print local_node_map
-                                                # print 'GLOBAL'
-                                                # print self.state['node_map']
-                                                ind=where(local_node_map)
-                                                localNodeNames = self.state['node_map'][ind]-1
-                                                # print 'LOCAL NAMES'
-                                                # print localNodeNames
-
-                                                self.writeGraph(file,branch_currents,localNodeNames)
-                                            #########################                 
-                                            
                                             if self.options['set_focal_node_currents_to_zero']==True:
                                                 # set source and target node currents to zero
                                                 focal_node_pair_map = where(local_node_map == local_src+1, 0, 1)
@@ -1166,13 +1062,6 @@ class circuitscape:
         for i in range(0,numpoints):
             resistances[i, i] = 0
 
-        # if self.options['write_baseline_results']==True:
-            # fileName = self.options['output_file']
-            # outputDir, outputFile = os.path.split(fileName)
-            # outputBase, outputExtension = os.path.splitext(outputFile)
-            # file = outputDir + '//' + outputBase + '_branch_currents_cum_baseline.txt'
-            # nodeNames=arange(1,node_map.max()+1)
-            # self.writeGraph(file,cumBranchCurrents,nodeNames)
         return resistances,cum_current_map,max_current_map,solver_failed_somewhere
 
         
@@ -1448,8 +1337,6 @@ class circuitscape:
         numnodes = node_map.max()
         (node1, node2, conductances) = self.get_conductances(g_map, node_map)
         G = sparse.csr_matrix((conductances, (node1, node2)), shape = (numnodes, numnodes)) # Memory hogging operation?
-        if self.options['write_baseline_results']==True and prunedMap == False: #Just do this for full graph when writing baseline results
-            self.writeGraph(self.options['graph_copy'],G,None)
         g_graph = G + G.T
         return g_graph
 
@@ -2226,8 +2113,6 @@ class circuitscape:
         outputDir, outputFile = os.path.split(fileName)
         outputBase, outputExtension = os.path.splitext(outputFile)
         outputFile = outputDir + '//' + outputBase + '_resistances' + outputExtension 
-        if self.options['write_baseline_results']==True:
-            outputFile = outputDir + '//' + outputBase + '_resistances_baseline.txt' 
         savetxt (outputFile, outputResistances)
 
         resistances3Columns = self.convertResistances3cols(outputResistances)
@@ -2249,8 +2134,6 @@ class circuitscape:
         outputDir, outputFile = os.path.split(fileName)
         outputBase, outputExtension = os.path.splitext(outputFile)       
         outputFile = outputDir + '//' + outputBase + '_resistances_3columns' + outputExtension 
-        if self.options['write_baseline_results']==True:
-            outputFile = outputDir + '//' + outputBase + '_resistances_3columns_baseline.txt'
         savetxt (outputFile, resistances3Columns)
         return         
         
