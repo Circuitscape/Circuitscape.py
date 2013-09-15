@@ -21,6 +21,7 @@ from string import split
 from math import sqrt
 from numpy import *
 from scipy import sparse
+from scipy.sparse.csgraph import connected_components
 from pyamg import *
 
 from util import *
@@ -219,8 +220,8 @@ class circuitscape:
         """Solves arbitrary graphs instead of raster grids."""  
         solver_failed = False
         (g_graph,nodeNames) = self.read_graph(self.options['graph_file'])
-        C = self.gapdt.components(g_graph)         
-        numComponents = max(C)
+        (numComponents, C) = connected_components(g_graph)
+        C += 1 # Number components from 1
         self.log('Graph has ' + str(g_graph.shape[0]) + ' nodes and '+ str(numComponents) + ' components.',2)
         if numComponents > 1:
             full_graph = g_graph
@@ -1430,7 +1431,8 @@ class circuitscape:
         """  
         prunedMap = False
         G = self.construct_g_graph(g_map, node_map, prunedMap) 
-        C = self.gapdt.components(G) 
+        (numComponents, C) = connected_components(G)
+        C += 1 # Number components from 1
 
         (I, J) = where(node_map)
         nodes = node_map[I, J].flatten()
