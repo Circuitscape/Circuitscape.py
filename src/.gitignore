@@ -1,2 +1,3 @@
 verify/output/*
+verify/stress/*.asc
 *.pyc
