@@ -20,7 +20,9 @@ gdal_available = False
 from string import split
 from numpy import loadtxt, where
     
-    
+from numpy import *
+from scipy import sparse
+
 def readConfigFile(configFile):
     """Loads .ini file with run options."""    
     if os.path.isfile(configFile)==False:
@@ -377,5 +379,35 @@ def elapsed_time(startTime):
     secs=secs-mins*60-hours*3600
     return hours,mins,secs
 
+def deleterow(A, delrow):
+    m = A.shape[0]
+    n = A.shape[1]
+    keeprows = delete (arange(0, m), delrow)
+    keepcols = arange(0, n)
+    return A[keeprows][:,keepcols]
+        
+def deletecol(A, delcol):
+    m = A.shape[0]
+    n = A.shape[1]
+    keeprows = arange(0, m)
+    keepcols = delete (arange(0, n), delcol)
+    return A[keeprows][:,keepcols]
 
+def deleterowcol(A, delrow, delcol):
+    m = A.shape[0]
+    n = A.shape[1]
 
+    keeprows = delete (arange(0, m), delrow)
+    keepcols = delete (arange(0, n), delcol)
+
+    return A[keeprows][:,keepcols]
+
+def relabel(oldlabel, offset=0):
+    newlabel = zeros(size(oldlabel), dtype='int32')
+    s = sort(oldlabel)
+    perm = argsort(oldlabel)
+    f = where(diff(concatenate(([s[0]-1], s))))
+    newlabel[f] = 1
+    newlabel = cumsum(newlabel)
+    newlabel[perm] = copy(newlabel)
+    return newlabel-1+offset
