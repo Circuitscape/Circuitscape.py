@@ -25,8 +25,9 @@ from scipy.sparse.csgraph import connected_components
 from pyamg import *
 
 from util import *
-from gapdt import *
 import copy
+
+import pdb
 
 print_timings_spaces = 0
 print_timings = False
@@ -84,8 +85,6 @@ class circuitscape:
 #         print'DEBUG CODE ACTIVATED. MASK FILE SET TO',self.options['mask_file']
 ###################################################################################
         
-        self.gapdt = gapdt()
-
         global logger
         logger = logger_func
 
@@ -236,7 +235,7 @@ class circuitscape:
                 delIndices = where(C != component)
                 indices = where(C == component)
                 nodesInComponent = nodeNames[indices]                
-                g_graph = self.gapdt.deleterowcol(full_graph, delrow = delIndices, delcol = delIndices)
+                g_graph = deleterowcol(full_graph, delrow = delIndices, delcol = delIndices)
                 
             G = self.laplacian(g_graph)
             del g_graph
@@ -555,9 +554,9 @@ class circuitscape:
 
         try:
             zeros_in_resistance_graph = False           
-            nodes = self.deletecol(graphList,2) 
+            nodes = deletecol(graphList,2) 
             nodeNames = unique(asarray(nodes))
-            nodes[where(nodes>= 0)] = self.gapdt.relabel(nodes[where(nodes>= 0)], 0)
+            nodes[where(nodes>= 0)] = relabel(nodes[where(nodes>= 0)], 0)
             node1 = nodes[:,0]
             node2 = nodes[:,1]
             data = graphList[:,2]
@@ -595,7 +594,7 @@ class circuitscape:
         focalNodes = self.load_graph(filename,datatype='int32')
         try:    
             if filename==self.options['graph_file']:#If graph was used as focal node file, then just want first two columns for focalNodes.
-                focalNodes = self.deletecol(focalNodes, 2)
+                focalNodes = deletecol(focalNodes, 2)
             focalNodes = unique(asarray(focalNodes))
         except:
             raise RuntimeError('Error processing focal node file.  Please check file format')
@@ -816,7 +815,7 @@ class circuitscape:
                 nodeNum = self.grid_to_graph (points_rc[i,1], points_rc[i,2], self.state['node_map'])            
                 points_rc[i,0] = nodeNum
                 if nodeNum==-1: # If focal node is in nodata region
-                    points_rc = self.deleterow(points_rc, i)
+                    points_rc = deleterow(points_rc, i)
             i = argsort(points_rc[:,0])
             points_rc = points_rc[i]
             focalNodes = points_rc[:,0]
@@ -1376,10 +1375,10 @@ class circuitscape:
         for ground in range(1, numinfgrounds+1):
             dst = infgroundlist[numinfgrounds-ground]
             dst_to_delete.append(dst)
-            #Gsolve = self.gapdt.deleterowcol(Gsolve, delrow = dst, delcol = dst)
+            #Gsolve = deleterowcol(Gsolve, delrow = dst, delcol = dst)
             keep = delete (arange(0, sources.shape[0]), dst)
             sources = sources[keep]            
-        Gsolve = self.gapdt.deleterowcol(Gsolve, delrow = dst_to_delete, delcol = dst_to_delete)
+        Gsolve = deleterowcol(Gsolve, delrow = dst_to_delete, delcol = dst_to_delete)
         
         self.create_amg_hierarchy(Gsolve)
         voltages = self.solve_linear_system(Gsolve, sources)
@@ -1418,7 +1417,7 @@ class circuitscape:
                 (pk, pl) = where (poly_map == polynum) #Added 040309 BHM                
                 if len(pi)>0:  
                     node_map[pk, pl] = node_map[pi[0], pj[0]] #Modified 040309 BHM  
-        node_map[where(node_map)] = self.gapdt.relabel(node_map[where(node_map)], 1) #BHM 072409
+        node_map[where(node_map)] = relabel(node_map[where(node_map)], 1) #BHM 072409
 
         return node_map
 
@@ -2145,25 +2144,25 @@ class circuitscape:
             delrows2 = zeros(delrows.shape[1]) #turn into 1-d array
             delrows2[:] = delrows[:]
             if delrows2!= []:
-                mapRc = self.deleterow(mapRc,delrows2)
+                mapRc = deleterow(mapRc,delrows2)
             rows = mapRc[:,1] 
             (delrows) = asarray(where(rows>self.state['nrows']-1))
             delrows2 = zeros(delrows.shape[1]) #turn into 1-d array
             delrows2[:] = delrows[:]
             if delrows2!= []:
-                mapRc = self.deleterow(mapRc,delrows2)
+                mapRc = deleterow(mapRc,delrows2)
             cols = mapRc[:,2]
             (delrows) = asarray(where(cols<0))
             delrows2 = zeros(delrows.shape[1]) #turn into 1-d array
             delrows2[:] = delrows[:]
             if delrows2!= []:
-                mapRc = self.deleterow(mapRc,delrows2)
+                mapRc = deleterow(mapRc,delrows2)
             cols = mapRc[:,2]
             (delrows) = asarray(where(cols>self.state['ncols']-1))
             delrows2 = zeros(delrows.shape[1]) #turn into 1-d array
             delrows2[:] = delrows[:]
             if delrows2!= []:
-                mapRc = self.deleterow(mapRc,delrows2)
+                mapRc = deleterow(mapRc,delrows2)
             del delrows
             del delrows2
     
@@ -2220,32 +2219,6 @@ class circuitscape:
         return shortcutResistances                        
 
 
-    def deleterow(self, A, delrow):
-        """Deletes rows from a matrix
-
-        From gapdt.py by Viral Shah
-
-        """
-        m = A.shape[0]
-        n = A.shape[1]
-        keeprows = delete (arange(0, m), delrow)
-        keepcols = arange(0, n)
-        return A[keeprows][:,keepcols]
-
-        
-    def deletecol(self, A, delcol):
-        """Deletes columns from a matrix
-
-        From gapdt.py by Viral Shah
-
-        """
-        m = A.shape[0]
-        n = A.shape[1]
-        keeprows = arange(0, m)
-        keepcols = delete (arange(0, n), delcol)
-        return A[keeprows][:,keepcols]
-
-        
     def writeResistances(self, point_ids, resistances):
         """Writes resistance file to disk."""  
         outputResistances = self.append_names_to_resistances(point_ids, resistances)
@@ -2331,7 +2304,7 @@ class circuitscape:
             if includedPairs [row,0] in includeList: #match
                 row = row+1
             else:
-                includedPairs = self.gapdt.deleterowcol(includedPairs,delrow = row,delcol = row)   
+                includedPairs = deleterowcol(includedPairs,delrow = row,delcol = row)   
                 dropFlag = True
                 numConnectionRows = numConnectionRows-1
 
@@ -2352,7 +2325,7 @@ class circuitscape:
                 point = point+1
             else:
                 dropFlag = True   
-                points_rc = self.deleterow(points_rc,point)  
+                points_rc = deleterow(points_rc,point)  
          
         includeList = list(points_rc[:,0])
         numConnectionRows = includedPairs.shape[0]
@@ -2361,7 +2334,7 @@ class circuitscape:
             if includedPairs [row,0] in includeList: #match
                 row = row+1
             else:
-                includedPairs = self.gapdt.deleterowcol(includedPairs,delrow = row,delcol = row)   
+                includedPairs = deleterowcol(includedPairs,delrow = row,delcol = row)   
                 dropFlag = True
                 numConnectionRows = numConnectionRows-1
 
@@ -2624,9 +2597,9 @@ class circuitscape:
         NOT IMPLEMENTED CURRENTLY
         
         """  
-        nodes = self.deletecol(graphList,2) 
+        nodes = deletecol(graphList,2) 
         nodeNames = unique(asarray(nodes))
-        nodes[where(nodes>= 0)] = self.gapdt.relabel(nodes[where(nodes>= 0)], 0)
+        nodes[where(nodes>= 0)] = relabel(nodes[where(nodes>= 0)], 0)
         node1 = nodes[:,0]
         node2 = nodes[:,1]
         data = graphList[:,2] # Edge weights
