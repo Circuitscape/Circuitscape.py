@@ -150,3 +150,9 @@ def writer(file, data, state, compress):
 
         f.close()
 
+#     def writeGraph(self,filename,graph,nodeNames):
+#         """Save graph to disk in 3-column format."""  
+#         graphNcol = self.convert_graph_to_3_col(graph,nodeNames)
+#         savetxt(filename,graphNcol)
+#         return
+            
