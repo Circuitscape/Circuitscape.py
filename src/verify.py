@@ -6,7 +6,7 @@
 import imp, os, sys
 
 import unittest
-from util import *
+from cs_util import *
 from circuitscape import *
 
 def approxEqual(a, b):
