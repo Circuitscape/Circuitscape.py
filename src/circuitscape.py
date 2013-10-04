@@ -25,11 +25,10 @@ from scipy import sparse
 from scipy.sparse.csgraph import connected_components
 from pyamg import *
 
-from util import *
+from cs_util import *
+from cs_cfg import *
+from cs_io import *
 import copy
-
-print_timings_spaces = 0
-print_timings = False
 
 class circuitscape:
         
@@ -52,28 +51,7 @@ class circuitscape:
         global logger
         logger = logger_func
 
-        global print_timings
-        print_timings = self.options['print_timings']
-        
-        
-    def print_timing(func):
-        """Prints time elapsed for functions with print_timings decorator."""  
-        def wrapper(*arg):
-            global print_timings_spaces
-            print_timings_spaces +=  2
-            t1 = time.time()
-            res = func(*arg)
-            t2 = time.time()
-            print_timings_spaces -=  2
-            if print_timings:
-                print'%10d sec: ' % (t2-t1),
-                for i in range(0,print_timings_spaces):
-                    print" ",
-                print'%s' % func.func_name
-                sys.stdout.flush()
-            return res
-        return wrapper
-
+        print_timing_enabled(self.options['print_timings'])
         
     def log(self, text,col):
         """Prints updates to GUI or python window."""  
