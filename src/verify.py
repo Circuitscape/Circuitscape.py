@@ -7,6 +7,7 @@ import imp, os, sys
 
 import unittest
 from cs_util import *
+import cs_io
 from circuitscape import *
 
 def approxEqual(a, b):
@@ -37,19 +38,19 @@ def test_sg(ut, test_name):
 
 
     if test_name!='sgVerify12': #This module tests the resistance shortcut which is only calculated when maps are not written.
-        current_map_1_2_computed=reader('.//verify//output//' + test_name + '_curmap_1_2.asc', 'float64') 
-        current_map_1_2_saved=reader('.//verify//baseline_results//' + test_name + '_curmap_1_2.asc', 'float64') 
-        cum_current_map_computed=reader('.//verify//output//' + test_name + '_cum_curmap.asc', 'float64') 
-        cum_current_map_saved=reader('.//verify//baseline_results//' + test_name + '_cum_curmap.asc', 'float64')     
-        voltage_map_1_2_computed=reader('.//verify//output//' + test_name + '_voltmap_1_2.asc', 'float64') 
-        voltage_map_1_2_saved=reader('.//verify//baseline_results//' + test_name + '_voltmap_1_2.asc', 'float64') 
+        current_map_1_2_computed=cs_io.reader('.//verify//output//' + test_name + '_curmap_1_2.asc', 'float64') 
+        current_map_1_2_saved=cs_io.reader('.//verify//baseline_results//' + test_name + '_curmap_1_2.asc', 'float64') 
+        cum_current_map_computed=cs_io.reader('.//verify//output//' + test_name + '_cum_curmap.asc', 'float64') 
+        cum_current_map_saved=cs_io.reader('.//verify//baseline_results//' + test_name + '_cum_curmap.asc', 'float64')     
+        voltage_map_1_2_computed=cs_io.reader('.//verify//output//' + test_name + '_voltmap_1_2.asc', 'float64') 
+        voltage_map_1_2_saved=cs_io.reader('.//verify//baseline_results//' + test_name + '_voltmap_1_2.asc', 'float64') 
             
         ut.assertEquals (approxEqual(current_map_1_2_saved, current_map_1_2_computed), True)
         ut.assertEquals (approxEqual(cum_current_map_saved, cum_current_map_computed), True)
         ut.assertEquals (approxEqual(voltage_map_1_2_saved, voltage_map_1_2_computed), True)
         if os.path.isfile('.//verify//output//' + test_name + '_max_curmap.asc'): 
-            max_current_map_computed=reader('.//verify//output//' + test_name + '_max_curmap.asc', 'float64') 
-            max_current_map_saved=reader('.//verify//baseline_results//' + test_name + '_max_curmap.asc', 'float64')             
+            max_current_map_computed=cs_io.reader('.//verify//output//' + test_name + '_max_curmap.asc', 'float64') 
+            max_current_map_saved=cs_io.reader('.//verify//baseline_results//' + test_name + '_max_curmap.asc', 'float64')             
             ut.assertEquals (approxEqual(max_current_map_saved, max_current_map_computed), True)        
         
         
@@ -88,14 +89,14 @@ def test_one_to_all(ut, test_name):
 
     resistances_saved=loadtxt('.//verify//baseline_results//' + test_name + '_resistances.txt') 
 
-    current_map_1_computed=reader('.//verify//output//' + test_name + '_curmap_1.asc', 'float64') 
-    current_map_1_saved=reader('.//verify//baseline_results//' + test_name + '_curmap_1.asc', 'float64') 
+    current_map_1_computed=cs_io.reader('.//verify//output//' + test_name + '_curmap_1.asc', 'float64') 
+    current_map_1_saved=cs_io.reader('.//verify//baseline_results//' + test_name + '_curmap_1.asc', 'float64') 
 
-    cum_current_map_computed=reader('.//verify//output//' + test_name + '_cum_curmap.asc', 'float64') 
-    cum_current_map_saved=reader('.//verify//baseline_results//' + test_name + '_cum_curmap.asc', 'float64') 
+    cum_current_map_computed=cs_io.reader('.//verify//output//' + test_name + '_cum_curmap.asc', 'float64') 
+    cum_current_map_saved=cs_io.reader('.//verify//baseline_results//' + test_name + '_cum_curmap.asc', 'float64') 
 
-    voltage_map_1_computed=reader('.//verify//output//' + test_name + '_voltmap_1.asc', 'float64') 
-    voltage_map_1_saved=reader('.//verify//baseline_results//' + test_name + '_voltmap_1.asc', 'float64') 
+    voltage_map_1_computed=cs_io.reader('.//verify//output//' + test_name + '_voltmap_1.asc', 'float64') 
+    voltage_map_1_saved=cs_io.reader('.//verify//baseline_results//' + test_name + '_voltmap_1.asc', 'float64') 
     
     ut.assertEquals (approxEqual(resistances_saved, resistances_computed), True)
     ut.assertEquals (approxEqual(current_map_1_saved, current_map_1_computed), True)
@@ -110,14 +111,14 @@ def test_all_to_one(ut, test_name):
     cs = circuitscape(configFile, None)
     resistances_computed,solver_failed = cs.compute()
 
-    current_map_1_computed=reader('.//verify//output//' + test_name + '_curmap_1.asc', 'float64') 
-    current_map_1_saved=reader('.//verify//baseline_results//' + test_name + '_curmap_1.asc', 'float64') 
+    current_map_1_computed=cs_io.reader('.//verify//output//' + test_name + '_curmap_1.asc', 'float64') 
+    current_map_1_saved=cs_io.reader('.//verify//baseline_results//' + test_name + '_curmap_1.asc', 'float64') 
 
-    cum_current_map_computed=reader('.//verify//output//' + test_name + '_cum_curmap.asc', 'float64') 
-    cum_current_map_saved=reader('.//verify//baseline_results//' + test_name + '_cum_curmap.asc', 'float64') 
+    cum_current_map_computed=cs_io.reader('.//verify//output//' + test_name + '_cum_curmap.asc', 'float64') 
+    cum_current_map_saved=cs_io.reader('.//verify//baseline_results//' + test_name + '_cum_curmap.asc', 'float64') 
 
-    voltage_map_1_computed=reader('.//verify//output//' + test_name + '_voltmap_1.asc', 'float64') 
-    voltage_map_1_saved=reader('.//verify//baseline_results//' + test_name + '_voltmap_1.asc', 'float64') 
+    voltage_map_1_computed=cs_io.reader('.//verify//output//' + test_name + '_voltmap_1.asc', 'float64') 
+    voltage_map_1_saved=cs_io.reader('.//verify//baseline_results//' + test_name + '_voltmap_1.asc', 'float64') 
     
     ut.assertEquals (approxEqual(current_map_1_saved, current_map_1_computed), True)
     ut.assertEquals (approxEqual(cum_current_map_saved, cum_current_map_computed), True)
@@ -131,11 +132,11 @@ def test_mg(ut, test_name):
     cs = circuitscape(configFile, None)
     voltages = cs.compute()
    
-    cum_current_map_computed=reader('.//verify//output//' + test_name + '_curmap.asc', 'float64') 
-    cum_current_map_saved=reader('.//verify//baseline_results//' + test_name + '_curmap.asc', 'float64') 
+    cum_current_map_computed=cs_io.reader('.//verify//output//' + test_name + '_curmap.asc', 'float64') 
+    cum_current_map_saved=cs_io.reader('.//verify//baseline_results//' + test_name + '_curmap.asc', 'float64') 
 
-    voltage_map_computed=reader('.//verify//output//' + test_name + '_voltmap.asc', 'float64') 
-    voltage_map_saved=reader('.//verify//baseline_results//' + test_name + '_voltmap.asc', 'float64') 
+    voltage_map_computed=cs_io.reader('.//verify//output//' + test_name + '_voltmap.asc', 'float64') 
+    voltage_map_saved=cs_io.reader('.//verify//baseline_results//' + test_name + '_voltmap.asc', 'float64') 
     
     ut.assertEquals (approxEqual(cum_current_map_saved, cum_current_map_computed), True)
     ut.assertEquals (approxEqual(voltage_map_saved, voltage_map_computed), True)

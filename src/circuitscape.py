@@ -26,8 +26,9 @@ from scipy.sparse.csgraph import connected_components
 from pyamg import *
 
 from cs_util import *
-from cs_cfg import *
-from cs_io import *
+from cs_cfg import CSConfig
+import cs_io
+#from cs_io import *
 import copy
 
 class circuitscape:
@@ -36,22 +37,22 @@ class circuitscape:
         gc.enable()
         self.state = {}
         self.state['amg_hierarchy'] = None
-        self.options = readConfigFile(configFile)
+        self.options = CSConfig(configFile)
         if logger_func == 'Screen':
-            self.options['screenprint_log'] = True
+            self.options.screenprint_log = True
             logger_func = None
         else:
-            self.options['screenprint_log'] = False
+            self.options.screenprint_log = False
         numpy.seterr(invalid='ignore')
         numpy.seterr(divide='ignore')
         
-        self.options['use_reclass_table'] = False
-        self.options['reclass_file'] = './reclass.txt'        
+        self.options.use_reclass_table = False
+        self.options.reclass_file = './reclass.txt'        
         
         global logger
         logger = logger_func
 
-        print_timing_enabled(self.options['print_timings'])
+        print_timing_enabled(self.options.print_timings)
         
     def log(self, text,col):
         """Prints updates to GUI or python window."""  
@@ -67,7 +68,7 @@ class circuitscape:
                 pass
         if logger:           
             logger(text,col)
-        if self.options['screenprint_log'] == True and len(text) > 1 and col == 1: 
+        if self.options.screenprint_log == True and len(text) > 1 and col == 1: 
             print '    --- ',text,' ---'
         sys.stdout.flush()
         return
@@ -78,11 +79,11 @@ class circuitscape:
         """Main function for Circuitscape."""  
 
         # Code below provides a back door to network mode, because not incorporated into GUI yet
-        if self.options['polygon_file'] == 'NETWORK': 
-             self.options['data_type']='network' #can also be set in .ini file
-        if self.options['data_type']=='network': 
-            self.options['graph_file'] = self.options['habitat_file']
-            self.options['focal_node_file'] = self.options['point_file']
+        if self.options.polygon_file == 'NETWORK': 
+             self.options.data_type='network' #can also be set in .ini file
+        if self.options.data_type=='network': 
+            self.options.graph_file = self.options.habitat_file
+            self.options.focal_node_file = self.options.point_file
 
         self.state['startTime'] = time.time()
         self.state['lastUpdateTime'] = time.time()        
@@ -90,31 +91,32 @@ class circuitscape:
         self.log('',2)
 
         #Test write privileges by writing config file to output directory
-        fileName = self.options['output_file']
+        fileName = self.options.output_file
         outputDir, outputFile = os.path.split(fileName)
         outputBase, outputExtension = os.path.splitext(outputFile)
         configFile = outputDir + '//' + outputBase + '.ini' 
         if os.path.isdir(outputDir):
-            writeConfigFile(configFile, self.options)
+            self.options.write(configFile)
+            #cs_cfg.writeConfigFile(configFile, self.options)
         else:
             raise RuntimeError('Output directory ' + outputDir + ' does not exist!')    
         
-        if self.options['data_type']=='network':
+        if self.options.data_type=='network':
             result,solver_failed = self.network_module() # Call module for solving arbitrary graphs (not raster grids)
             self.logCompleteJob()
             return result,solver_failed #Fixme: add in solver failed check
         else:
             self.load_maps()
             numNodes = (where(self.state['g_map'] > 0, 1, 0)).sum()         
-            if self.options['screenprint_log'] == True:        
+            if self.options.screenprint_log == True:        
                 print '    ---  Resistance/conductance map has',numNodes,' nodes.  ---'
-        if self.options['scenario']=='pairwise':
+        if self.options.scenario=='pairwise':
             resistances,solver_failed = self.pairwise_module(self.state['g_map'], self.state['poly_map'], self.state['points_rc'])
             self.logCompleteJob()
             return resistances,solver_failed     
 
-        elif self.options['scenario'] == 'advanced':
-            self.options['write_max_cur_maps']=False
+        elif self.options.scenario == 'advanced':
+            self.options.write_max_cur_maps=False
             self.log ('Calling solver module.',1)
             voltages,current_map,solver_failed = self.advanced_module(self.state['g_map'], self.state['poly_map'], self.state['source_map'], self.state['ground_map'],None,None,None,None,None)
             self.logCompleteJob()
@@ -158,7 +160,7 @@ class circuitscape:
     def network_module(self): 
         """Solves arbitrary graphs instead of raster grids."""  
         solver_failed = False
-        (g_graph,nodeNames) = self.read_graph(self.options['graph_file'])
+        (g_graph,nodeNames) = self.read_graph(self.options.graph_file)
         (numComponents, C) = connected_components(g_graph)
         C += 1 # Number components from 1
         self.log('Graph has ' + str(g_graph.shape[0]) + ' nodes and '+ str(numComponents) + ' components.',2)
@@ -179,16 +181,16 @@ class circuitscape:
                 
             G = self.laplacian(g_graph)
             del g_graph
-            if self.options['scenario']=='advanced':
+            if self.options.scenario=='advanced':
                 raise RuntimeError('Advanced mode is not yet implemented in graph/network mode.')
-                (sources,grounds)= self.readSourcesGroundsNetwork(G, nodeNames, self.options['source_file'],self.options['ground_file'])
+                (sources,grounds)= self.readSourcesGroundsNetwork(G, nodeNames, self.options.source_file,self.options.ground_file)
                 #FIXME: retool readSourceGroundNodes to read both files and return complete sources and grounds
                 result,solver_failed = self.advanced_module_network(G,sources,grounds,nodeNames)           
                 
             else:
-                if self.options['use_included_pairs']==True:
-                    self.state['includedPairs'] = self.readincludedPairs(self.options['included_pairs_file'])
-                focalNodes = self.readFocalNodes(self.options['focal_node_file'])
+                if self.options.use_included_pairs==True:
+                    self.state['includedPairs'] = self.readincludedPairs(self.options.included_pairs_file)
+                focalNodes = self.readFocalNodes(self.options.focal_node_file)
                 if numComponents > 1:    #Prune out any focal nodes that are not in component
                     focalNodesInComponent = focalNodes
                     includeList = list(nodesInComponent[:])
@@ -206,7 +208,7 @@ class circuitscape:
                     focalNodesInComponent = focalNodes
                     numFocalNodes = focalNodes.shape[0]
                 
-                if self.options['scenario']=='pairwise':
+                if self.options.scenario=='pairwise':
                     if numFocalNodes > 1:
                         # module returns arrays with node names
                         cumBranchCurrents,cumNodeCurrents,resistances3columns,solver_failed = self.pairwise_module_network(G,focalNodesInComponent,nodesInComponent,numComponents)
@@ -220,18 +222,18 @@ class circuitscape:
                     # then create output arrays
                     if (fullResistances == []) and (resistances3columns != []):
                         fullResistances = resistances3columns
-                        if self.options['write_cur_maps'] == True:
+                        if self.options.write_cur_maps == True:
                             fullBranchCurrents = cumBranchCurrents 
                             fullNodeCurrents = cumNodeCurrents
                     
                     # if ongoing solve, append results to ongoing output arrays
                     elif resistances3columns != []: 
                         fullResistances = append(fullResistances , resistances3columns, axis=0)
-                        if self.options['write_cur_maps'] == True:
+                        if self.options.write_cur_maps == True:
                             fullBranchCurrents = append(fullBranchCurrents , cumBranchCurrents, axis=0)
                             fullNodeCurrents = append(fullNodeCurrents , cumNodeCurrents, axis=0)
                     else: # If only node in component, just modify node current array
-                        if self.options['write_cur_maps'] == True:
+                        if self.options.write_cur_maps == True:
                             if fullNodeCurrents == []: #if first time populated
                                 fullNodeCurrents = cumNodeCurrents
                             fullNodeCurrents = append(fullNodeCurrents , cumNodeCurrents, axis=0)
@@ -240,7 +242,7 @@ class circuitscape:
                     raise RuntimeError('One-to-all and all-to-one modes are not yet implemented in graph/network mode.')
                     result,solver_failed = self.one_to_all_module_network(G,focalNodes,nodeNames)  
 
-        if self.options['write_cur_maps'] == True:
+        if self.options.write_cur_maps == True:
             ind = lexsort((fullBranchCurrents[:, 1], fullBranchCurrents[:, 0]))
             fullBranchCurrents = fullBranchCurrents[ind]                        
                 
@@ -285,7 +287,7 @@ class circuitscape:
 
         """
         solver_failed = False
-        if self.options['use_included_pairs']==True: #Prune points
+        if self.options.use_included_pairs==True: #Prune points
             focalNodes = self.pruneIncludedPairsNetwork(focalNodes)          
             includedPairs = self.state['includedPairs'] 
         else:
@@ -293,10 +295,10 @@ class circuitscape:
 
         numpoints = focalNodes.size
         resistances = -1*ones((focalNodes.size,focalNodes.size),dtype = 'float64')
-        if self.options['write_cur_maps'] == True:
+        if self.options.write_cur_maps == True:
             cumNodeCurrents = zeros((G.shape[0],1),dtype = 'float64')
             cumBranchCurrents = sparse.csr_matrix((G.shape))
-        if (self.options['write_cur_maps'] == True) or (self.options['write_volt_maps'] == True) or (self.options['use_included_pairs']==True):        
+        if (self.options.write_cur_maps == True) or (self.options.write_volt_maps == True) or (self.options.use_included_pairs==True):        
             useResistanceCalcShortcut = False
         else:
             useResistanceCalcShortcut = True
@@ -346,7 +348,7 @@ class circuitscape:
                         anchorPoint = i #for use later in shortcut resistance calc
                         voltmatrix = self.getVoltmatrixNetwork(i,j,numpoints,voltages,resistances,voltmatrix,focalNodes,nodeNames) 
     
-                    if (self.options['write_cur_maps'] == True) and (solver_failed==False):
+                    if (self.options.write_cur_maps == True) and (solver_failed==False):
                         finitegrounds = [-9999]
                         (node_currents,branch_currents) = self.getCurrentsNetwork(G,voltages,finitegrounds)
                         
@@ -355,14 +357,14 @@ class circuitscape:
                         branchCurrentsArray = self.convert_graph_to_3_col(branch_currents,nodeNames)
                         nodeCurrentsArray = self.append_names_to_node_currents(node_currents, nodeNames)
                         
-                        if self.options['write_cum_cur_map_only']==False:                
+                        if self.options.write_cum_cur_map_only==False:                
                             fileadd=str(int(focalNodes[i])) + '_' + str(int(focalNodes[j]))
                             self.writeCurrentsNetwork(branchCurrentsArray, nodeCurrentsArray, fileadd)
 
                         cumNodeCurrents=cumNodeCurrents+node_currents
                         cumBranchCurrents=cumBranchCurrents+branch_currents                       
     
-                    if (self.options['write_volt_maps'] == True) and (solver_failed==False):
+                    if (self.options.write_volt_maps == True) and (solver_failed==False):
                         fileadd=str(int(focalNodes[i])) + '_' + str(int(focalNodes[j]))
                         self.writeVoltagesNetwork(voltages, nodeNames, fileadd)
     
@@ -374,7 +376,7 @@ class circuitscape:
              
             G[dst,dst] = G_dst_dst
              
-        if self.options['write_cur_maps'] == True:
+        if self.options.write_cur_maps == True:
             cumBranchCurrentsArray = self.convert_graph_to_3_col(cumBranchCurrents,nodeNames)
             cumNodeCurrentsArray =  self.append_names_to_node_currents(cumNodeCurrents, nodeNames)
         else:
@@ -420,7 +422,7 @@ class circuitscape:
            Inputs are arrays with node names.
 
         """       
-        outputDir, outputFile = os.path.split(self.options['output_file'])
+        outputDir, outputFile = os.path.split(self.options.output_file)
         outputBase, outputExtension = os.path.splitext(outputFile)
         if branch_currents!=None:
             file = outputDir + '//' + outputBase + '_branch_currents_' + fileadd + '.txt'
@@ -436,7 +438,7 @@ class circuitscape:
         if nodeNames != None:
              outputVoltages[:,0]=nodeNames[:]
         outputVoltages[:,1]=voltages[:]
-        outputDir, outputFile = os.path.split(self.options['output_file'])
+        outputDir, outputFile = os.path.split(self.options.output_file)
         outputBase, outputExtension = os.path.splitext(outputFile)
         file = outputDir + '//' + outputBase + '_voltages_' + fileadd + '.txt'
         savetxt(file,outputVoltages)      
@@ -502,16 +504,16 @@ class circuitscape:
             node2 = nodes[:,1]
             data = graphList[:,2]
             ######################## Reclassification code
-            if self.options['use_reclass_table']==True:
+            if self.options.use_reclass_table==True:
                 try:
-                    reclassTable = self.readPointStrengths(self.options['reclass_file'])    
+                    reclassTable = self.readPointStrengths(self.options.reclass_file)    
                 except:
                     raise RuntimeError('Error reading reclass table.  Please check file format.')
                 for i in range (0,reclassTable.shape[0]):
                     data = where(data==reclassTable[i,0],reclassTable[i,1],data)
-                print'\n***** Reclassified habitat graph using', self.options['reclass_file'],'*****'
+                print'\n***** Reclassified habitat graph using', self.options.reclass_file,'*****'
             ########################            
-            if self.options['habitat_map_is_resistances'] == True:
+            if self.options.habitat_map_is_resistances == True:
                 zeros_in_resistance_graph = (where(data==0, 1, 0)).sum() > 0
                 conductances = 1/data
             else:
@@ -534,7 +536,7 @@ class circuitscape:
         """Loads list of focal nodes for arbitrary graph."""  
         focalNodes = self.load_graph(filename,datatype='int32')
         try:    
-            if filename==self.options['graph_file']:#If graph was used as focal node file, then just want first two columns for focalNodes.
+            if filename==self.options.graph_file:#If graph was used as focal node file, then just want first two columns for focalNodes.
                 focalNodes = deletecol(focalNodes, 2)
             focalNodes = unique(asarray(focalNodes))
         except:
@@ -563,7 +565,7 @@ class circuitscape:
         """Overhead module for one-to-all AND all-to-one modes with raster data."""  
         lastWriteTime = time.time()
 
-        if self.options['use_included_pairs']==True: #Prune points
+        if self.options.use_included_pairs==True: #Prune points
             points_rc = self.pruneIncludedPairs(points_rc)          
             includedPairs = self.state['includedPairs'] 
         point_ids = unique(asarray(points_rc[:,0]))
@@ -571,12 +573,12 @@ class circuitscape:
         
         resistance_vector = zeros((point_ids.size,2),float)
         solver_failed_somewhere = False
-        if self.options['write_cur_maps'] == True:
+        if self.options.write_cur_maps == True:
             cum_current_map = zeros((self.state['nrows'],self.state['ncols']),dtype = 'float64')         
-        if self.options['write_max_cur_maps']==True:
+        if self.options.write_max_cur_maps==True:
             max_current_map=cum_current_map
         oneToAllStreamline = False        
-        if self.options['use_included_pairs']==False: #Will do this each time later if using included pairs
+        if self.options.use_included_pairs==False: #Will do this each time later if using included pairs
             point_map = numpy.zeros((self.state['nrows'],self.state['ncols']),int)
             point_map[points_rc[:,1],points_rc[:,2]] = points_rc[:,0]
        
@@ -614,7 +616,7 @@ class circuitscape:
             (hours,mins,secs) = elapsed_time(self.state['startTime'])
             self.log ('At ' + str(hours) +' hr ' + str(mins) + ' min solving focal node ' + str(i+1) + ' of ' + str(point_ids.size) + '.',1)
 
-            if self.options['use_included_pairs']==True: # Done above otherwise    
+            if self.options.use_included_pairs==True: # Done above otherwise    
                 #######################   
                 points_rc_unique_temp = copy.copy(points_rc_unique)
                 point_map = numpy.zeros((self.state['nrows'],self.state['ncols']),int)
@@ -638,8 +640,8 @@ class circuitscape:
             sumConnections = unique_point_map.sum()
             sumConnections = sumConnections.sum()
             if sumConnections!= point_ids[i]: #If there are points to connect with src point
-                if self.options['scenario'] == 'one-to-all':
-                    if self.options['use_variable_source_strengths']==True:
+                if self.options.scenario == 'one-to-all':
+                    if self.options.use_variable_source_strengths==True:
                         strength = strengths_rc[i,0]
                     else:
                         strength = 1
@@ -647,9 +649,9 @@ class circuitscape:
                     ground_map = point_map
                     ground_map =  where(unique_point_map == src,0,unique_point_map)
                     ground_map =  where(ground_map,Inf,0) 
-                    self.options['remove_src_or_gnd'] = 'rmvgnd'
+                    self.options.remove_src_or_gnd = 'rmvgnd'
                 else:
-                    if self.options['use_variable_source_strengths']==True:
+                    if self.options.use_variable_source_strengths==True:
                         source_map = where(unique_point_map == src,0,strengthMap)
                     else:
                         source_map = where(unique_point_map,1,0)
@@ -659,7 +661,7 @@ class circuitscape:
                     ground_map =  where(unique_point_map == src,1,0)
                     ground_map =  where(ground_map,Inf,0)   
 
-                    self.options['remove_src_or_gnd'] = 'rmvsrc'
+                    self.options.remove_src_or_gnd = 'rmvsrc'
                 #FIXME: right now one-to-all *might* fail if there is just one node that is not grounded (I haven't encountered this problem lately BHM Nov 2009).
 
                 if oneToAllStreamline==False:
@@ -670,9 +672,9 @@ class circuitscape:
                     
                 resistance,current_map,solver_failed = self.advanced_module(self.state['g_map'], poly_map_temp, source_map, ground_map, src, G, node_map, component_map, componentWithPoints)
                 if solver_failed == False:
-                    if self.options['write_cur_maps'] == True:
+                    if self.options.write_cur_maps == True:
                         cum_current_map = cum_current_map+current_map
-                        if self.options['write_max_cur_maps']==True:
+                        if self.options.write_max_cur_maps==True:
                             max_current_map=maximum(max_current_map,current_map)
                 else:
                     print'Solver failed for at least one focal node.  \nFocal nodes with failed solves will be marked with value of -777 \nin output resistance list.\n'
@@ -692,9 +694,9 @@ class circuitscape:
                 self.writeResistancesOneToAll(resistance_vector,'_incomplete')
       
         if solver_failed_somewhere==False:
-            if self.options['write_cur_maps'] == True:
+            if self.options.write_cur_maps == True:
                 self.write_aaigrid('cum_curmap', '', cum_current_map)
-                if self.options['write_max_cur_maps']==True:
+                if self.options.write_max_cur_maps==True:
                     self.write_aaigrid('max_curmap', '', max_current_map)
 
         self.writeResistancesOneToAll(resistance_vector,'')
@@ -713,7 +715,7 @@ class circuitscape:
             poly_map_temp = poly_map
             new_poly_num = numpy.max(poly_map)
             for point2 in range(0, point_ids.shape[0]):
-                if (self.options['use_included_pairs']==True) and (includedPairs[point1+1,point2+1] == 1):
+                if (self.options.use_included_pairs==True) and (includedPairs[point1+1,point2+1] == 1):
                    new_poly_num = new_poly_num+1
                    poly_map_temp = self.get_overlap_polymap(point_ids[point2],point_map,poly_map_temp, new_poly_num) 
                 else: 
@@ -746,9 +748,9 @@ class circuitscape:
     def pairwise_module(self, g_map, poly_map, points_rc):
         """Overhead module for pairwise mode with raster data."""  
 
-        if self.options['write_cur_maps'] == True:
+        if self.options.write_cur_maps == True:
             cum_current_map = zeros((self.state['nrows'],self.state['ncols']),dtype = 'float64') 
-            if self.options['write_max_cur_maps']==True:
+            if self.options.write_max_cur_maps==True:
                 max_current_map=cum_current_map
             else:
                 max_current_map=[]
@@ -759,12 +761,12 @@ class circuitscape:
          
         # If there are no focal regions, pass all points to single_ground_all_pair_resistances,
         # otherwise, pass one point at a time.
-        if self.options['point_file_contains_polygons']==False:
+        if self.options.point_file_contains_polygons==False:
             if points_rc.shape[0]!= (unique(asarray(points_rc[:,0]))).shape[0]:
                 raise RuntimeError('At least one focal node contains multiple cells.  If this is what you really want, then choose focal REGIONS in the pull-down menu') 
             
             else:
-                if self.options['use_included_pairs']==True:
+                if self.options.use_included_pairs==True:
                     points_rc = self.pruneIncludedPairs(points_rc)
 #                     includedPairs = self.state['includedPairs']
 #                 else:
@@ -776,9 +778,9 @@ class circuitscape:
                     (resistances,cum_current_map,max_current_map,solver_failed) = self.single_ground_all_pair_resistances(g_map, poly_map, points_rc,cum_current_map,max_current_map, reportStatus)
                 except MemoryError: #Give it a try, but starting again never seems to helps even from GUI.
                     self.enable_low_memory(True) #This doesn't seem to really clear out memory or truly restart.
-                    if self.options['write_cur_maps'] == True:
+                    if self.options.write_cur_maps == True:
                         cum_current_map = zeros((self.state['nrows'],self.state['ncols']),dtype = 'float64') 
-                        if self.options['write_max_cur_maps']==True:
+                        if self.options.write_max_cur_maps==True:
                             max_current_map=cum_current_map
                         else:
                             max_current_map=[]
@@ -797,7 +799,7 @@ class circuitscape:
                 point_ids = points_rc[:,0]
 
         else:
-            if self.options['use_included_pairs']==True:
+            if self.options.use_included_pairs==True:
                 points_rc = self.pruneIncludedPairs(points_rc)
                 includedPairs = self.state['includedPairs']
             else:
@@ -855,14 +857,14 @@ class circuitscape:
         #Add row and column headers and write resistances to disk
         resistances = self.writeResistances(point_ids, resistances)
 
-        if self.options['write_cur_maps'] == True:
+        if self.options.write_cur_maps == True:
             if solver_failed==False:
-                if self.options['log_transform_maps'] == True:
+                if self.options.log_transform_maps == True:
                     cum_current_map = where(cum_current_map>0,log10(cum_current_map),self.state['nodata']) 
-                    if self.options['write_max_cur_maps']==True:
+                    if self.options.write_max_cur_maps==True:
                         max_current_map = where(max_current_map>0,log10(max_current_map),self.state['nodata']) 
                 self.write_aaigrid('cum_curmap', '', cum_current_map)
-                if self.options['write_max_cur_maps']==True:      
+                if self.options.write_max_cur_maps==True:      
                     self.write_aaigrid('max_curmap', '', max_current_map)
 
         return resistances,solver_failed
@@ -877,12 +879,12 @@ class circuitscape:
         """  
         lastWriteTime = time.time()
         numpoints = points_rc.shape[0]
-        if (self.options['use_included_pairs']==False) or (self.options['point_file_contains_polygons']==True):
+        if (self.options.use_included_pairs==False) or (self.options.point_file_contains_polygons==True):
             includedPairs = ones((numpoints+1,numpoints+1),dtype = 'int32')
         else:
             includedPairs = self.state['includedPairs']
         
-        if (self.options['point_file_contains_polygons']==True) or  (self.options['write_cur_maps'] == True) or (self.options['write_volt_maps'] == True) or (self.options['use_included_pairs']==True): 
+        if (self.options.point_file_contains_polygons==True) or  (self.options.write_cur_maps == True) or (self.options.write_volt_maps == True) or (self.options.use_included_pairs==True): 
            useResistanceCalcShortcut = False
         else:     
            useResistanceCalcShortcut = True # We use this when there are no focal regions.  It saves time when we are also not creating maps
@@ -960,7 +962,7 @@ class circuitscape:
                                         resistances[j, i] = -777
         
                                     if solver_failed == False:
-                                        if self.options['low_memory_mode']==True or self.options['point_file_contains_polygons']==True:
+                                        if self.options.low_memory_mode==True or self.options.point_file_contains_polygons==True:
                                             self.state['amg_hierarchy'] = None
                                             gc.collect()    
                                         
@@ -975,14 +977,14 @@ class circuitscape:
                                                 anchorPoint = i #for use later in shortcult resistance calc
                                                 voltmatrix = self.getVoltmatrix(i,j,numpoints,local_node_map,voltages,points_rc,resistances,voltmatrix)                                          
 
-                                        if self.options['write_volt_maps'] == True:
+                                        if self.options.write_volt_maps == True:
                                             if reportStatus==True:
                                                 (hours,mins,secs) = elapsed_time(self.state['startTime'])
                                                 self.log ('At ' + str(hours) +' hr ' + str(mins) + ' min writing voltage map ' + str(x) + ' of ' + str(y) + '.',1)
                                             voltage_map = self.create_voltage_map(local_node_map,voltages) 
                                             self.write_aaigrid('voltmap', '_' + frompoint + '_' + topoint, voltage_map)
                                             del voltage_map
-                                        if self.options['write_cur_maps'] == True:
+                                        if self.options.write_cur_maps == True:
                                             if reportStatus==True:
                                                 (hours,mins,secs) = elapsed_time(self.state['startTime'])
                                                 self.log ('At ' + str(hours) +' hr ' + str(mins) + ' min writing current map ' + str(x) + ' of ' + str(y) + '.',1)
@@ -1000,7 +1002,7 @@ class circuitscape:
                                                 current_map = self.create_current_map(voltages, G, local_node_map, finitegrounds)                                                                                    
                                             G = G.tocsr()
 
-                                            if self.options['set_focal_node_currents_to_zero']==True:
+                                            if self.options.set_focal_node_currents_to_zero==True:
                                                 # set source and target node currents to zero
                                                 focal_node_pair_map = where(local_node_map == local_src+1, 0, 1)
                                                 focal_node_pair_map = where(local_node_map == local_dst+1, 0, focal_node_pair_map)                                                
@@ -1009,10 +1011,10 @@ class circuitscape:
                                                 #print 'c',current_map
                                                 del focal_node_pair_map
                                             cum_current_map = cum_current_map + current_map 
-                                            if self.options['write_max_cur_maps']==True:
+                                            if self.options.write_max_cur_maps==True:
                                                 max_current_map = maximum(max_current_map, current_map) 
-                                            if self.options['write_cum_cur_map_only']==False:
-                                                if self.options['log_transform_maps']==True:
+                                            if self.options.write_cum_cur_map_only==False:
+                                                if self.options.log_transform_maps==True:
                                                    current_map = where(current_map>0,log10(current_map),self.state['nodata'])
                                                 self.write_aaigrid('curmap', '_' + frompoint + '_' + topoint, current_map)
                                             del current_map    
@@ -1071,15 +1073,15 @@ class circuitscape:
         if oneToAllStreamline==False:
             node_map = self.construct_node_map(g_map, poly_map)
             (component_map, components) = self.construct_component_map(g_map, node_map)
-        if self.options['scenario']=='advanced':
+        if self.options.scenario=='advanced':
             self.log('Graph has ' + str(node_map.max()) + ' nodes and '+ str(components.max())+ ' components.',2)
             
-        if self.options['write_cur_maps'] == True:
+        if self.options.write_cur_maps == True:
             cum_current_map = zeros((self.state['nrows'],self.state['ncols']),dtype = 'float64')         
         
-        if self.options['write_volt_maps'] == True: 
+        if self.options.write_volt_maps == True: 
             cum_voltage_map = zeros((self.state['nrows'],self.state['ncols']),dtype = 'float64') 
-        elif self.options['scenario']=='one-to-all':
+        elif self.options.scenario=='one-to-all':
             cum_voltage_map = zeros((self.state['nrows'],self.state['ncols']),dtype = 'float64') 
         
         if oneToAllStreamline==False:        
@@ -1143,27 +1145,27 @@ class circuitscape:
                     
                 if solver_failed==False:
                     ##Voltage and current mapping are cumulative, since there may be independent components.
-                    if self.options['write_volt_maps'] == True: 
+                    if self.options.write_volt_maps == True: 
                         cum_voltage_map +=  self.create_voltage_map(node_map,voltages) 
-                    elif self.options['scenario']=='one-to-all':
+                    elif self.options.scenario=='one-to-all':
                         cum_voltage_map +=  self.create_voltage_map(node_map,voltages) 
-                    if self.options['write_cur_maps'] == True:
+                    if self.options.write_cur_maps == True:
                         G = G.tocoo()
                         cum_current_map +=  self.create_current_map(voltages, G, node_map, finitegrounds) 
                 
-        if self.options['write_volt_maps'] == True: 
+        if self.options.write_volt_maps == True: 
             if solver_failed==False:
                 filetext = 'voltmap'
-                if self.options['scenario']=='advanced':
+                if self.options.scenario=='advanced':
                     fileadd = ''
                 else:
                     fileadd = '_'+str(source_id)
                 self.write_aaigrid(filetext, fileadd, cum_voltage_map)  
 
-        if self.options['scenario']=='advanced':
-            if self.options['write_cur_maps'] == True: 
+        if self.options.scenario=='advanced':
+            if self.options.write_cur_maps == True: 
                 if solver_failed==False:
-                    if self.options['log_transform_maps']==True:
+                    if self.options.log_transform_maps==True:
                         cum_current_map = where(cum_current_map>0,log10(cum_current_map),self.state['nodata']) 
                     filetext = 'curmap'
                     fileadd = ''
@@ -1172,10 +1174,10 @@ class circuitscape:
                cum_current_map = None
 
         else:
-            if self.options['write_cur_maps'] == True: 
-                if self.options['write_cum_cur_map_only']==False:
+            if self.options.write_cur_maps == True: 
+                if self.options.write_cum_cur_map_only==False:
                     if solver_failed==False:
-                        if self.options['log_transform_maps']==True:
+                        if self.options.log_transform_maps==True:
                             cum_current_map = where(cum_current_map>0,log10(cum_current_map),self.state['nodata']) 
                         filetext = 'curmap'   
                         fileadd = '_'+str(source_id)   
@@ -1183,11 +1185,11 @@ class circuitscape:
             else:
                 cum_current_map = None
             
-        if self.options['scenario']=='one-to-all':
+        if self.options.scenario=='one-to-all':
             if solver_failed==False:
                 (row, col) = where(source_map>0)
                 voltages = cum_voltage_map[row,col]/source_map[row,col] #allows for variable source strength
-        elif self.options['scenario']=='all-to-one':
+        elif self.options.scenario=='all-to-one':
             if solver_failed==False:
                 voltages = 0 #return 0 voltage/resistance for all-to-one mode           
 
@@ -1207,11 +1209,11 @@ class circuitscape:
         
         ##Resolve conflicts bewteen sources and grounds
         conflicts = logical_and(sources,grounds)
-        if self.options['remove_src_or_gnd']=='rmvsrc':
+        if self.options.remove_src_or_gnd=='rmvsrc':
             sources = where(conflicts,0,sources)
-        elif self.options['remove_src_or_gnd']=='rmvgnd':
+        elif self.options.remove_src_or_gnd=='rmvgnd':
             grounds = where(conflicts,0,grounds)
-        elif self.options['remove_src_or_gnd']=='rmvall':
+        elif self.options.remove_src_or_gnd=='rmvall':
             sources = where(conflicts,0,sources)
         infconflicts = logical_and(sources,infgrounds)
         grounds = where(infconflicts,0,grounds)
@@ -1319,12 +1321,6 @@ class circuitscape:
         return g_graph
 
         
-    def writeGraph(self,filename,graph,nodeNames):
-        """Save graph to disk in 3-column format."""  
-        graphNcol = self.convert_graph_to_3_col(graph,nodeNames)
-        savetxt(filename,graphNcol)
-        return
-            
      
     def convert_graph_to_3_col(self,graph,nodeNames): 
         """Converts a sparse adjacency matrix to 3-column format."""  
@@ -1422,12 +1418,12 @@ class circuitscape:
         g1 = g_map.flatten()[s]
         g2 = g_map.flatten()[t]
 
-        if self.options['connect_using_avg_resistances'] == False:
+        if self.options.connect_using_avg_resistances == False:
             conductances = (g1+g2)/2
         else:
             conductances = 1 /((1/g1+1/g2)/2)
 
-        if self.options['connect_four_neighbors_only'] == False:
+        if self.options.connect_four_neighbors_only == False:
             (s_dr, t_dr) = self.get_diag1_neighbors(g_map)
             (s_dl, t_dl) = self.get_diag2_neighbors(g_map)
 
@@ -1438,7 +1434,7 @@ class circuitscape:
             g1 = g_map.flatten()[sd]
             g2 = g_map.flatten()[td]
 
-            if self.options['connect_using_avg_resistances'] == False:
+            if self.options.connect_using_avg_resistances == False:
                 conductances_d = (g1+g2) / (2*sqrt(2))
             else:
                 conductances_d =  1 / (sqrt(2)*(1/g1 + 1/g2) / 2)
@@ -1492,7 +1488,7 @@ class circuitscape:
     @print_timing
     def create_amg_hierarchy(self, G): 
         """Creates AMG hierarchy."""  
-        if self.options['solver'] == 'amg' or self.options['solver'] == 'cg+amg':
+        if self.options.solver == 'amg' or self.options.solver == 'cg+amg':
             self.state['amg_hierarchy'] = None
             # construct the MG hierarchy
             ml = []
@@ -1509,14 +1505,14 @@ class circuitscape:
         gc.collect()
         # Solve G*x = rhs
         x = []
-        if self.options['solver'] == 'cg+amg':
+        if self.options.solver == 'cg+amg':
             ml = self.state['amg_hierarchy']
             G.psolve = ml.psolve
             (x, flag) = sparse.linalg.cg(G, rhs, tol = 1e-6, maxiter = 100000)
             if flag !=  0 or linalg.norm(G*x-rhs) > 1e-3:
                 raise RuntimeError('CG did not converge. May need more iterations.') 
 
-        if self.options['solver'] == 'amg':
+        if self.options.solver == 'amg':
             ml = self.state['amg_hierarchy']
             x = ml.solve(rhs, tol = 1e-6);
 
@@ -1614,36 +1610,36 @@ class circuitscape:
     def write_aaigrid(self, type, fileadd, data):
         """Writes ASCII grid.  This is main raster output format for Circuitscape."""  
         if type == 'voltmap':
-            if self.options['write_volt_maps'] == False: 
+            if self.options.write_volt_maps == False: 
                 return
-            if self.options['set_null_voltages_to_nodata']==True:
+            if self.options.set_null_voltages_to_nodata==True:
                 ind = self.state['g_map'] == 0
                 data[where(ind)] = self.state['nodata']
                 del ind                
         elif type == 'curmap' or type == 'cum_curmap' or type == 'max_curmap':
-            if self.options['write_cur_maps'] == False: 
+            if self.options.write_cur_maps == False: 
                 return
-            if self.options['set_null_currents_to_nodata'] == True:
+            if self.options.set_null_currents_to_nodata == True:
                 ind = self.state['g_map'] == 0
                 data[where(ind)] = self.state['nodata']
                 del ind                
         else:
             return
 
-        outputDir, outputFile = os.path.split(self.options['output_file'])
+        outputDir, outputFile = os.path.split(self.options.output_file)
         outputBase, outputExtension = os.path.splitext(outputFile)
 
-        inputBase, inputExtension = os.path.splitext(self.options['habitat_file']) 
+        inputBase, inputExtension = os.path.splitext(self.options.habitat_file) 
         if inputExtension == '.npy': #if read in numpy array, write one out.
             file = outputDir + '//' + outputBase + '_' + type + fileadd +'.npy'
         else:
             file = outputDir + '//' + outputBase + '_' + type + fileadd +'.asc'
-        writer(file, data, self.state, self.options['compress_grids'])
+        cs_io.writer(file, data, self.state, self.options.compress_grids)
         
         
     def read_cell_map(self, filename):
         """Reads resistance or conductance raster into memory, converts former to conductance format."""  
-        (ncols, nrows, xllcorner, yllcorner, cellsize, nodata) = read_header(filename)
+        (ncols, nrows, xllcorner, yllcorner, cellsize, nodata) = cs_io.read_header(filename)
         self.state['ncols'] = ncols
         self.state['nrows'] = nrows
         self.state['xllcorner'] = xllcorner
@@ -1654,20 +1650,20 @@ class circuitscape:
         else:
             self.state['nodata'] = nodata
 
-        cell_map = reader(filename, 'float64')
+        cell_map = cs_io.reader(filename, 'float64')
 
         ######################## Reclassification code
-        if self.options['use_reclass_table']==True:
+        if self.options.use_reclass_table==True:
             try:
-                reclassTable = self.readPointStrengths(self.options['reclass_file'])    
+                reclassTable = self.readPointStrengths(self.options.reclass_file)    
             except:
                 raise RuntimeError('Error reading reclass table')
             for i in range (0,reclassTable.shape[0]):
                 cell_map = where(cell_map==reclassTable[i,0],reclassTable[i,1],cell_map)
-            print'\n***** Reclassified habitat map using', self.options['reclass_file'],'*****'
+            print'\n***** Reclassified habitat map using', self.options.reclass_file,'*****'
         ########################
         
-        if self.options['habitat_map_is_resistances'] == True:
+        if self.options.habitat_map_is_resistances == True:
             zeros_in_resistance_map = (where(cell_map==0, 1, 0)).sum() > 0
             if zeros_in_resistance_map == True: #FIXME: Should be easy to accomodate zeros in resistance map, just treat them like polygons.
                 raise RuntimeError('Error: zero resistance values are not currently supported for habitat maps.  Use a short-circuit region file instead.')
@@ -1707,7 +1703,7 @@ class circuitscape:
 
         elif extension == ".asc" or extension == ".npy": # We use Numpy format for quickly passing grids between ArcGIS and Circuitscape.
             readingMask = False
-            (ncols, nrows, xllcorner, yllcorner, cellsize, nodata) = read_header(filename)
+            (ncols, nrows, xllcorner, yllcorner, cellsize, nodata) = cs_io.read_header(filename)
             if cellsize!= self.state['cellsize']:
                 print'\n********\nWarning: Focal node raster has different \ncell size than habitat raster. \nCircuitscape will try to crudely resample the focal node raster. \nWe recommend using the "Export to Circuitscape" ArcGIS tool to create ASCII grids with compatible cell size and extent.'
                 point_map = self.resampleMap(filename,readingMask)
@@ -1724,7 +1720,7 @@ class circuitscape:
                 print'\n********\nWarning: Focal node raster has different \nyllcorner than habitat raster. \nCircuitscape will try to crudely resample the focal node raster. \nWe recommend using the "Export to Circuitscape" ArcGIS tool to create ASCII grids with compatible cell size and extent.'
                 point_map = self.resampleMap(filename,readingMask)
             else:
-                point_map = reader(filename, 'int32')
+                point_map = cs_io.reader(filename, 'int32')
 
             (rows, cols) = where(point_map > 0)
 
@@ -1755,7 +1751,7 @@ class circuitscape:
         
     def read_poly_map(self, filename,readingMask):  
         """Reads short-circuit region map (aka polygon map) from disk."""  
-        (ncols, nrows, xllcorner, yllcorner, cellsize, nodata) = read_header(filename)
+        (ncols, nrows, xllcorner, yllcorner, cellsize, nodata) = cs_io.read_header(filename)
         if cellsize!= self.state['cellsize']:
             print'\n********\nWarning: Short-circuit region or mask raster has different \ncell size than habitat raster. \nCircuitscape will try to crudely resample the raster. \nWe recommend using the "Export to Circuitscape" ArcGIS tool to create ASCII grids with compatible cell size and extent.'
             map = self.resampleMap(filename,readingMask)
@@ -1772,7 +1768,7 @@ class circuitscape:
             print'\n********\nWarning: Short-circuit region or mask raster has different \nyllcorner than habitat raster. \nCircuitscape will try to crudely resample the raster. \nWe recommend using the "Export to Circuitscape" ArcGIS tool to create ASCII grids with compatible cell size and extent.'
             map = self.resampleMap(filename,readingMask)            
         else:
-            map = reader(filename, 'int32')
+            map = cs_io.reader(filename, 'int32')
             
         map = where(map == nodata,0,map)        
 
@@ -1801,7 +1797,7 @@ class circuitscape:
             source_map = zeros((self.state['nrows'],self.state['ncols']),dtype = 'float64')
             source_map[sources_rc[:,1],sources_rc[:,2]] = sources_rc[:,0]
         elif extension=='.asc':
-            (ncols, nrows, xllcorner, yllcorner, cellsize, nodata) = read_header(source_filename)
+            (ncols, nrows, xllcorner, yllcorner, cellsize, nodata) = cs_io.read_header(source_filename)
             if cellsize!= self.state['cellsize']:
                 raise RuntimeError('Current source raster must have same cell size and number of rows and columns as habitat raster') 
             if ncols!= self.state['ncols']:
@@ -1813,12 +1809,12 @@ class circuitscape:
             if xllcorner!= self.state['xllcorner']:
                 raise RuntimeError('Current source raster must have same xllcorner and yllcorner as habitat raster') 
                
-            source_map = reader(source_filename, 'float64')
+            source_map = cs_io.reader(source_filename, 'float64')
             source_map = where(source_map == -9999,0,source_map)
 
         else:
             raise RuntimeError('Current source files must have a .txt or .asc extension')
-        if self.options['use_unit_currents']==True:
+        if self.options.use_unit_currents==True:
             source_map = where(source_map,1,0)
 
         if os.path.isfile(ground_filename)==False:
@@ -1837,7 +1833,7 @@ class circuitscape:
             ground_map_raw = -9999*ones((self.state['nrows'],self.state['ncols']),dtype = 'float64')
             ground_map_raw[grounds_rc[:,1],grounds_rc[:,2]] = grounds_rc[:,0]
         elif extension=='.asc':
-            (ncols, nrows, xllcorner, yllcorner, cellsize, nodata) = read_header(ground_filename)
+            (ncols, nrows, xllcorner, yllcorner, cellsize, nodata) = cs_io.read_header(ground_filename)
             if cellsize!= self.state['cellsize']:
                 raise RuntimeError('Ground raster must have same cell size and number of rows and columns as habitat raster') 
             if ncols!= self.state['ncols']:
@@ -1849,23 +1845,23 @@ class circuitscape:
             if xllcorner!= self.state['xllcorner']:
                 raise RuntimeError('Ground raster must have same xllcorner and yllcorner as habitat raster') 
                 
-            ground_map_raw = reader(ground_filename, 'float64')
+            ground_map_raw = cs_io.reader(ground_filename, 'float64')
         else:
             raise RuntimeError('Ground files must have a .txt or .asc extension')
-        if self.options['ground_file_is_resistances']==True:
+        if self.options.ground_file_is_resistances==True:
             ground_map = 1 / ground_map_raw
             ground_map = where(ground_map_raw == -9999,0,ground_map)
         else:
             ground_map = where(ground_map_raw == -9999,0,ground_map_raw)
-        if self.options['use_direct_grounds']==True:
+        if self.options.use_direct_grounds==True:
             ground_map = where(ground_map,Inf,0)
 
         conflicts = logical_and(source_map,ground_map)
-        if self.options['remove_src_or_gnd']=='rmvsrc':
+        if self.options.remove_src_or_gnd=='rmvsrc':
             source_map = where(conflicts,0,source_map)
-        elif self.options['remove_src_or_gnd']=='rmvgnd':
+        elif self.options.remove_src_or_gnd=='rmvgnd':
             ground_map = where(conflicts,0,ground_map)
-        elif self.options['remove_src_or_gnd']=='rmvall':
+        elif self.options.remove_src_or_gnd=='rmvall':
             source_map = where(conflicts,0,source_map)
             ground_map = where(conflicts,0,ground_map)
         if size(where(source_map)) == 0:
@@ -1942,10 +1938,10 @@ class circuitscape:
         """Runs circuitscape in low memory mode.  Not incredibly helpful it seems."""  
         self.state['amg_hierarchy'] = None
         gc.collect()
-        if self.options['low_memory_mode']==True:
+        if self.options.low_memory_mode==True:
             if restart==False: #If this module has already been called
                 raise MemoryError
-        self.options['low_memory_mode'] = True
+        self.options.low_memory_mode = True
         print'\n**************\nMemory error reported.'        
 
         type, value, tb = sys.exc_info()
@@ -1975,8 +1971,8 @@ class circuitscape:
     def resampleMap(self,filename,readingMask):
         """Code to crudely resample input raster if raster headers don't match (i.e. different extents or cell sizes used)."""  
         try:
-            (ncols, nrows, xllcorner, yllcorner, cellsize, nodata) = read_header(filename)
-            map = reader(filename, 'int32')
+            (ncols, nrows, xllcorner, yllcorner, cellsize, nodata) = cs_io.read_header(filename)
+            map = cs_io.reader(filename, 'int32')
             map = where(map == nodata,0,map)
             
             if readingMask==True:
@@ -2087,7 +2083,7 @@ class circuitscape:
     def writeResistances(self, point_ids, resistances):
         """Writes resistance file to disk."""  
         outputResistances = self.append_names_to_resistances(point_ids, resistances)
-        fileName = self.options['output_file']
+        fileName = self.options.output_file
         outputDir, outputFile = os.path.split(fileName)
         outputBase, outputExtension = os.path.splitext(outputFile)
         outputFile = outputDir + '//' + outputBase + '_resistances' + outputExtension 
@@ -2108,7 +2104,7 @@ class circuitscape:
         
     def writeResistances3columns(self, resistances3Columns):    
         """Writes effective resistances to disk in 3 column format."""  
-        fileName = self.options['output_file']
+        fileName = self.options.output_file
         outputDir, outputFile = os.path.split(fileName)
         outputBase, outputExtension = os.path.splitext(outputFile)       
         outputFile = outputDir + '//' + outputBase + '_resistances_3columns' + outputExtension 
@@ -2137,7 +2133,7 @@ class circuitscape:
         Helpful for debugging or recovering partial results after crash or user abort.
         
         """  
-        fileName = self.options['output_file']
+        fileName = self.options.output_file
         outputDir, outputFile = os.path.split(fileName)
         outputBase, outputExtension = os.path.splitext(outputFile)
         outputFile = outputDir + '//' + outputBase + '_resistances_incomplete' + outputExtension
@@ -2232,8 +2228,8 @@ class circuitscape:
         
     def getstrengthMap(self,points_rc_unique,pointStrengths):
         """Returns map and coordinates of point strengths when variable source strengths are used."""  
-        if self.options['use_variable_source_strengths']==True:
-            if self.options['scenario'] == 'one-to-all': 
+        if self.options.use_variable_source_strengths==True:
+            if self.options.scenario == 'one-to-all': 
                 strengths_rc = self.get_strengths_rc(self.state['pointStrengths'],points_rc_unique)
                 strengthMap = None
             else:
@@ -2267,14 +2263,14 @@ class circuitscape:
         """Loads all raster maps into self.state."""  
         self.log('Reading maps',1)
         self.log('',2)
-        self.state['g_map'] = self.read_cell_map(self.options['habitat_file'])
-        if self.options['use_polygons']:
-            self.state['poly_map'] = self.read_poly_map(self.options['polygon_file'],readingMask = False)
+        self.state['g_map'] = self.read_cell_map(self.options.habitat_file)
+        if self.options.use_polygons:
+            self.state['poly_map'] = self.read_poly_map(self.options.polygon_file,readingMask = False)
         else:
             self.state['poly_map'] = []
  
-        if self.options['use_mask']==True:
-            mask = self.read_poly_map(self.options['mask_file'],readingMask = True)
+        if self.options.use_mask==True:
+            mask = self.read_poly_map(self.options.mask_file,readingMask = True)
             mask = where(mask !=  0, 1, 0) 
             self.state['g_map'] = multiply(self.state['g_map'],mask)
             
@@ -2287,21 +2283,21 @@ class circuitscape:
             self.state['mask'] = []
             
 
-        if self.options['scenario']=='advanced':
+        if self.options.scenario=='advanced':
             self.state['points_rc'] = []
-            (self.state['source_map'], self.state['ground_map']) = self.read_source_and_ground_maps(self.options['source_file'], self.options['ground_file'])
+            (self.state['source_map'], self.state['ground_map']) = self.read_source_and_ground_maps(self.options.source_file, self.options.ground_file)
 
         else:        
-            self.state['points_rc'] = self.read_point_map(self.options['point_file'])
+            self.state['points_rc'] = self.read_point_map(self.options.point_file)
             self.state['source_map'] = []
             self.state['ground_map'] = []
 
-        if self.options['use_included_pairs']==True:
-            self.state['includedPairs'] = self.readincludedPairs(self.options['included_pairs_file'])
+        if self.options.use_included_pairs==True:
+            self.state['includedPairs'] = self.readincludedPairs(self.options.included_pairs_file)
         
         self.state['pointStrengths'] = None
-        if self.options['use_variable_source_strengths']==True:
-            self.state['pointStrengths'] = self.readPointStrengths(self.options['variable_source_file']) 
+        if self.options.use_variable_source_strengths==True:
+            self.state['pointStrengths'] = self.readPointStrengths(self.options.variable_source_file) 
         
         self.log('Processing maps',1)
         return 
@@ -2309,10 +2305,10 @@ class circuitscape:
         
     def writeResistancesOneToAll(self,resistances,string):
         """Saves effective resistances from one-to-all calculations to disk."""  
-        fileName = self.options['output_file']
+        fileName = self.options.output_file
         outputDir, outputFile = os.path.split(fileName)
         outputBase, outputExtension = os.path.splitext(outputFile)
-        if self.options['scenario'] == 'one-to-all':
+        if self.options.scenario == 'one-to-all':
             outputFile = outputDir + '//' + outputBase + '_resistances' + string + outputExtension
         else:
             outputFile = outputDir + '//' + outputBase + '_results' + string + outputExtension     
@@ -2320,7 +2316,7 @@ class circuitscape:
         
         #remove partial result file        
         if string=='':        
-            if self.options['scenario'] == 'one-to-all':
+            if self.options.scenario == 'one-to-all':
                 oldFile = outputDir + '//' + outputBase + '_resistances_incomplete' + string + outputExtension
             else:
                 oldFile = outputDir + '//' + outputBase + '_results_incomplete' + string + outputExtension
@@ -2347,11 +2343,11 @@ class circuitscape:
             solver_failed = False
         except:
             solver_failed = True
-        if self.options['write_cur_maps'] == True:
+        if self.options.write_cur_maps == True:
             (node_currents,branch_currents) = self.getCurrentsNetwork(G,voltages,finitegrounds)
             fileadd=''
             outputNodeCurrents = self.writeCurrentsNetwork(branch_currents, node_currents, nodeNames, fileadd)
-        if self.options['write_volt_maps'] == True:
+        if self.options.write_volt_maps == True:
             self.writeVoltagesNetwork(voltages, nodeNames, fileadd='')
         
         return voltages, solver_failed
@@ -2361,7 +2357,7 @@ class circuitscape:
     def one_to_all_module_network(self,G,focalNodes,nodeNames):
         """Not implemented yet.  Represents functionality we'll want to have in 4.0"""  
         solver_failed = False
-        if self.options['use_included_pairs']==True: #Prune points
+        if self.options.use_included_pairs==True: #Prune points
             focalNodes = self.pruneIncludedPairsNetwork(focalNodes)          
             includedPairs = self.state['includedPairs'] 
 
@@ -2369,7 +2365,7 @@ class circuitscape:
         numnodes = G.shape[0]
         resistances = zeros((focalNodes.size,2),dtype = 'float64')
         resistances[:,0] = focalNodes
-        if self.options['write_cur_maps'] == True:
+        if self.options.write_cur_maps == True:
             cumNodeCurrents = zeros((nodeNames.size,1),dtype = 'float64')
             cumBranchCurrents = sparse.csr_matrix((G.shape))
         
@@ -2381,7 +2377,7 @@ class circuitscape:
         
         variableSources = self.getVariableSources(numnodes,focalNodes)
         
-        if self.options['scenario'] == 'one-to-all':
+        if self.options.scenario == 'one-to-all':
             grounds[focalNodeLocs] = Inf
         else:
             sources = variableSources
@@ -2389,7 +2385,7 @@ class circuitscape:
         x = 0
         lastWriteTime = time.time()
         for i in range(0, numpoints):
-            if self.options['use_included_pairs']==True: #Prune points
+            if self.options.use_included_pairs==True: #Prune points
                 groundsTemp=grounds
                 sourcesTemp=sources
                 for pair in range(0, focalNodes.size): #loop thru exclude[point,:], delete included pairs of focal point from point_map and points_rc_unique_temp 
@@ -2403,7 +2399,7 @@ class circuitscape:
             self.log ('At ' + str(hours) +' hr ' + str(mins) + ' min solving focal node ' + str(x) + ' of '+ str(numpoints) + '.',1)
 
             node = focalNodeLocs[i]
-            if self.options['scenario'] == 'one-to-all':
+            if self.options.scenario == 'one-to-all':
                 grounds[node] = 0
                 sources[node] = variableSources[node]
                 try:
@@ -2431,16 +2427,16 @@ class circuitscape:
                 lastWriteTime = time.time()
                 self.writeResistancesOneToAll(resistances,'_incomplete')       
             
-            if self.options['write_cur_maps'] == True:
+            if self.options.write_cur_maps == True:
                 (node_currents,branch_currents) = self.getCurrentsNetwork(G,voltages,finitegrounds)
                 cumNodeCurrents=cumNodeCurrents+node_currents
                 cumBranchCurrents=cumBranchCurrents+branch_currents
-                if self.options['write_cum_cur_map_only']==False:     
+                if self.options.write_cum_cur_map_only==False:     
                     outputNodeCurrents = self.writeCurrentsNetwork(branch_currents, node_currents, nodeNames, fileadd=str(int(focalNodes[i])))
-            if self.options['write_volt_maps'] == True:
+            if self.options.write_volt_maps == True:
                 self.writeVoltagesNetwork(voltages, nodeNames, fileadd=str(int(focalNodes[i])))
                 
-        if self.options['write_cur_maps'] == True:
+        if self.options.write_cur_maps == True:
             outputNodeCurrents = self.writeCurrentsNetwork(cumBranchCurrents, cumNodeCurrents, nodeNames, 'cum')
             
         self.writeResistancesOneToAll(resistances,'')
@@ -2483,8 +2479,8 @@ class circuitscape:
 
         """  
         variableSources = ones(numnodes,dtype = 'float64')
-        if self.options['use_variable_source_strengths']==True:
-            pointStrengths = self.readPointStrengths(self.options['variable_source_file']) 
+        if self.options.use_variable_source_strengths==True:
+            pointStrengths = self.readPointStrengths(self.options.variable_source_file) 
             variableSourceNames = pointStrengths[:,0]
             variableSourceNodes = self.namesToNodes(focalNodes,variableSourceNames)
             try:
@@ -2509,9 +2505,9 @@ class circuitscape:
         rawSources = loadtxt(sourceFile, dtype = 'float64')
         rawGrounds = loadtxt(groundFile, dtype = 'float64')
 
-        if self.options['ground_file_is_resistances']==True:
+        if self.options.ground_file_is_resistances==True:
             rawGrounds[:,1] = 1 / rawGrounds[:,1]
-        if self.options['use_direct_grounds']==True:
+        if self.options.use_direct_grounds==True:
             rawGrounds[:,1] = where(rawGrounds[:,1],Inf,0)
         
         numnodes = G.shape[0]
@@ -2524,11 +2520,11 @@ class circuitscape:
         grounds[groundNodes[:]] = rawGrounds[:,1] 
 
         conflicts = logical_and(sources,grounds)
-        if self.options['remove_src_or_gnd']=='rmvsrc':
+        if self.options.remove_src_or_gnd=='rmvsrc':
             sources = where(conflicts,0,sources)
-        elif self.options['remove_src_or_gnd']=='rmvgnd':
+        elif self.options.remove_src_or_gnd=='rmvgnd':
             grounds = where(conflicts,0,grounds)
-        elif self.options['remove_src_or_gnd']=='rmvall':
+        elif self.options.remove_src_or_gnd=='rmvall':
             sources = where(conflicts,0,sources)
             grounds = where(conflicts,0,grounds)
         if size(where(sources)) == 0:
