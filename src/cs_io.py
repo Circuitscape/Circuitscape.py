@@ -5,6 +5,7 @@
 import os, string, gzip
 import numpy
 import time
+from cs_util import *
 
 # gdal_available = True #GDAL disabled for now, but should work- BHM 01/04/12
 # try:
@@ -26,74 +27,73 @@ from scipy import sparse
 # TODO: make IO object
 def read_header(filename):
     """Reads header for ASCII grids (standard input) or numpy arrays (used
-
     for faster read/write when calling Circuitscape from ArcGIS python code).
-    
     """    
-    if os.path.isfile(filename)==False:
+    if not os.path.isfile(filename):
         raise RuntimeError('File "'  + filename + '" does not exist')
-    fileBase, fileExtension = os.path.splitext(filename) 
-    if fileExtension == '.npy': #numpy array will have an associated header file
-        filename = fileBase + '.hdr'
+    file_base, file_extension = os.path.splitext(filename) 
+    if file_extension == '.npy': #numpy array will have an associated header file
+        filename = file_base + '.hdr'
     
-    f = open(filename, 'r')
-    try:
-        [ign, ncols] = string.split(f.readline())
-    except ValueError:
-            raise  RuntimeError('Unable to read ASCII grid: "'  + filename + '". If file is a text list, please use .txt extension.')
-    ncols = int(ncols)
-    [ign, nrows] = string.split(f.readline())
-    nrows = int(nrows)
-    [ign, xllcorner] = string.split(f.readline())
-    xllcorner = float(xllcorner)
-    [ign, yllcorner] = string.split(f.readline())
-    yllcorner = float(yllcorner)
-    [ign, cellsize] = string.split(f.readline())
-    cellsize = float(cellsize)
-   
-    try:
-        [ign, nodata] = string.split(f.readline())
+    with open(filename, 'r') as f:
         try:
-            nodata= int(nodata)
+            [ign, ncols] = string.split(f.readline())
         except ValueError:
-            nodata= float(nodata)
-    except ValueError:
-        nodata=False
-  
-    f.close()
- 
+            raise  RuntimeError('Unable to read ASCII grid: "'  + filename + '". If file is a text list, please use .txt extension.')
+        ncols = int(ncols)
+        [ign, nrows] = string.split(f.readline())
+        nrows = int(nrows)
+        [ign, xllcorner] = string.split(f.readline())
+        xllcorner = float(xllcorner)
+        [ign, yllcorner] = string.split(f.readline())
+        yllcorner = float(yllcorner)
+        [ign, cellsize] = string.split(f.readline())
+        cellsize = float(cellsize)
+       
+        try:
+            [ign, nodata] = string.split(f.readline())
+            try:
+                nodata = int(nodata)
+            except ValueError:
+                nodata = float(nodata)
+        except ValueError:
+            nodata=False
+
     # print 'header',ncols, nrows, xllcorner, yllcorner, cellsize, nodata 
     return ncols, nrows, xllcorner, yllcorner, cellsize, nodata 
 
+
 def reader(filename, type):
-    """Reads rasters saved as ASCII grids or numpy arrays into Circuitscape."""    
-    if os.path.isfile(filename)==False:      
+    """Reads rasters saved as ASCII grids or numpy arrays into Circuitscape."""
+    if not os.path.isfile(filename):      
         raise RuntimeError('File "'  + filename + '" does not exist')
     (ncols, nrows, xllcorner, yllcorner, cellsize, nodata) = read_header(filename)
 
-    fileBase, fileExtension = os.path.splitext(filename)     
-    if fileExtension == '.npy': 
+    file_base, file_extension = os.path.splitext(filename)     
+    if file_extension == '.npy': 
         map = numpy.load(filename, mmap_mode=None)
         map = map.astype('float64')
         
     elif gdal_available == True:
         map = numpy.float64(gdal_array.LoadFile(filename))  
-        if nodata!=False:    
+        if nodata != False:    
             map = where(map==nodata, -9999, map)
     else:
-        if nodata==False:
+        if nodata == False:
             map = loadtxt(filename, skiprows=5, dtype=type)
         else:
             map = loadtxt(filename, skiprows=6, dtype=type)
             map = where(map==nodata, -9999, map)
-    if nrows==1:
-        temp=numpy.zeros((1,map.size))
-        temp[0,:]=map
-        map=temp
-    if ncols==1:
-        temp=numpy.zeros((map.size,1))
-        temp[:,0]=map
-        map=temp       
+            
+    if nrows == 1:
+        temp = numpy.zeros((1,map.size))
+        temp[0,:] = map
+        map = temp
+        
+    if ncols == 1:
+        temp = numpy.zeros((map.size,1))
+        temp[:,0] = map
+        map = temp       
   
     return map
 
@@ -149,6 +149,20 @@ def writer(file, data, state, compress):
             f.write(format % tuple(row) + '\n')
 
         f.close()
+
+def load_graph(filename):
+    """Returns data for arbitrary graph or focal node list from file."""
+    if not os.path.isfile(filename):
+        raise RuntimeError('File "'  + filename + '" does not exist')
+
+    try:    
+        graph_object = loadtxt(filename, dtype = 'Float64', comments='#') 
+    except:
+        try:
+            graph_object = loadtxt(filename, dtype = 'Float64', comments='#', delimiter=',')
+        except:
+            raise RuntimeError('Error reading file "' + filename + '". Please check file format.')
+    return graph_object
 
 #     def writeGraph(self,filename,graph,nodeNames):
 #         """Save graph to disk in 3-column format."""  
