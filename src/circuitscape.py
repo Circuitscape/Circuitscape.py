@@ -3,12 +3,8 @@
 ## Circuitscape (C) 2013, Brad McRae and Viral B. Shah. 
 ##
 
-import sys, time, string, os, math
-import ConfigParser
-import gc
-import traceback
+import sys, time, string, os, math, gc, traceback
 import pdb
-
 import numpy, scipy, pyamg
 
 wx_available = True
@@ -17,8 +13,8 @@ try:
 except ImportError:
     wx_available = False
 
-from sys import path
-from string import split
+#from sys import path
+#from string import split
 from math import sqrt
 from numpy import *
 from scipy import sparse
@@ -28,8 +24,8 @@ from pyamg import *
 from cs_util import *
 from cs_cfg import CSConfig
 import cs_io
-#from cs_io import *
 import copy
+
 
 class circuitscape:
         
@@ -490,10 +486,10 @@ class circuitscape:
            nodes[i] = nodeNames.index(names[i])
         return nodes
 
-        
+    
     def read_graph(self, filename):
         """Reads arbitrary graph from disk. Returns sparse adjacency matrix and node names ."""  
-        graphList = self.load_graph(filename,datatype='float64')
+        graphList = cs_io.load_graph(filename)
 
         try:
             zeros_in_resistance_graph = False           
@@ -534,7 +530,7 @@ class circuitscape:
 
     def readFocalNodes(self, filename):
         """Loads list of focal nodes for arbitrary graph."""  
-        focalNodes = self.load_graph(filename,datatype='int32')
+        focalNodes = cs_io.load_graph(filename)
         try:    
             if filename==self.options.graph_file:#If graph was used as focal node file, then just want first two columns for focalNodes.
                 focalNodes = deletecol(focalNodes, 2)
@@ -542,22 +538,6 @@ class circuitscape:
         except:
             raise RuntimeError('Error processing focal node file.  Please check file format')
         return focalNodes
-        
-        
-    def load_graph(self,filename,datatype):
-        """Returns data for arbitrary graph or focal node list from file."""  
-        if os.path.isfile(filename)==False:
-            raise RuntimeError('File "'  + filename + '" does not exist')
-        f = open(filename, 'r')
-
-        try:
-            graphObject = loadtxt(filename, dtype = 'Float64', comments='#') 
-        except:
-            try:
-                graphObject = loadtxt(filename, dtype = 'Float64', comments='#', delimiter=',')
-            except:
-                raise RuntimeError('Error reading',type,'file.  Please check file format')
-        return graphObject
         
 
     @print_timing
@@ -703,11 +683,9 @@ class circuitscape:
        
         return resistance_vector,solver_failed_somewhere 
 
-    def get_poly_map_temp(self,poly_map,point_map,point_ids,includedPairs,point1):
+    def get_poly_map_temp(self, poly_map, point_map, point_ids, includedPairs, point1):
         """Returns polygon map for each solve given source and destination nodes.  
-        
         Used in all-to-one and one-to-all modes only.
-        
         """  
         if poly_map == []:
             poly_map_temp = point_map
@@ -725,11 +703,9 @@ class circuitscape:
         return poly_map_temp
 
         
-    def get_poly_map_temp2(self,poly_map,point_map,points_rc_unique_temp,includedPairs,i):
+    def get_poly_map_temp2(self, poly_map, point_map, points_rc_unique_temp, includedPairs, i):
         """Returns polygon map for each solve given source and destination nodes.  
-        
         Used in all-to-one and one-to-all modes when included/excluded pairs are used.
-        
         """  
         if poly_map == []:
             poly_map_temp = point_map
