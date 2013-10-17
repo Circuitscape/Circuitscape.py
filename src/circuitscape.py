@@ -27,12 +27,34 @@ import cs_io
 import copy
 
 
+class CSState:
+    def __init__(self):
+        self.amg_hierarchy = None
+        self.cellsize = None
+        self.g_map = None
+        self.ground_map = None
+        self.includedPairs = None
+        self.lastUpdateTime = None
+        self.mask = None
+        self.ncols = None
+        self.nodata = None
+        self.nrows = None
+        self.pointStrengths = None
+        self.points_rc = None
+        self.poly_map = None
+        self.source_map = None
+        self.startTime = None
+        self.version = None
+        self.xllcorner = None
+        self.yllcorner = None
+
+
 class circuitscape:
         
     def __init__(self, configFile, logger_func):
         gc.enable()
-        self.state = {}
-        self.state['amg_hierarchy'] = None
+        self.state = CSState()
+        self.state.amg_hierarchy = None
         self.options = CSConfig(configFile)
         if logger_func == 'Screen':
             self.options.screenprint_log = True
@@ -50,12 +72,12 @@ class circuitscape:
 
         print_timing_enabled(self.options.print_timings)
         
-    def log(self, text,col):
+    def log(self, text, col):
         """Prints updates to GUI or python window."""  
-        (hours,mins,secs) = elapsed_time(self.state['startTime'])
-        (hours,mins,secs1) = elapsed_time(self.state['lastUpdateTime'])
+        (hours,mins,secs) = elapsed_time(self.state.startTime)
+        (hours,mins,secs1) = elapsed_time(self.state.lastUpdateTime)
         if secs1 > 10: # Force update every 10 secs
-            self.state['lastUpdateTime'] = time.time()
+            self.state.lastUpdateTime = time.time()
             try:
                 if wx_available:
                     wx.SafeYield(None, True)  
@@ -63,7 +85,7 @@ class circuitscape:
             except:
                 pass
         if logger:           
-            logger(text,col)
+            logger(text, col)
         if self.options.screenprint_log == True and len(text) > 1 and col == 1: 
             print '    --- ',text,' ---'
         sys.stdout.flush()
@@ -81,8 +103,8 @@ class circuitscape:
             self.options.graph_file = self.options.habitat_file
             self.options.focal_node_file = self.options.point_file
 
-        self.state['startTime'] = time.time()
-        self.state['lastUpdateTime'] = time.time()        
+        self.state.startTime = time.time()
+        self.state.lastUpdateTime = time.time()        
         self.log('',1)
         self.log('',2)
 
@@ -101,27 +123,28 @@ class circuitscape:
             result,solver_failed = self.network_module() # Call module for solving arbitrary graphs (not raster grids)
             self.logCompleteJob()
             return result,solver_failed #Fixme: add in solver failed check
-        else:
-            self.load_maps()
-            numNodes = (where(self.state['g_map'] > 0, 1, 0)).sum()         
-            if self.options.screenprint_log == True:        
-                print '    ---  Resistance/conductance map has',numNodes,' nodes.  ---'
+
+        self.load_maps()
+        numNodes = (where(self.state.g_map > 0, 1, 0)).sum()         
+        if self.options.screenprint_log == True:        
+            print '    ---  Resistance/conductance map has',numNodes,' nodes.  ---'
+            
         if self.options.scenario=='pairwise':
-            resistances,solver_failed = self.pairwise_module(self.state['g_map'], self.state['poly_map'], self.state['points_rc'])
+            resistances,solver_failed = self.pairwise_module(self.state.g_map, self.state.poly_map, self.state.points_rc)
             self.logCompleteJob()
             return resistances,solver_failed     
 
         elif self.options.scenario == 'advanced':
             self.options.write_max_cur_maps=False
             self.log ('Calling solver module.',1)
-            voltages,current_map,solver_failed = self.advanced_module(self.state['g_map'], self.state['poly_map'], self.state['source_map'], self.state['ground_map'],None,None,None,None,None)
+            voltages,current_map,solver_failed = self.advanced_module(self.state.g_map, self.state.poly_map, self.state.source_map, self.state.ground_map,None,None,None,None,None)
             self.logCompleteJob()
             if solver_failed == True:
                 print'Solver failed.\n'
             return voltages, solver_failed
 
         else:
-            resistance_vector,solver_failed = self.one_to_all_module(self.state['g_map'], self.state['poly_map'], self.state['points_rc'])
+            resistance_vector,solver_failed = self.one_to_all_module(self.state.g_map, self.state.poly_map, self.state.points_rc)
             self.logCompleteJob()
             return resistance_vector,solver_failed 
             
@@ -133,7 +156,7 @@ class circuitscape:
         
     def logCompleteJob(self):
         """Writes total time elapsed at end of run."""  
-        (hours,mins,secs) = elapsed_time(self.state['startTime'])
+        (hours,mins,secs) = elapsed_time(self.state.startTime)
         if hours>0:
             self.log('Job took ' + str(hours) +' hours ' + str(mins) + ' minutes to complete.',2)
         else:
@@ -185,7 +208,7 @@ class circuitscape:
                 
             else:
                 if self.options.use_included_pairs==True:
-                    self.state['includedPairs'] = self.readincludedPairs(self.options.included_pairs_file)
+                    self.state.includedPairs = self.readincludedPairs(self.options.included_pairs_file)
                 focalNodes = self.readFocalNodes(self.options.focal_node_file)
                 if numComponents > 1:    #Prune out any focal nodes that are not in component
                     focalNodesInComponent = focalNodes
@@ -285,7 +308,7 @@ class circuitscape:
         solver_failed = False
         if self.options.use_included_pairs==True: #Prune points
             focalNodes = self.pruneIncludedPairsNetwork(focalNodes)          
-            includedPairs = self.state['includedPairs'] 
+            includedPairs = self.state.includedPairs 
         else:
             includedPairs = ones((focalNodes.size+1,focalNodes.size+1),dtype = 'int32')
 
@@ -315,13 +338,13 @@ class circuitscape:
             dst = self.nameToNode(nodeNames,focalNodes[i])
             G_dst_dst = G[dst, dst] 
             G[dst,dst] = 0
-            self.state['amg_hierarchy'] = None
+            self.state.amg_hierarchy = None
             gc.collect()
             self.create_amg_hierarchy(G)         
             
             for j in range(i+1, numpoints):
                 x = x+1
-                (hours,mins,secs) = elapsed_time(self.state['startTime'])
+                (hours,mins,secs) = elapsed_time(self.state.startTime)
                 if useResistanceCalcShortcut==True:
                     y = numpoints
                     self.log ('At ' + str(hours) +' hr ' + str(mins) + ' min solving focal node ' + str(x) + ' of '+ str(y) + '.',1)
@@ -499,30 +522,33 @@ class circuitscape:
             node1 = nodes[:,0]
             node2 = nodes[:,1]
             data = graphList[:,2]
+            
             ######################## Reclassification code
-            if self.options.use_reclass_table==True:
+            if self.options.use_reclass_table == True:
                 try:
-                    reclassTable = self.readPointStrengths(self.options.reclass_file)    
+                    reclassTable = cs_io.read_point_strengths(self.options.reclass_file)    
                 except:
                     raise RuntimeError('Error reading reclass table.  Please check file format.')
                 for i in range (0,reclassTable.shape[0]):
                     data = where(data==reclassTable[i,0],reclassTable[i,1],data)
                 print'\n***** Reclassified habitat graph using', self.options.reclass_file,'*****'
-            ########################            
+            ########################
+            
             if self.options.habitat_map_is_resistances == True:
                 zeros_in_resistance_graph = (where(data==0, 1, 0)).sum() > 0
                 conductances = 1/data
             else:
                 conductances = data
+                
             numnodes = nodeNames.shape[0]
             G = sparse.csr_matrix((conductances, (node1, node2)), shape = (numnodes, numnodes))
 
             Gdense=G.todense()
             g_graph = maximum(Gdense, Gdense.T) # To handle single or double entries for elements BHM 06/28/11
             g_graph = sparse.csr_matrix(g_graph)
-    
         except:
             raise RuntimeError('Error processing graph/network file.  Please check file format')
+        
         if zeros_in_resistance_graph == True:
             raise RuntimeError('Error: zero resistance values are not currently allowed in habitat network/graph input file.')
         return g_graph, nodeNames
@@ -547,27 +573,27 @@ class circuitscape:
 
         if self.options.use_included_pairs==True: #Prune points
             points_rc = self.pruneIncludedPairs(points_rc)          
-            includedPairs = self.state['includedPairs'] 
+            includedPairs = self.state.includedPairs 
         point_ids = unique(asarray(points_rc[:,0]))
         points_rc_unique = self.get_points_rc_unique(point_ids,points_rc)      
         
         resistance_vector = zeros((point_ids.size,2),float)
         solver_failed_somewhere = False
         if self.options.write_cur_maps == True:
-            cum_current_map = zeros((self.state['nrows'],self.state['ncols']),dtype = 'float64')         
+            cum_current_map = zeros((self.state.nrows, self.state.ncols),dtype = 'float64')         
         if self.options.write_max_cur_maps==True:
             max_current_map=cum_current_map
         oneToAllStreamline = False        
         if self.options.use_included_pairs==False: #Will do this each time later if using included pairs
-            point_map = numpy.zeros((self.state['nrows'],self.state['ncols']),int)
+            point_map = numpy.zeros((self.state.nrows, self.state.ncols),int)
             point_map[points_rc[:,1],points_rc[:,2]] = points_rc[:,0]
        
             #combine point map and poly map
             poly_map_temp = self.get_poly_map_temp(poly_map,point_map,point_ids,None,None)
-            unique_point_map = numpy.zeros((self.state['nrows'],self.state['ncols']),int)
+            unique_point_map = numpy.zeros((self.state.nrows, self.state.ncols),int)
             unique_point_map[points_rc_unique[:,1],points_rc_unique[:,2]] = points_rc_unique[:,0]
 
-            (strengthMap,strengths_rc) = self.getstrengthMap(points_rc_unique,self.state['pointStrengths'])            
+            (strengthMap,strengths_rc) = self.getstrengthMap(points_rc_unique,self.state.pointStrengths)            
 
             # Are all points in same component?  If so, can streamline.  Create G here, just once
             # FIXME: place code below into module 
@@ -593,13 +619,13 @@ class circuitscape:
             del node_map, component_map, components
 
         for i in range(0, point_ids.size): #These are the 'src' nodes, i.e. the 'one' in all-to-one and one-to-all
-            (hours,mins,secs) = elapsed_time(self.state['startTime'])
+            (hours,mins,secs) = elapsed_time(self.state.startTime)
             self.log ('At ' + str(hours) +' hr ' + str(mins) + ' min solving focal node ' + str(i+1) + ' of ' + str(point_ids.size) + '.',1)
 
             if self.options.use_included_pairs==True: # Done above otherwise    
                 #######################   
                 points_rc_unique_temp = copy.copy(points_rc_unique)
-                point_map = numpy.zeros((self.state['nrows'],self.state['ncols']),int)
+                point_map = numpy.zeros((self.state.nrows, self.state.ncols),int)
                 point_map[points_rc[:,1],points_rc[:,2]] = points_rc[:,0]       
 
                 for pair in range(0, point_ids.size): #loop thru exclude[point,:], delete included pairs of focal point from point_map and points_rc_unique_temp 
@@ -610,10 +636,10 @@ class circuitscape:
 
                 poly_map_temp = self.get_poly_map_temp2(poly_map,point_map,points_rc_unique_temp,includedPairs,i)
 
-                unique_point_map = numpy.zeros((self.state['nrows'],self.state['ncols']),int)
+                unique_point_map = numpy.zeros((self.state.nrows, self.state.ncols),int)
                 unique_point_map[points_rc_unique_temp[:,1],points_rc_unique_temp[:,2]] = points_rc_unique_temp[:,0]        
 
-                (strengthMap,strengths_rc) = self.getstrengthMap(points_rc_unique_temp,self.state['pointStrengths'])
+                (strengthMap,strengths_rc) = self.getstrengthMap(points_rc_unique_temp,self.state.pointStrengths)
                 ###########################################
                 
             src = point_ids[i]
@@ -650,7 +676,7 @@ class circuitscape:
                     component_map = None
                     componentWithPoints = None
                     
-                resistance,current_map,solver_failed = self.advanced_module(self.state['g_map'], poly_map_temp, source_map, ground_map, src, G, node_map, component_map, componentWithPoints)
+                resistance,current_map,solver_failed = self.advanced_module(self.state.g_map, poly_map_temp, source_map, ground_map, src, G, node_map, component_map, componentWithPoints)
                 if solver_failed == False:
                     if self.options.write_cur_maps == True:
                         cum_current_map = cum_current_map+current_map
@@ -725,7 +751,7 @@ class circuitscape:
         """Overhead module for pairwise mode with raster data."""  
 
         if self.options.write_cur_maps == True:
-            cum_current_map = zeros((self.state['nrows'],self.state['ncols']),dtype = 'float64') 
+            cum_current_map = zeros((self.state.nrows, self.state.ncols),dtype = 'float64') 
             if self.options.write_max_cur_maps==True:
                 max_current_map=cum_current_map
             else:
@@ -755,7 +781,7 @@ class circuitscape:
                 except MemoryError: #Give it a try, but starting again never seems to helps even from GUI.
                     self.enable_low_memory(True) #This doesn't seem to really clear out memory or truly restart.
                     if self.options.write_cur_maps == True:
-                        cum_current_map = zeros((self.state['nrows'],self.state['ncols']),dtype = 'float64') 
+                        cum_current_map = zeros((self.state.nrows, self.state.ncols),dtype = 'float64') 
                         if self.options.write_max_cur_maps==True:
                             max_current_map=cum_current_map
                         else:
@@ -777,7 +803,7 @@ class circuitscape:
         else:
             if self.options.use_included_pairs==True:
                 points_rc = self.pruneIncludedPairs(points_rc)
-                includedPairs = self.state['includedPairs']
+                includedPairs = self.state.includedPairs
             else:
                 numpoints = points_rc.shape[0]
                 point_ids = unique(asarray(points_rc[:,0]))
@@ -785,7 +811,7 @@ class circuitscape:
                 numUniquepoints= points_rc_unique.shape[0]#Nov13_2010
                 includedPairs = ones((numUniquepoints+1,numUniquepoints+1),dtype = 'int32')#Nov13_2010
 
-            point_map = numpy.zeros((self.state['nrows'],self.state['ncols']),int)
+            point_map = numpy.zeros((self.state.nrows, self.state.ncols),int)
             point_map[points_rc[:,1],points_rc[:,2]] = points_rc[:,0]
 
             point_ids = unique(asarray(points_rc[:,0]))
@@ -797,7 +823,7 @@ class circuitscape:
                 for j in range(i+1, point_ids.size):
                     if includedPairs[i+1,j+1]==1:                
                         if poly_map == []:
-                            poly_map_temp = zeros((self.state['nrows'],self.state['ncols']),int)
+                            poly_map_temp = zeros((self.state.nrows, self.state.ncols),int)
                             new_poly_num = 1
                         else:
                             poly_map_temp = poly_map
@@ -814,7 +840,7 @@ class circuitscape:
                         numpoints = point_ids.size
                         x = x+1
                         y = numpoints*(numpoints-1)/2
-                        (hours,mins,secs) = elapsed_time(self.state['startTime'])
+                        (hours,mins,secs) = elapsed_time(self.state.startTime)
                         self.log ('At ' + str(hours) +' hr ' + str(mins) + ' min solving focal pair ' + str(x) + ' of '+ str(y) + '.',1)
                         reportStatus = False
                         
@@ -836,9 +862,9 @@ class circuitscape:
         if self.options.write_cur_maps == True:
             if solver_failed==False:
                 if self.options.log_transform_maps == True:
-                    cum_current_map = where(cum_current_map>0,log10(cum_current_map),self.state['nodata']) 
+                    cum_current_map = where(cum_current_map>0,log10(cum_current_map),self.state.nodata) 
                     if self.options.write_max_cur_maps==True:
-                        max_current_map = where(max_current_map>0,log10(max_current_map),self.state['nodata']) 
+                        max_current_map = where(max_current_map>0,log10(max_current_map),self.state.nodata) 
                 self.write_aaigrid('cum_curmap', '', cum_current_map)
                 if self.options.write_max_cur_maps==True:      
                     self.write_aaigrid('max_curmap', '', max_current_map)
@@ -858,7 +884,7 @@ class circuitscape:
         if (self.options.use_included_pairs==False) or (self.options.point_file_contains_polygons==True):
             includedPairs = ones((numpoints+1,numpoints+1),dtype = 'int32')
         else:
-            includedPairs = self.state['includedPairs']
+            includedPairs = self.state.includedPairs
         
         if (self.options.point_file_contains_polygons==True) or  (self.options.write_cur_maps == True) or (self.options.write_volt_maps == True) or (self.options.use_included_pairs==True): 
            useResistanceCalcShortcut = False
@@ -904,19 +930,19 @@ class circuitscape:
                         G_dst_dst = G[local_dst, local_dst] 
                         G[local_dst,local_dst] = 0
     
-                        self.state['amg_hierarchy'] = None
+                        self.state.amg_hierarchy = None
                         gc.collect()
                         self.create_amg_hierarchy(G)
 
                         ################    
                         for j in range(i+1, numpoints):
                             if includedPairs[i+1,j+1]==1: #Test for pair in includedPairs
-                                if self.state['amg_hierarchy']==None: #Called in case of memory error in current mapping
+                                if self.state.amg_hierarchy==None: #Called in case of memory error in current mapping
                                     self.create_amg_hierarchy(G)
                                
                                 if reportStatus==True:
                                     x = x+1
-                                    (hours,mins,secs) = elapsed_time(self.state['startTime'])
+                                    (hours,mins,secs) = elapsed_time(self.state.startTime)
                                     if useResistanceCalcShortcut==True:
                                         y = numpoints
                                         self.log ('At ' + str(hours) +' hr ' + str(mins) + ' min solving focal node ' + str(x) + ' of '+ str(y) + '.',1)
@@ -939,7 +965,7 @@ class circuitscape:
         
                                     if solver_failed == False:
                                         if self.options.low_memory_mode==True or self.options.point_file_contains_polygons==True:
-                                            self.state['amg_hierarchy'] = None
+                                            self.state.amg_hierarchy = None
                                             gc.collect()    
                                         
                                         resistances[i, j] = voltages[local_src] - voltages[local_dst]
@@ -955,14 +981,14 @@ class circuitscape:
 
                                         if self.options.write_volt_maps == True:
                                             if reportStatus==True:
-                                                (hours,mins,secs) = elapsed_time(self.state['startTime'])
+                                                (hours,mins,secs) = elapsed_time(self.state.startTime)
                                                 self.log ('At ' + str(hours) +' hr ' + str(mins) + ' min writing voltage map ' + str(x) + ' of ' + str(y) + '.',1)
                                             voltage_map = self.create_voltage_map(local_node_map,voltages) 
                                             self.write_aaigrid('voltmap', '_' + frompoint + '_' + topoint, voltage_map)
                                             del voltage_map
                                         if self.options.write_cur_maps == True:
                                             if reportStatus==True:
-                                                (hours,mins,secs) = elapsed_time(self.state['startTime'])
+                                                (hours,mins,secs) = elapsed_time(self.state.startTime)
                                                 self.log ('At ' + str(hours) +' hr ' + str(mins) + ' min writing current map ' + str(x) + ' of ' + str(y) + '.',1)
                                             finitegrounds = [-9999] #create dummy value for pairwise case
                                             
@@ -991,7 +1017,7 @@ class circuitscape:
                                                 max_current_map = maximum(max_current_map, current_map) 
                                             if self.options.write_cum_cur_map_only==False:
                                                 if self.options.log_transform_maps==True:
-                                                   current_map = where(current_map>0,log10(current_map),self.state['nodata'])
+                                                   current_map = where(current_map>0,log10(current_map),self.state.nodata)
                                                 self.write_aaigrid('curmap', '_' + frompoint + '_' + topoint, current_map)
                                             del current_map    
 
@@ -1005,11 +1031,11 @@ class circuitscape:
                         G[local_dst, local_dst] = G_dst_dst
 
                     #End for
-                    self.state['amg_hierarchy'] = None
+                    self.state.amg_hierarchy = None
                     gc.collect()
 
                 #End if
-                self.state['amg_hierarchy'] = None
+                self.state.amg_hierarchy = None
                 gc.collect()
 
         # Finally, resistance to self is 0.
@@ -1053,12 +1079,12 @@ class circuitscape:
             self.log('Graph has ' + str(node_map.max()) + ' nodes and '+ str(components.max())+ ' components.',2)
             
         if self.options.write_cur_maps == True:
-            cum_current_map = zeros((self.state['nrows'],self.state['ncols']),dtype = 'float64')         
+            cum_current_map = zeros((self.state.nrows, self.state.ncols),dtype = 'float64')         
         
         if self.options.write_volt_maps == True: 
-            cum_voltage_map = zeros((self.state['nrows'],self.state['ncols']),dtype = 'float64') 
+            cum_voltage_map = zeros((self.state.nrows, self.state.ncols),dtype = 'float64') 
         elif self.options.scenario=='one-to-all':
-            cum_voltage_map = zeros((self.state['nrows'],self.state['ncols']),dtype = 'float64') 
+            cum_voltage_map = zeros((self.state.nrows, self.state.ncols),dtype = 'float64') 
         
         if oneToAllStreamline==False:        
             cmin = 1
@@ -1142,7 +1168,7 @@ class circuitscape:
             if self.options.write_cur_maps == True: 
                 if solver_failed==False:
                     if self.options.log_transform_maps==True:
-                        cum_current_map = where(cum_current_map>0,log10(cum_current_map),self.state['nodata']) 
+                        cum_current_map = where(cum_current_map>0,log10(cum_current_map),self.state.nodata) 
                     filetext = 'curmap'
                     fileadd = ''
                     self.write_aaigrid(filetext, fileadd, cum_current_map) 
@@ -1154,7 +1180,7 @@ class circuitscape:
                 if self.options.write_cum_cur_map_only==False:
                     if solver_failed==False:
                         if self.options.log_transform_maps==True:
-                            cum_current_map = where(cum_current_map>0,log10(cum_current_map),self.state['nodata']) 
+                            cum_current_map = where(cum_current_map>0,log10(cum_current_map),self.state.nodata) 
                         filetext = 'curmap'   
                         fileadd = '_'+str(source_id)   
                         self.write_aaigrid(filetext, fileadd, cum_current_map) 
@@ -1228,7 +1254,7 @@ class circuitscape:
         self.create_amg_hierarchy(Gsolve)
         voltages = self.solve_linear_system(Gsolve, sources)
         del Gsolve
-        self.state['amg_hierarchy'] = None
+        self.state.amg_hierarchy = None
 
         numinfgrounds = infgroundlist.shape[0]
         if numinfgrounds>0:
@@ -1465,12 +1491,12 @@ class circuitscape:
     def create_amg_hierarchy(self, G): 
         """Creates AMG hierarchy."""  
         if self.options.solver == 'amg' or self.options.solver == 'cg+amg':
-            self.state['amg_hierarchy'] = None
+            self.state.amg_hierarchy = None
             # construct the MG hierarchy
             ml = []
             #  scipy.io.savemat('c:\\temp\\graph.mat',mdict={'d':G})
             ml = smoothed_aggregation_solver(G)
-            self.state['amg_hierarchy'] = ml
+            self.state.amg_hierarchy = ml
   
         return
 
@@ -1482,14 +1508,14 @@ class circuitscape:
         # Solve G*x = rhs
         x = []
         if self.options.solver == 'cg+amg':
-            ml = self.state['amg_hierarchy']
+            ml = self.state.amg_hierarchy
             G.psolve = ml.psolve
             (x, flag) = sparse.linalg.cg(G, rhs, tol = 1e-6, maxiter = 100000)
             if flag !=  0 or linalg.norm(G*x-rhs) > 1e-3:
                 raise RuntimeError('CG did not converge. May need more iterations.') 
 
         if self.options.solver == 'amg':
-            ml = self.state['amg_hierarchy']
+            ml = self.state.amg_hierarchy
             x = ml.solve(rhs, tol = 1e-6);
 
         return x 
@@ -1498,7 +1524,7 @@ class circuitscape:
     @print_timing
     def create_voltage_map(self, node_map, voltages):
         """Creates raster map of voltages given node voltage vector."""  
-        voltage_map = numpy.zeros((self.state['nrows'], self.state['ncols']), dtype = 'float64')
+        voltage_map = numpy.zeros((self.state.nrows, self.state.ncols), dtype = 'float64')
         ind = node_map > 0
         voltage_map[where(ind)] = asarray(voltages[node_map[ind]-1]).flatten()
         return voltage_map
@@ -1512,7 +1538,7 @@ class circuitscape:
         node_currents = self.get_node_currents(voltages, G, finitegrounds)
         (rows, cols) = where(node_map)
         vals = node_map[rows, cols]-1
-        current_map = zeros((self.state['nrows'],self.state['ncols']),dtype = 'float64')
+        current_map = zeros((self.state.nrows, self.state.ncols),dtype = 'float64')
         current_map[rows,cols] = node_currents[vals]
 
         return current_map
@@ -1589,15 +1615,15 @@ class circuitscape:
             if self.options.write_volt_maps == False: 
                 return
             if self.options.set_null_voltages_to_nodata==True:
-                ind = self.state['g_map'] == 0
-                data[where(ind)] = self.state['nodata']
+                ind = self.state.g_map == 0
+                data[where(ind)] = self.state.nodata
                 del ind                
         elif type == 'curmap' or type == 'cum_curmap' or type == 'max_curmap':
             if self.options.write_cur_maps == False: 
                 return
             if self.options.set_null_currents_to_nodata == True:
-                ind = self.state['g_map'] == 0
-                data[where(ind)] = self.state['nodata']
+                ind = self.state.g_map == 0
+                data[where(ind)] = self.state.nodata
                 del ind                
         else:
             return
@@ -1613,41 +1639,38 @@ class circuitscape:
         cs_io.writer(file, data, self.state, self.options.compress_grids)
         
         
-    def read_cell_map(self, filename):
+    def read_cell_map(self, habitat_map, is_resistances, reclass_file):
         """Reads resistance or conductance raster into memory, converts former to conductance format."""  
-        (ncols, nrows, xllcorner, yllcorner, cellsize, nodata) = cs_io.read_header(filename)
-        self.state['ncols'] = ncols
-        self.state['nrows'] = nrows
-        self.state['xllcorner'] = xllcorner
-        self.state['yllcorner'] = yllcorner
-        self.state['cellsize'] = cellsize
-        if nodata==False:
-            self.state['nodata'] = -9999
-        else:
-            self.state['nodata'] = nodata
+        (ncols, nrows, xllcorner, yllcorner, cellsize, nodata) = cs_io.read_header(habitat_map)
+        self.state.ncols = ncols
+        self.state.nrows = nrows
+        self.state.xllcorner = xllcorner
+        self.state.yllcorner = yllcorner
+        self.state.cellsize = cellsize
+        self.state.nodata = -9999 if (nodata == False) else nodata 
 
-        cell_map = cs_io.reader(filename, 'float64')
+        cell_map = cs_io.reader(habitat_map, 'float64')
 
-        ######################## Reclassification code
-        if self.options.use_reclass_table==True:
+        # Reclassification code
+        if reclass_file != None:
             try:
-                reclassTable = self.readPointStrengths(self.options.reclass_file)    
+                reclassTable = cs_io.read_point_strengths(reclass_file)
             except:
                 raise RuntimeError('Error reading reclass table')
             for i in range (0,reclassTable.shape[0]):
-                cell_map = where(cell_map==reclassTable[i,0],reclassTable[i,1],cell_map)
-            print'\n***** Reclassified habitat map using', self.options.reclass_file,'*****'
-        ########################
+                cell_map = where(cell_map==reclassTable[i,0], reclassTable[i,1], cell_map)
+            print'\n***** Reclassified habitat map using', reclass_file,'*****'
         
-        if self.options.habitat_map_is_resistances == True:
+        if is_resistances == True:
             zeros_in_resistance_map = (where(cell_map==0, 1, 0)).sum() > 0
-            if zeros_in_resistance_map == True: #FIXME: Should be easy to accomodate zeros in resistance map, just treat them like polygons.
+            if zeros_in_resistance_map == True: 
+                #FIXME: Should be easy to accomodate zeros in resistance map, just treat them like polygons.
                 raise RuntimeError('Error: zero resistance values are not currently supported for habitat maps.  Use a short-circuit region file instead.')
             g_map = 1 / cell_map  
-            g_map = where(cell_map == -9999,0,g_map)
+            g_map = where(cell_map == -9999, 0, g_map)
         else:
-            g_map = where(cell_map == -9999,0,cell_map)    
-        g_map = where(g_map < 0,0,g_map)    
+            g_map = where(cell_map == -9999, 0, cell_map)    
+        g_map = where(g_map < 0, 0, g_map)    
         return g_map
 
 
@@ -1656,133 +1679,92 @@ class circuitscape:
         
         File extension is used to determine whether format is ascii grid, numpy array, or text list.
         
-        """  
+        """
+        #print("reading point_map %s" %(filename,))  
         if os.path.isfile(filename)==False:
             raise RuntimeError('File "'  + filename + '" does not exist')
         base, extension = os.path.splitext(filename)
         
+        if extension not in [".txt", ".asc", ".npy"]:
+            raise RuntimeError('Focal node file must have a .txt, .asc or .npy extension')
+        
         if extension == ".txt":
             try:
-                points = loadtxt(filename)
+                points = numpy.loadtxt(filename)
             except ValueError:
                 raise RuntimeError('File "'  + filename + '" is not in correct text list format. \n If it is an ASCII grid, please use .asc extension.')                
             
-            points_rc = zeros(points.shape,dtype = 'int32')
+            points_rc = zeros(points.shape, dtype='int32')
             try:
                 points_rc[:,0] = points[:,0]
-                points_rc[:,1] = ceil((self.state['nrows']-(points[:,2]-self.state['yllcorner'])/self.state['cellsize']))-1
-                points_rc[:,2] = ceil(((points[:,1]-self.state['xllcorner'])/self.state['cellsize']))-1
-                i = argsort(points_rc[:,0])
-                points_rc = points_rc[i]
+                points_rc[:,1] = ceil(self.state.nrows - (points[:,2] - self.state.yllcorner) / self.state.cellsize) - 1
+                points_rc[:,2] = ceil((points[:,1] - self.state.xllcorner) / self.state.cellsize) - 1
             except IndexError:
                 raise RuntimeError('Error extracting focal node locations. Please check file format.')                
 
         elif extension == ".asc" or extension == ".npy": # We use Numpy format for quickly passing grids between ArcGIS and Circuitscape.
-            readingMask = False
-            (ncols, nrows, xllcorner, yllcorner, cellsize, nodata) = cs_io.read_header(filename)
-            if cellsize!= self.state['cellsize']:
-                print'\n********\nWarning: Focal node raster has different \ncell size than habitat raster. \nCircuitscape will try to crudely resample the focal node raster. \nWe recommend using the "Export to Circuitscape" ArcGIS tool to create ASCII grids with compatible cell size and extent.'
-                point_map = self.resampleMap(filename,readingMask)
-            elif ncols!= self.state['ncols']:
-                print'\n********\nWarning: Focal node raster has different \nnumber of columns than habitat raster. \nCircuitscape will try to crudely resample the focal node raster. \nWe recommend using the "Export to Circuitscape" ArcGIS tool to create ASCII grids with compatible cell size and extent.'
-                point_map = self.resampleMap(filename,readingMask)
-            elif nrows!= self.state['nrows']:
-                print'\n********\nWarning: Focal node raster has different \nnumber of rows than habitat raster. \nCircuitscape will try to crudely resample the focal node raster. \nWe recommend using the "Export to Circuitscape" ArcGIS tool to create ASCII grids with compatible cell size and extent.'
-                point_map = self.resampleMap(filename,readingMask)
-            elif xllcorner!= self.state['xllcorner']:
-                print'\n********\nWarning: Focal node raster has different \nxllcorner than habitat raster. \nCircuitscape will try to crudely resample the focal node raster. \nWe recommend using the "Export to Circuitscape" ArcGIS tool to create ASCII grids with compatible cell size and extent.'
-                point_map = self.resampleMap(filename,readingMask)
-            elif yllcorner!= self.state['yllcorner']:
-                print'\n********\nWarning: Focal node raster has different \nyllcorner than habitat raster. \nCircuitscape will try to crudely resample the focal node raster. \nWe recommend using the "Export to Circuitscape" ArcGIS tool to create ASCII grids with compatible cell size and extent.'
-                point_map = self.resampleMap(filename,readingMask)
-            else:
-                point_map = cs_io.reader(filename, 'int32')
-
+            point_map = cs_io.read_poly_map(filename, False, self.state, "Focal node")
             (rows, cols) = where(point_map > 0)
 
-            values = zeros(rows.shape,dtype = 'int32') 
+            values = zeros(rows.shape, dtype='int32') 
             for i in range(0, rows.size):
                 values[i] = point_map[rows[i], cols[i]]
-            points_rc = c_[values,rows,cols]
-            try:            
-                i = argsort(points_rc[:,0])
-                points_rc = points_rc[i]
-            except IndexError:
-                raise RuntimeError('Error extracting focal node locations. Please check file format.')                
+            points_rc = c_[values, rows, cols]
         else:
             raise RuntimeError('Focal node file must have a .txt or .asc extension')
+
+        try:            
+            i = argsort(points_rc[:,0])
+            points_rc = points_rc[i]
+        except IndexError:
+            raise RuntimeError('Error extracting focal node locations. Please check file format.')                
         
-        #Check to make sure points fall within cellmap
-        if min(points_rc[:,1])<0 or min(points_rc[:,2])<0:
+        # Check to make sure points fall within cellmap
+        if (min(points_rc[:,1]) < 0) or (min(points_rc[:,2]) < 0) \
+            or (max(points_rc[:,1]) > (self.state.nrows - 1)) \
+            or (max(points_rc[:,2]) > (self.state.ncols - 1)):
             raise RuntimeError('At least one focal node location falls outside of habitat map')
-        elif max(points_rc[:,1])>self.state['nrows']-1:
-            raise RuntimeError('At least one focal node location falls outside of habitat map')
-        elif  max(points_rc[:,2])>self.state['ncols']-1:
-            raise RuntimeError('At least one focal node location falls outside of habitat map')
-        if (unique(asarray(points_rc[:,0]))).shape[0]<2:
+        
+        if (unique(asarray(points_rc[:,0]))).shape[0] < 2:
             raise RuntimeError('Less than two valid focal nodes found. Please check focal node location file.')                    
         
         return points_rc
         
         
-    def read_poly_map(self, filename,readingMask):  
-        """Reads short-circuit region map (aka polygon map) from disk."""  
-        (ncols, nrows, xllcorner, yllcorner, cellsize, nodata) = cs_io.read_header(filename)
-        if cellsize!= self.state['cellsize']:
-            print'\n********\nWarning: Short-circuit region or mask raster has different \ncell size than habitat raster. \nCircuitscape will try to crudely resample the raster. \nWe recommend using the "Export to Circuitscape" ArcGIS tool to create ASCII grids with compatible cell size and extent.'
-            map = self.resampleMap(filename,readingMask)
-        elif ncols!= self.state['ncols']:
-            print'\n********\nWarning: Short-circuit region or mask raster has different \nnumber of columns than habitat raster. \nCircuitscape will try to crudely resample the raster. \nWe recommend using the "Export to Circuitscape" ArcGIS tool to create ASCII grids with compatible cell size and extent.'
-            map = self.resampleMap(filename,readingMask)
-        elif nrows!= self.state['nrows']:
-            print'\n********\nWarning: Short-circuit region or mask raster has different \nnumber of rows than habitat raster. \nCircuitscape will try to crudely resample the raster. \nWe recommend using the "Export to Circuitscape" ArcGIS tool to create ASCII grids with compatible cell size and extent.'
-            map = self.resampleMap(filename,readingMask)
-        elif xllcorner!= self.state['xllcorner']:
-            print'\n********\nWarning: Short-circuit region or mask raster has different \nxllcorner than habitat raster. \nCircuitscape will try to crudely resample the raster. \nWe recommend using the "Export to Circuitscape" ArcGIS tool to create ASCII grids with compatible cell size and extent.'
-            map = self.resampleMap(filename,readingMask)
-        elif yllcorner!= self.state['yllcorner']:
-            print'\n********\nWarning: Short-circuit region or mask raster has different \nyllcorner than habitat raster. \nCircuitscape will try to crudely resample the raster. \nWe recommend using the "Export to Circuitscape" ArcGIS tool to create ASCII grids with compatible cell size and extent.'
-            map = self.resampleMap(filename,readingMask)            
-        else:
-            map = cs_io.reader(filename, 'int32')
-            
-        map = where(map == nodata,0,map)        
-
-        if readingMask==True:
-            map = where(map < 0, 0, map)        
-
-        return map
 
         
     def read_source_and_ground_maps(self, source_filename, ground_filename): 
-        """Reads srouce and ground raster maps from disk."""  
+        """Reads srouce and ground raster maps from disk."""
+        #print("reading source and ground maps:\n\t[%s]\n\t[%s]"%(source_filename,ground_filename))  
         #FIXME: reader does not currently handle infinite inputs for ground conductances.
-        if os.path.isfile(source_filename)==False:
+        if not os.path.isfile(source_filename):
             raise RuntimeError('File "'  + source_filename + '" does not exist')
+        
         base, extension = os.path.splitext(source_filename)
-        if extension == ".txt":  #FIXME: probably want to roll code used for reading source, ground and point text files into single utility
+        if extension == ".txt":  
+            #FIXME: probably want to roll code used for reading source, ground and point text files into single utility
             try:
-                sources = loadtxt(source_filename)
+                sources = numpy.loadtxt(source_filename)
             except ValueError:
                 raise RuntimeError('File "'  + source_filename + '" is not in correct text list format. \n If it is an ASCII grid, please use .asc extension.')                
 
-            sources_rc = zeros(sources.shape,dtype = 'int32')
+            sources_rc = zeros(sources.shape, dtype='int32')
             sources_rc[:,0] = sources[:,0]
-            sources_rc[:,1] = ceil((self.state['nrows']-(sources[:,2]-self.state['yllcorner'])/self.state['cellsize']))-1
-            sources_rc[:,2] = ceil(((sources[:,1]-self.state['xllcorner'])/self.state['cellsize']))-1
-            source_map = zeros((self.state['nrows'],self.state['ncols']),dtype = 'float64')
-            source_map[sources_rc[:,1],sources_rc[:,2]] = sources_rc[:,0]
+            sources_rc[:,1] = ceil(self.state.nrows - (sources[:,2] - self.state.yllcorner) / self.state.cellsize) - 1
+            sources_rc[:,2] = ceil((sources[:,1] - self.state.xllcorner) / self.state.cellsize) - 1
+            source_map = zeros((self.state.nrows, self.state.ncols), dtype='float64')
+            source_map[sources_rc[:,1], sources_rc[:,2]] = sources_rc[:,0]
         elif extension=='.asc':
             (ncols, nrows, xllcorner, yllcorner, cellsize, nodata) = cs_io.read_header(source_filename)
-            if cellsize!= self.state['cellsize']:
+            if cellsize!= self.state.cellsize:
                 raise RuntimeError('Current source raster must have same cell size and number of rows and columns as habitat raster') 
-            if ncols!= self.state['ncols']:
+            if ncols!= self.state.ncols:
                 raise RuntimeError('Current source raster must have same cell size and number of rows and columns as habitat raster') 
-            if nrows!= self.state['nrows']:
+            if nrows!= self.state.nrows:
                 raise RuntimeError('Current source raster must have same cell size and number of rows and columns as habitat raster') 
-            if yllcorner!= self.state['yllcorner']:
+            if yllcorner!= self.state.yllcorner:
                 raise RuntimeError('Current source raster must have same xllcorner and yllcorner as habitat raster') 
-            if xllcorner!= self.state['xllcorner']:
+            if xllcorner!= self.state.xllcorner:
                 raise RuntimeError('Current source raster must have same xllcorner and yllcorner as habitat raster') 
                
             source_map = cs_io.reader(source_filename, 'float64')
@@ -1793,32 +1775,33 @@ class circuitscape:
         if self.options.use_unit_currents==True:
             source_map = where(source_map,1,0)
 
-        if os.path.isfile(ground_filename)==False:
+        if not os.path.isfile(ground_filename):
             raise RuntimeError('File "'  + ground_filename + '" does not exist')
+        
         base, extension = os.path.splitext(ground_filename)
         if extension == ".txt":
             try:
-                grounds = loadtxt(ground_filename)
+                grounds = numpy.loadtxt(ground_filename)
             except ValueError:
                 raise RuntimeError('File "'  + ground_filename + '" is not in correct text list format. \n If it is an ASCII grid, please use .asc extension.')                
 
             grounds_rc = zeros(grounds.shape,dtype = 'int32')
             grounds_rc[:,0] = grounds[:,0]
-            grounds_rc[:,1] = ceil((self.state['nrows']-(grounds[:,2]-self.state['yllcorner'])/self.state['cellsize']))-1
-            grounds_rc[:,2] = ceil(((grounds[:,1]-self.state['xllcorner'])/self.state['cellsize']))-1
-            ground_map_raw = -9999*ones((self.state['nrows'],self.state['ncols']),dtype = 'float64')
-            ground_map_raw[grounds_rc[:,1],grounds_rc[:,2]] = grounds_rc[:,0]
+            grounds_rc[:,1] = ceil(self.state.nrows - (grounds[:,2] - self.state.yllcorner) / self.state.cellsize) - 1
+            grounds_rc[:,2] = ceil((grounds[:,1] - self.state.xllcorner) / self.state.cellsize) - 1
+            ground_map_raw = -9999 * ones((self.state.nrows, self.state.ncols), dtype = 'float64')
+            ground_map_raw[grounds_rc[:,1], grounds_rc[:,2]] = grounds_rc[:,0]
         elif extension=='.asc':
             (ncols, nrows, xllcorner, yllcorner, cellsize, nodata) = cs_io.read_header(ground_filename)
-            if cellsize!= self.state['cellsize']:
+            if cellsize!= self.state.cellsize:
                 raise RuntimeError('Ground raster must have same cell size and number of rows and columns as habitat raster') 
-            if ncols!= self.state['ncols']:
+            if ncols!= self.state.ncols:
                 raise RuntimeError('Ground raster must have same cell size and number of rows and columns as habitat raster') 
-            if nrows!= self.state['nrows']:
+            if nrows!= self.state.nrows:
                 raise RuntimeError('Ground raster must have same cell size and number of rows and columns as habitat raster') 
-            if yllcorner!= self.state['yllcorner']:
+            if yllcorner!= self.state.yllcorner:
                 raise RuntimeError('Ground raster must have same xllcorner and yllcorner as habitat raster') 
-            if xllcorner!= self.state['xllcorner']:
+            if xllcorner!= self.state.xllcorner:
                 raise RuntimeError('Ground raster must have same xllcorner and yllcorner as habitat raster') 
                 
             ground_map_raw = cs_io.reader(ground_filename, 'float64')
@@ -1866,7 +1849,7 @@ class circuitscape:
             maxval = float(maxval)
             f.close()            
             
-            includedPairs = loadtxt(filename, skiprows = 2, dtype = 'Float64')
+            includedPairs = numpy.loadtxt(filename, skiprows = 2, dtype = 'Float64')
             pointIds = includedPairs[:,0]
             includedPairs = where(includedPairs>maxval,0,includedPairs)
             includedPairs = where(includedPairs<minval,0,1)             
@@ -1885,34 +1868,10 @@ class circuitscape:
         return includedPairs
 
         
-    def readPointStrengths(self, filename):
-        """Reads list of variable source strengths from disk.  
-        
-        This code also used for reading file for reclassifying input data.
-        
-        """  
-        if os.path.isfile(filename)==False:
-            raise RuntimeError('File "'  + filename + '" does not exist')
-        
-        try:
-            pointStrengths = loadtxt(filename)
-        except ValueError:
-            raise RuntimeError('Error reading focal node source strength list. Please check file format.')                
-           
-        try:
-            pointIds = pointStrengths[:,0]
-            i = argsort(pointStrengths[:,0])
-            pointStrengths = pointStrengths[i]
-
-        except:
-            raise RuntimeError('Error reading focal node source strength list. Please check file format.')                
-        
-        return pointStrengths
-
 
     def enable_low_memory(self, restart):
         """Runs circuitscape in low memory mode.  Not incredibly helpful it seems."""  
-        self.state['amg_hierarchy'] = None
+        self.state.amg_hierarchy = None
         gc.collect()
         if self.options.low_memory_mode==True:
             if restart==False: #If this module has already been called
@@ -1944,75 +1903,6 @@ class circuitscape:
         return
 
 
-    def resampleMap(self,filename,readingMask):
-        """Code to crudely resample input raster if raster headers don't match (i.e. different extents or cell sizes used)."""  
-        try:
-            (ncols, nrows, xllcorner, yllcorner, cellsize, nodata) = cs_io.read_header(filename)
-            map = cs_io.reader(filename, 'int32')
-            map = where(map == nodata,0,map)
-            
-            if readingMask==True:
-                map = where(map>0, 1, 0)      
-                map = 1-map #now zeros are areas to keep, ones are masked out
-                
-            (rows, cols) = where(map > 0)
-            
-            xcoords = (cols+0.5)*cellsize+xllcorner
-            ycoords = (nrows-rows-0.5)*cellsize+yllcorner
-            
-            values = zeros(rows.shape,dtype = 'int32') 
-            for i in range(0, rows.size):
-                values[i] = map[rows[i], cols[i]]
-            mapCoords = c_[values,xcoords,ycoords]
-    
-            i = argsort(mapCoords[:,0])
-            mapCoords = mapCoords[i]
-            
-            #From mapCoords to mapRc:
-            mapRc = zeros(mapCoords.shape,dtype = 'int32')
-            mapRc[:,0] = mapCoords[:,0]
-            mapRc[:,1] = ceil((self.state['nrows']-(mapCoords[:,2]-self.state['yllcorner'])/self.state['cellsize']))-1
-            mapRc[:,2] = ceil(((mapCoords[:,1]-self.state['xllcorner'])/self.state['cellsize']))-1
-            i = argsort(mapRc[:,0])
-            mapRc = mapRc[i]
-    
-            rows = mapRc[:,1]
-            (delrows) = asarray(where(rows<0))
-            delrows2 = zeros(delrows.shape[1]) #turn into 1-d array
-            delrows2[:] = delrows[:]
-            if delrows2!= []:
-                mapRc = deleterow(mapRc,delrows2)
-            rows = mapRc[:,1] 
-            (delrows) = asarray(where(rows>self.state['nrows']-1))
-            delrows2 = zeros(delrows.shape[1]) #turn into 1-d array
-            delrows2[:] = delrows[:]
-            if delrows2!= []:
-                mapRc = deleterow(mapRc,delrows2)
-            cols = mapRc[:,2]
-            (delrows) = asarray(where(cols<0))
-            delrows2 = zeros(delrows.shape[1]) #turn into 1-d array
-            delrows2[:] = delrows[:]
-            if delrows2!= []:
-                mapRc = deleterow(mapRc,delrows2)
-            cols = mapRc[:,2]
-            (delrows) = asarray(where(cols>self.state['ncols']-1))
-            delrows2 = zeros(delrows.shape[1]) #turn into 1-d array
-            delrows2[:] = delrows[:]
-            if delrows2!= []:
-                mapRc = deleterow(mapRc,delrows2)
-            del delrows
-            del delrows2
-    
-            #From mapRc to map:                
-            map = numpy.zeros((self.state['nrows'],self.state['ncols']),int)
-            map[mapRc[:,1],mapRc[:,2]] = mapRc[:,0] 
-            if readingMask==True:
-                map = 1-map #now zeros are areas to mask out, ones are kept
-            
-        except: 
-            raise RuntimeError('Error resampling focal node, mask, or short-circuit region locations to match habitat map cell size and extent.  We recommend using the "Export to Circuitscape" ArcGIS tool to create ASCII grids with compatible cell size and extent.')   
-
-        return map
 
         
     def getVoltmatrix(self,i,j,numpoints,local_node_map,voltages,points_rc,resistances,voltmatrix):                                            
@@ -2119,7 +2009,7 @@ class circuitscape:
 
     def pruneIncludedPairsNetwork(self,focalNodes):
         """Remove excluded points from focal node list when using extra file that lists pairs to include/exclude in network mode."""   
-        includedPairs = (self.state['includedPairs'])
+        includedPairs = (self.state.includedPairs)
         includeList = list(includedPairs[0,:])
         point = 0
         dropFlag = False
@@ -2141,7 +2031,7 @@ class circuitscape:
                 dropFlag = True
                 numConnectionRows = numConnectionRows-1
 
-        self.state['includedPairs'] = includedPairs                     
+        self.state.includedPairs = includedPairs                     
 #         if dropFlag==True:
 #             print'\nNOTE: Code to exclude pairwise calculations is activated and \nsome entries did not match with focal node file.  \nSome focal nodes may have been dropped.'      
         return focalNodes
@@ -2149,7 +2039,7 @@ class circuitscape:
 
     def pruneIncludedPairs(self,points_rc):
         """Remove excluded points from focal node list when using extra file that lists pairs to include/exclude."""  
-        includedPairs = (self.state['includedPairs'])
+        includedPairs = (self.state.includedPairs)
         includeList = list(includedPairs[0,:])
         point = 0
         dropFlag = False
@@ -2171,7 +2061,7 @@ class circuitscape:
                 dropFlag = True
                 numConnectionRows = numConnectionRows-1
 
-        self.state['includedPairs'] = includedPairs                     
+        self.state.includedPairs = includedPairs                     
 #         if dropFlag==True:
 #             print'\nNOTE: Code to exclude pairwise calculations is activated and \nsome entries did not match with focal node file.  \nSome focal nodes may have been dropped.'      
         return points_rc
@@ -2206,11 +2096,11 @@ class circuitscape:
         """Returns map and coordinates of point strengths when variable source strengths are used."""  
         if self.options.use_variable_source_strengths==True:
             if self.options.scenario == 'one-to-all': 
-                strengths_rc = self.get_strengths_rc(self.state['pointStrengths'],points_rc_unique)
+                strengths_rc = self.get_strengths_rc(self.state.pointStrengths,points_rc_unique)
                 strengthMap = None
             else:
                 strengths_rc = self.get_strengths_rc(pointStrengths,points_rc_unique)
-                strengthMap = numpy.zeros((self.state['nrows'],self.state['ncols']),dtype = 'Float64')
+                strengthMap = numpy.zeros((self.state.nrows,self.state.ncols),dtype = 'Float64')
                 strengthMap[points_rc_unique[:,1],points_rc_unique[:,2]] = strengths_rc[:,0]     
             return strengthMap,strengths_rc
         else:
@@ -2237,43 +2127,43 @@ class circuitscape:
     @print_timing
     def load_maps(self):
         """Loads all raster maps into self.state."""  
-        self.log('Reading maps',1)
-        self.log('',2)
-        self.state['g_map'] = self.read_cell_map(self.options.habitat_file)
+        self.log('Reading maps', 1)
+        self.log('', 2)
+        reclass_file = self.options.reclass_file if self.options.use_reclass_table else None
+        self.state.g_map = self.read_cell_map(self.options.habitat_file, self.options.habitat_map_is_resistances, reclass_file)
+        
         if self.options.use_polygons:
-            self.state['poly_map'] = self.read_poly_map(self.options.polygon_file,readingMask = False)
+            self.state.poly_map = cs_io.read_poly_map(self.options.polygon_file, False, self.state, "Short-circuit region")
         else:
-            self.state['poly_map'] = []
+            self.state.poly_map = []
  
         if self.options.use_mask==True:
-            mask = self.read_poly_map(self.options.mask_file,readingMask = True)
+            mask = cs_io.read_poly_map(self.options.mask_file, True, self.state, "Mask")
             mask = where(mask !=  0, 1, 0) 
-            self.state['g_map'] = multiply(self.state['g_map'],mask)
+            self.state.g_map = multiply(self.state.g_map, mask)
+            del mask
             
-            sumGmap = (self.state['g_map']).sum()
-            sumGmap = sumGmap.sum()
+            sumGmap = (self.state.g_map).sum()
+            #sumGmap = sumGmap.sum()
             if sumGmap==0:
                 raise RuntimeError('All entries in habitat map have been dropped after masking with the mask file.  There is nothing to solve.')             
-            del mask
         else:
-            self.state['mask'] = []
-            
+            self.state.mask = []
 
         if self.options.scenario=='advanced':
-            self.state['points_rc'] = []
-            (self.state['source_map'], self.state['ground_map']) = self.read_source_and_ground_maps(self.options.source_file, self.options.ground_file)
-
+            self.state.points_rc = []
+            (self.state.source_map, self.state.ground_map) = self.read_source_and_ground_maps(self.options.source_file, self.options.ground_file)
         else:        
-            self.state['points_rc'] = self.read_point_map(self.options.point_file)
-            self.state['source_map'] = []
-            self.state['ground_map'] = []
+            self.state.points_rc = self.read_point_map(self.options.point_file)
+            self.state.source_map = []
+            self.state.ground_map = []
 
         if self.options.use_included_pairs==True:
-            self.state['includedPairs'] = self.readincludedPairs(self.options.included_pairs_file)
+            self.state.includedPairs = self.readincludedPairs(self.options.included_pairs_file)
         
-        self.state['pointStrengths'] = None
+        self.state.pointStrengths = None
         if self.options.use_variable_source_strengths==True:
-            self.state['pointStrengths'] = self.readPointStrengths(self.options.variable_source_file) 
+            self.state.pointStrengths = cs_io.read_point_strengths(self.options.variable_source_file) 
         
         self.log('Processing maps',1)
         return 
@@ -2335,7 +2225,7 @@ class circuitscape:
         solver_failed = False
         if self.options.use_included_pairs==True: #Prune points
             focalNodes = self.pruneIncludedPairsNetwork(focalNodes)          
-            includedPairs = self.state['includedPairs'] 
+            includedPairs = self.state.includedPairs 
 
         numpoints = focalNodes.size
         numnodes = G.shape[0]
@@ -2371,7 +2261,7 @@ class circuitscape:
                         sourcesTemp[dropNode] = 0
                         
             x = x+1
-            (hours,mins,secs) = elapsed_time(self.state['startTime'])
+            (hours,mins,secs) = elapsed_time(self.state.startTime)
             self.log ('At ' + str(hours) +' hr ' + str(mins) + ' min solving focal node ' + str(x) + ' of '+ str(numpoints) + '.',1)
 
             node = focalNodeLocs[i]
@@ -2456,7 +2346,7 @@ class circuitscape:
         """  
         variableSources = ones(numnodes,dtype = 'float64')
         if self.options.use_variable_source_strengths==True:
-            pointStrengths = self.readPointStrengths(self.options.variable_source_file) 
+            pointStrengths = cs_io.read_point_strengths(self.options.variable_source_file) 
             variableSourceNames = pointStrengths[:,0]
             variableSourceNodes = self.namesToNodes(focalNodes,variableSourceNames)
             try:
@@ -2478,8 +2368,8 @@ class circuitscape:
             raise RuntimeError('File "'  + sourceFile + '" does not exist')   
         if os.path.isfile(groundFile)==False:
             raise RuntimeError('File "'  + groundFile + '" does not exist')               
-        rawSources = loadtxt(sourceFile, dtype = 'float64')
-        rawGrounds = loadtxt(groundFile, dtype = 'float64')
+        rawSources = numpy.loadtxt(sourceFile, dtype = 'float64')
+        rawGrounds = numpy.loadtxt(groundFile, dtype = 'float64')
 
         if self.options.ground_file_is_resistances==True:
             rawGrounds[:,1] = 1 / rawGrounds[:,1]
