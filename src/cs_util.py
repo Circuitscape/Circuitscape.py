@@ -4,7 +4,8 @@
 
 import os, string, sys
 import time
-from numpy import *
+import numpy as np
+#from numpy import *
 
 print_timings_spaces = 0
 print_timings = False
@@ -33,44 +34,44 @@ def print_timing(func):
 
 def elapsed_time(startTime): 
     """Returns elapsed time given a start time."""    
-    now=time.time()
-    elapsed=now-startTime
-    secs=int(elapsed)
-    mins=int(elapsed/60)
-    hours=int(mins/60)
-    mins=mins-hours*60
-    secs=secs-mins*60-hours*3600
-    return hours,mins,secs
+    now = time.time()
+    elapsed = now-startTime
+    secs = int(elapsed)
+    mins = int(elapsed/60)
+    hours = int(mins/60)
+    mins = mins - hours*60
+    secs = secs - mins*60 - hours*3600
+    return hours, mins, secs
 
 def deleterow(A, delrow):
     m = A.shape[0]
     n = A.shape[1]
-    keeprows = delete (arange(0, m), delrow)
-    keepcols = arange(0, n)
+    keeprows = np.delete(np.arange(0, m), delrow)
+    keepcols = np.arange(0, n)
     return A[keeprows][:,keepcols]
         
 def deletecol(A, delcol):
     m = A.shape[0]
     n = A.shape[1]
-    keeprows = arange(0, m)
-    keepcols = delete (arange(0, n), delcol)
+    keeprows = np.arange(0, m)
+    keepcols = np.delete(np.arange(0, n), delcol)
     return A[keeprows][:,keepcols]
 
 def deleterowcol(A, delrow, delcol):
     m = A.shape[0]
     n = A.shape[1]
 
-    keeprows = delete (arange(0, m), delrow)
-    keepcols = delete (arange(0, n), delcol)
+    keeprows = np.delete(np.arange(0, m), delrow)
+    keepcols = np.delete(np.arange(0, n), delcol)
 
     return A[keeprows][:,keepcols]
 
 def relabel(oldlabel, offset=0):
-    newlabel = zeros(size(oldlabel), dtype='int32')
-    s = sort(oldlabel)
-    perm = argsort(oldlabel)
-    f = where(diff(concatenate(([s[0]-1], s))))
+    newlabel = np.zeros(np.size(oldlabel), dtype='int32')
+    s = np.sort(oldlabel)
+    perm = np.argsort(oldlabel)
+    f = np.where(np.diff(np.concatenate(([s[0]-1], s))))
     newlabel[f] = 1
-    newlabel = cumsum(newlabel)
-    newlabel[perm] = copy(newlabel)
+    newlabel = np.cumsum(newlabel)
+    newlabel[perm] = np.copy(newlabel)
     return newlabel-1+offset

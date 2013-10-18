@@ -120,33 +120,33 @@ class circuitscape:
             raise RuntimeError('Output directory ' + outputDir + ' does not exist!')    
         
         if self.options.data_type=='network':
-            result,solver_failed = self.network_module() # Call module for solving arbitrary graphs (not raster grids)
+            result, solver_failed = self.network_module() # Call module for solving arbitrary graphs (not raster grids)
             self.logCompleteJob()
-            return result,solver_failed #Fixme: add in solver failed check
+            return result, solver_failed #Fixme: add in solver failed check
 
         self.load_maps()
-        numNodes = (where(self.state.g_map > 0, 1, 0)).sum()         
         if self.options.screenprint_log == True:        
-            print '    ---  Resistance/conductance map has',numNodes,' nodes.  ---'
-            
-        if self.options.scenario=='pairwise':
-            resistances,solver_failed = self.pairwise_module(self.state.g_map, self.state.poly_map, self.state.points_rc)
+            num_nodes = (where(self.state.g_map > 0, 1, 0)).sum()         
+            print '    ---  Resistance/conductance map has',num_nodes,' nodes.  ---'
+
+        if self.options.scenario == 'pairwise':
+            resistances, solver_failed = self.pairwise_module(self.state.g_map, self.state.poly_map, self.state.points_rc)
             self.logCompleteJob()
             return resistances,solver_failed     
 
         elif self.options.scenario == 'advanced':
-            self.options.write_max_cur_maps=False
+            self.options.write_max_cur_maps = False
             self.log ('Calling solver module.',1)
-            voltages,current_map,solver_failed = self.advanced_module(self.state.g_map, self.state.poly_map, self.state.source_map, self.state.ground_map,None,None,None,None,None)
+            voltages, current_map, solver_failed = self.advanced_module(self.state.g_map, self.state.poly_map, self.state.source_map, self.state.ground_map,None,None,None,None,None)
             self.logCompleteJob()
             if solver_failed == True:
                 print'Solver failed.\n'
             return voltages, solver_failed
 
         else:
-            resistance_vector,solver_failed = self.one_to_all_module(self.state.g_map, self.state.poly_map, self.state.points_rc)
+            resistance_vector, solver_failed = self.one_to_all_module(self.state.g_map, self.state.poly_map, self.state.points_rc)
             self.logCompleteJob()
-            return resistance_vector,solver_failed 
+            return resistance_vector, solver_failed 
             
     
     def grid_to_graph (self, x, y, node_map):
@@ -163,16 +163,16 @@ class circuitscape:
             self.log('Job took ' + str(mins) +' minutes ' + str(secs) + ' seconds to complete.',2)
  
   
-    def get_overlap_polymap(self,point,point_map,poly_map_temp,new_poly_num): 
+    def get_overlap_polymap(self, point, point_map, poly_map_temp, new_poly_num): 
         """Creates a map of polygons (aka short-circuit or zero resistance regions) overlapping a focal node."""  
-        point_poly = where(point_map == point, 1, 0) 
-        poly_point_overlap = multiply(point_poly,poly_map_temp)
-        overlap_vals = unique(asarray(poly_point_overlap))
-        (rows) = where(overlap_vals>0)
+        point_poly = numpy.where(point_map == point, 1, 0) 
+        poly_point_overlap = numpy.multiply(point_poly, poly_map_temp)
+        overlap_vals = numpy.unique(numpy.asarray(poly_point_overlap))
+        rows = numpy.where(overlap_vals > 0)
         overlap_vals = overlap_vals[rows] #LIST OF EXISTING POLYGONS THAT OVERLAP WITH POINT
         for a in range (0, overlap_vals.size):
-            poly_map_temp = where(poly_map_temp==overlap_vals[a],new_poly_num,poly_map_temp)
-        poly_map_temp = where(point_map == point, new_poly_num, poly_map_temp) 
+            poly_map_temp = numpy.where(poly_map_temp==overlap_vals[a], new_poly_num, poly_map_temp)
+        poly_map_temp = numpy.where(point_map == point, new_poly_num, poly_map_temp)
         return poly_map_temp
 
     @print_timing
@@ -208,7 +208,7 @@ class circuitscape:
                 
             else:
                 if self.options.use_included_pairs==True:
-                    self.state.includedPairs = self.readincludedPairs(self.options.included_pairs_file)
+                    self.state.includedPairs = cs_io.read_included_pairs(self.options.included_pairs_file)
                 focalNodes = self.readFocalNodes(self.options.focal_node_file)
                 if numComponents > 1:    #Prune out any focal nodes that are not in component
                     focalNodesInComponent = focalNodes
@@ -747,111 +747,98 @@ class circuitscape:
         return poly_map_temp
 
 
+    def _pairwise_module_alloc_current_maps(self):
+        cum_current_map = max_current_map = []
+        if self.options.write_cur_maps == True:
+            cum_current_map = zeros((self.state.nrows, self.state.ncols), dtype='float64') 
+            if self.options.write_max_cur_maps == True:
+                max_current_map = cum_current_map
+        return (cum_current_map, max_current_map)
+        
     def pairwise_module(self, g_map, poly_map, points_rc):
         """Overhead module for pairwise mode with raster data."""  
+        cum_current_map, max_current_map = self._pairwise_module_alloc_current_maps()
 
-        if self.options.write_cur_maps == True:
-            cum_current_map = zeros((self.state.nrows, self.state.ncols),dtype = 'float64') 
-            if self.options.write_max_cur_maps==True:
-                max_current_map=cum_current_map
-            else:
-                max_current_map=[]
-        else:
-            cum_current_map = []
-            max_current_map=[]
-
-         
         # If there are no focal regions, pass all points to single_ground_all_pair_resistances,
         # otherwise, pass one point at a time.
-        if self.options.point_file_contains_polygons==False:
-            if points_rc.shape[0]!= (unique(asarray(points_rc[:,0]))).shape[0]:
+        if self.options.point_file_contains_polygons == False:
+            if points_rc.shape[0] != (unique(asarray(points_rc[:,0]))).shape[0]:
                 raise RuntimeError('At least one focal node contains multiple cells.  If this is what you really want, then choose focal REGIONS in the pull-down menu') 
             
-            else:
-                if self.options.use_included_pairs==True:
-                    points_rc = self.pruneIncludedPairs(points_rc)
-#                     includedPairs = self.state['includedPairs']
-#                 else:
-#                     numpoints = points_rc.shape[0]
-#                     includedPairs = ones((numpoints+1,numpoints+1),dtype = 'int32')
+            if self.options.use_included_pairs == True:
+                points_rc = self.pruneIncludedPairs(points_rc)
+            
+            reportStatus = True
+            try:
+                (resistances, cum_current_map, max_current_map, solver_failed) = self.single_ground_all_pair_resistances(g_map, poly_map, points_rc, cum_current_map, max_current_map, reportStatus)
+            except MemoryError: #Give it a try, but starting again never seems to helps even from GUI.
+                self.enable_low_memory(True) #This doesn't seem to really clear out memory or truly restart.
+                cum_current_map, max_current_map = self._pairwise_module_alloc_current_maps()
+                #Note: This does not go through when it should.
+                (resistances, cum_current_map, max_current_map, solver_failed) = self.single_ground_all_pair_resistances(g_map, poly_map, points_rc,cum_current_map,max_current_map,reportStatus)
                 
-                reportStatus = True
-                try:
-                    (resistances,cum_current_map,max_current_map,solver_failed) = self.single_ground_all_pair_resistances(g_map, poly_map, points_rc,cum_current_map,max_current_map, reportStatus)
-                except MemoryError: #Give it a try, but starting again never seems to helps even from GUI.
-                    self.enable_low_memory(True) #This doesn't seem to really clear out memory or truly restart.
-                    if self.options.write_cur_maps == True:
-                        cum_current_map = zeros((self.state.nrows, self.state.ncols),dtype = 'float64') 
-                        if self.options.write_max_cur_maps==True:
-                            max_current_map=cum_current_map
-                        else:
-                            max_current_map=[]
-                    else:
-                        cum_current_map = []
-                        max_current_map=[]
-                        
-                    #Note: This does not go through when it should.
-                    (resistances,cum_current_map,max_current_map,solver_failed) = self.single_ground_all_pair_resistances(g_map, poly_map, points_rc,cum_current_map,max_current_map,reportStatus)
-                if solver_failed == True:
-                    print('Solver failed for at least one focal node pair. ' 
-                    '\nThis can happen when input resistances differ by more than' 
-                    '\n~6 orders of magnitude. Pairs with failed solves will be '
-                    '\nmarked with value of -777 in output resistance matrix.\n')
+            if solver_failed == True:
+                print('Solver failed for at least one focal node pair. ' 
+                '\nThis can happen when input resistances differ by more than' 
+                '\n~6 orders of magnitude. Pairs with failed solves will be '
+                '\nmarked with value of -777 in output resistance matrix.\n')
 
-                point_ids = points_rc[:,0]
+            point_ids = points_rc[:,0]
 
         else:
-            if self.options.use_included_pairs==True:
+            if self.options.use_included_pairs == True:
                 points_rc = self.pruneIncludedPairs(points_rc)
                 includedPairs = self.state.includedPairs
             else:
                 numpoints = points_rc.shape[0]
                 point_ids = unique(asarray(points_rc[:,0]))
-                points_rc_unique = self.get_points_rc_unique(point_ids,points_rc)#Nov13_2010   #Fixme: can just use point ids for index size
-                numUniquepoints= points_rc_unique.shape[0]#Nov13_2010
-                includedPairs = ones((numUniquepoints+1,numUniquepoints+1),dtype = 'int32')#Nov13_2010
+                points_rc_unique = self.get_points_rc_unique(point_ids, points_rc)#Nov13_2010   #Fixme: can just use point ids for index size
+                num_unique_points = points_rc_unique.shape[0]#Nov13_2010
+                includedPairs = ones((num_unique_points+1, num_unique_points+1), dtype='int32')#Nov13_2010
 
-            point_map = numpy.zeros((self.state.nrows, self.state.ncols),int)
-            point_map[points_rc[:,1],points_rc[:,2]] = points_rc[:,0]
+            point_map = numpy.zeros((self.state.nrows, self.state.ncols), int)
+            point_map[points_rc[:,1], points_rc[:,2]] = points_rc[:,0]
 
             point_ids = unique(asarray(points_rc[:,0]))
-            points_rc_unique = self.get_points_rc_unique(point_ids,points_rc)
+            points_rc_unique = self.get_points_rc_unique(point_ids, points_rc)
 
-            resistances = -1*ones((point_ids.size,point_ids.size),dtype = 'float64')
+            resistances = -1 * numpy.ones((point_ids.size, point_ids.size), dtype='float64')
             x = 0
             for i in range(0, point_ids.size-1):
                 for j in range(i+1, point_ids.size):
-                    if includedPairs[i+1,j+1]==1:                
-                        if poly_map == []:
-                            poly_map_temp = zeros((self.state.nrows, self.state.ncols),int)
-                            new_poly_num = 1
-                        else:
-                            poly_map_temp = poly_map
-                            new_poly_num = numpy.max(poly_map)+1
-                        point = point_ids[i]
-                        poly_map_temp = self.get_overlap_polymap(point_ids[i],point_map,poly_map_temp, new_poly_num) 
-                        poly_map_temp = self.get_overlap_polymap(point_ids[j],point_map,poly_map_temp, new_poly_num+1) 
-    
-                        #Get first instance of each point in points_rc
-                        points_rc_temp = zeros((2,3),int)
-                        points_rc_temp[0,:] = points_rc_unique[i,:]
-                        points_rc_temp[1,:] = points_rc_unique[j,:]
-    
-                        numpoints = point_ids.size
-                        x = x+1
-                        y = numpoints*(numpoints-1)/2
-                        (hours,mins,secs) = elapsed_time(self.state.startTime)
-                        self.log ('At ' + str(hours) +' hr ' + str(mins) + ' min solving focal pair ' + str(x) + ' of '+ str(y) + '.',1)
-                        reportStatus = False
-                        
-                        (pairwise_resistance,cum_current_map,max_current_map,solver_failed) = self.single_ground_all_pair_resistances(g_map, poly_map_temp, points_rc_temp,cum_current_map,max_current_map,reportStatus)
-    
-                        del poly_map_temp
-                        if solver_failed == True:
-                            print'Solver failed for at least one focal node pair.  \nPairs with failed solves will be marked with value of -777 \nin output resistance matrix.\n'
-    
-                        resistances[i,j] = pairwise_resistance[0,1]
-                        resistances[j,i] = pairwise_resistance[0,1]
+                    if includedPairs[i+1,j+1] != 1:
+                        continue
+
+                    if poly_map == []:
+                        poly_map_temp = zeros((self.state.nrows, self.state.ncols),int)
+                        new_poly_num = 1
+                    else:
+                        poly_map_temp = poly_map
+                        new_poly_num = numpy.max(poly_map)+1
+                    point = point_ids[i]
+                    poly_map_temp = self.get_overlap_polymap(point_ids[i], point_map, poly_map_temp, new_poly_num) 
+                    poly_map_temp = self.get_overlap_polymap(point_ids[j], point_map, poly_map_temp, new_poly_num+1) 
+
+                    #Get first instance of each point in points_rc
+                    points_rc_temp = numpy.zeros((2,3), int)
+                    points_rc_temp[0,:] = points_rc_unique[i,:]
+                    points_rc_temp[1,:] = points_rc_unique[j,:]
+
+                    numpoints = point_ids.size
+                    x = x+1
+                    y = numpoints*(numpoints-1)/2
+                    (hours,mins,secs) = elapsed_time(self.state.startTime)
+                    self.log ('At ' + str(hours) +' hr ' + str(mins) + ' min solving focal pair ' + str(x) + ' of '+ str(y) + '.',1)
+                    reportStatus = False
+                    
+                    (pairwise_resistance, cum_current_map, max_current_map, solver_failed) = self.single_ground_all_pair_resistances(g_map, poly_map_temp, points_rc_temp,cum_current_map,max_current_map,reportStatus)
+
+                    del poly_map_temp
+                    if solver_failed == True:
+                        print'Solver failed for at least one focal node pair.  \nPairs with failed solves will be marked with value of -777 \nin output resistance matrix.\n'
+
+                    resistances[i,j] = pairwise_resistance[0,1]
+                    resistances[j,i] = pairwise_resistance[0,1]
 
         for i in range(0,resistances.shape[0]): #Set diagonal to zero
             resistances[i, i] = 0
@@ -860,37 +847,37 @@ class circuitscape:
         resistances = self.writeResistances(point_ids, resistances)
 
         if self.options.write_cur_maps == True:
-            if solver_failed==False:
+            if solver_failed == False:
                 if self.options.log_transform_maps == True:
-                    cum_current_map = where(cum_current_map>0,log10(cum_current_map),self.state.nodata) 
+                    cum_current_map = where(cum_current_map>0, log10(cum_current_map), self.state.nodata) 
                     if self.options.write_max_cur_maps==True:
-                        max_current_map = where(max_current_map>0,log10(max_current_map),self.state.nodata) 
+                        max_current_map = where(max_current_map>0, log10(max_current_map), self.state.nodata) 
                 self.write_aaigrid('cum_curmap', '', cum_current_map)
-                if self.options.write_max_cur_maps==True:      
+                
+                if self.options.write_max_cur_maps == True:      
                     self.write_aaigrid('max_curmap', '', max_current_map)
 
         return resistances,solver_failed
     
     
     @print_timing
-    def single_ground_all_pair_resistances(self, g_map, poly_map, points_rc,cum_current_map,max_current_map,reportStatus):
+    def single_ground_all_pair_resistances(self, g_map, poly_map, points_rc, cum_current_map, max_current_map, report_status):
         """Handles pairwise resistance/current/voltage calculations.  
         
         Called once when focal points are used, called multiple times when focal regions are used.
-
         """  
-        lastWriteTime = time.time()
+        last_write_time = time.time()
         numpoints = points_rc.shape[0]
         if (self.options.use_included_pairs==False) or (self.options.point_file_contains_polygons==True):
-            includedPairs = ones((numpoints+1,numpoints+1),dtype = 'int32')
+            included_pairs = ones((numpoints+1,numpoints+1), dtype='int32')
         else:
-            includedPairs = self.state.includedPairs
+            included_pairs = self.state.includedPairs
         
         if (self.options.point_file_contains_polygons==True) or  (self.options.write_cur_maps == True) or (self.options.write_volt_maps == True) or (self.options.use_included_pairs==True): 
-           useResistanceCalcShortcut = False
+           use_resistance_calc_shortcut = False
         else:     
-           useResistanceCalcShortcut = True # We use this when there are no focal regions.  It saves time when we are also not creating maps
-           shortcutResistances = -1 * ones((numpoints, numpoints), dtype = 'float64') 
+           use_resistance_calc_shortcut = True # We use this when there are no focal regions.  It saves time when we are also not creating maps
+           shortcut_resistances = -1 * ones((numpoints, numpoints), dtype='float64') 
            
         solver_failed_somewhere = False
         node_map = self.construct_node_map(g_map, poly_map) # Polygons burned in to node map 
@@ -907,7 +894,7 @@ class circuitscape:
                 (G, local_node_map) = self.node_pruner(g_map, poly_map, component_map, c)
                 if c==int(components.max()):
                     del component_map 
-                if (useResistanceCalcShortcut==True):
+                if (use_resistance_calc_shortcut==True):
                     voltmatrix = zeros((numpoints,numpoints),dtype = 'float64')     #For resistance calc shortcut
                 
                 dstPoint = 0
@@ -918,7 +905,7 @@ class circuitscape:
                     if range(i, numpoints) == []:
                         break
 
-                    if (useResistanceCalcShortcut==True) and (dstPoint>0): 
+                    if (use_resistance_calc_shortcut==True) and (dstPoint>0): 
                         break #No need to continue, we've got what we need to calculate resistances
 
                     dst = self.grid_to_graph (points_rc[i,1], points_rc[i,2], node_map)
@@ -936,14 +923,14 @@ class circuitscape:
 
                         ################    
                         for j in range(i+1, numpoints):
-                            if includedPairs[i+1,j+1]==1: #Test for pair in includedPairs
+                            if included_pairs[i+1,j+1]==1: #Test for pair in included_pairs
                                 if self.state.amg_hierarchy==None: #Called in case of memory error in current mapping
                                     self.create_amg_hierarchy(G)
                                
-                                if reportStatus==True:
+                                if report_status==True:
                                     x = x+1
                                     (hours,mins,secs) = elapsed_time(self.state.startTime)
-                                    if useResistanceCalcShortcut==True:
+                                    if use_resistance_calc_shortcut==True:
                                         y = numpoints
                                         self.log ('At ' + str(hours) +' hr ' + str(mins) + ' min solving focal node ' + str(x) + ' of '+ str(y) + '.',1)
                                     else:
@@ -974,20 +961,20 @@ class circuitscape:
                                         frompoint = str(points_rc[i,0])
                                         topoint = str(points_rc[j,0])
                                         
-                                        if useResistanceCalcShortcut==True:
+                                        if use_resistance_calc_shortcut==True:
                                             if dstPoint==1: #this occurs for first i that is in component
                                                 anchorPoint = i #for use later in shortcult resistance calc
                                                 voltmatrix = self.getVoltmatrix(i,j,numpoints,local_node_map,voltages,points_rc,resistances,voltmatrix)                                          
 
                                         if self.options.write_volt_maps == True:
-                                            if reportStatus==True:
+                                            if report_status==True:
                                                 (hours,mins,secs) = elapsed_time(self.state.startTime)
                                                 self.log ('At ' + str(hours) +' hr ' + str(mins) + ' min writing voltage map ' + str(x) + ' of ' + str(y) + '.',1)
                                             voltage_map = self.create_voltage_map(local_node_map,voltages) 
                                             self.write_aaigrid('voltmap', '_' + frompoint + '_' + topoint, voltage_map)
                                             del voltage_map
                                         if self.options.write_cur_maps == True:
-                                            if reportStatus==True:
+                                            if report_status==True:
                                                 (hours,mins,secs) = elapsed_time(self.state.startTime)
                                                 self.log ('At ' + str(hours) +' hr ' + str(mins) + ' min writing current map ' + str(x) + ' of ' + str(y) + '.',1)
                                             finitegrounds = [-9999] #create dummy value for pairwise case
@@ -1021,12 +1008,12 @@ class circuitscape:
                                                 self.write_aaigrid('curmap', '_' + frompoint + '_' + topoint, current_map)
                                             del current_map    
 
-                                        (hours,mins,secs) = elapsed_time(lastWriteTime)
+                                        (hours,mins,secs) = elapsed_time(last_write_time)
                                         if secs > 120: 
-                                            lastWriteTime = time.time()
+                                            last_write_time = time.time()
                                             self.saveIncompleteResistances(resistances)# Save incomplete resistances
-                        if (useResistanceCalcShortcut==True and i==anchorPoint): # This happens once per component. Anchorpoint is the first i in component
-                            shortcutResistances = self.getShortcutResistances(anchorPoint,voltmatrix,numpoints,resistances,shortcutResistances)
+                        if (use_resistance_calc_shortcut==True and i==anchorPoint): # This happens once per component. Anchorpoint is the first i in component
+                            shortcut_resistances = self.getShortcutResistances(anchorPoint,voltmatrix,numpoints,resistances,shortcut_resistances)
                                                 
                         G[local_dst, local_dst] = G_dst_dst
 
@@ -1039,8 +1026,8 @@ class circuitscape:
                 gc.collect()
 
         # Finally, resistance to self is 0.
-        if useResistanceCalcShortcut==True: 
-            resistances = shortcutResistances
+        if use_resistance_calc_shortcut==True: 
+            resistances = shortcut_resistances
         for i in range(0,numpoints):
             resistances[i, i] = 0
 
@@ -1268,28 +1255,29 @@ class circuitscape:
     @print_timing
     def construct_node_map(self, g_map, poly_map):
         """Creates a grid of node numbers corresponding to raster pixels with non-zero conductances."""  
-        node_map = zeros(g_map.shape, dtype = 'int32')
-        node_map[g_map.nonzero()] = arange(1, sum(g_map>0)+1, dtype = 'int32')
+        node_map = numpy.zeros(g_map.shape, dtype = 'int32')
+        node_map[g_map.nonzero()] = numpy.arange(1, numpy.sum(g_map>0)+1, dtype='int32')
 
         if poly_map == []:
             return node_map
 
         # Remove extra points from poly_map that are not in g_map
-        poly_map_pruned = zeros(g_map.shape, dtype = 'int32')
-        poly_map_pruned[where(g_map)] = poly_map[where(g_map)]
+        poly_map_pruned = numpy.zeros(g_map.shape, dtype='int32')
+        poly_map_pruned[numpy.where(g_map)] = poly_map[numpy.where(g_map)]
         
-        polynums = unique (poly_map)
+        polynums = numpy.unique(poly_map)
    
         for i in range(0, polynums.size):
             polynum = polynums[i]
             if polynum !=  0:
-
-                (pi, pj) = where (poly_map_pruned == polynum) #
-                (pk, pl) = where (poly_map == polynum) #Added 040309 BHM                
-                if len(pi)>0:  
+                (pi, pj) = numpy.where(poly_map_pruned == polynum) #
+                (pk, pl) = numpy.where(poly_map == polynum) #Added 040309 BHM                
+                if len(pi) > 0:  
                     node_map[pk, pl] = node_map[pi[0], pj[0]] #Modified 040309 BHM  
-        node_map[where(node_map)] = relabel(node_map[where(node_map)], 1) #BHM 072409
+        node_map[numpy.where(node_map)] = relabel(node_map[numpy.where(node_map)], 1) #BHM 072409
 
+        #print "node_map ="
+        #print node_map
         return node_map
 
     @print_timing
@@ -1320,6 +1308,9 @@ class circuitscape:
         (node1, node2, conductances) = self.get_conductances(g_map, node_map)
         G = sparse.csr_matrix((conductances, (node1, node2)), shape = (numnodes, numnodes)) # Memory hogging operation?
         g_graph = G + G.T
+        
+        #print "g_graph ="
+        #print g_graph
         return g_graph
 
         
@@ -1672,201 +1663,6 @@ class circuitscape:
             g_map = where(cell_map == -9999, 0, cell_map)    
         g_map = where(g_map < 0, 0, g_map)    
         return g_map
-
-
-    def read_point_map(self, filename):
-        """Reads map or text list of focal nodes from disk.  
-        
-        File extension is used to determine whether format is ascii grid, numpy array, or text list.
-        
-        """
-        #print("reading point_map %s" %(filename,))  
-        if os.path.isfile(filename)==False:
-            raise RuntimeError('File "'  + filename + '" does not exist')
-        base, extension = os.path.splitext(filename)
-        
-        if extension not in [".txt", ".asc", ".npy"]:
-            raise RuntimeError('Focal node file must have a .txt, .asc or .npy extension')
-        
-        if extension == ".txt":
-            try:
-                points = numpy.loadtxt(filename)
-            except ValueError:
-                raise RuntimeError('File "'  + filename + '" is not in correct text list format. \n If it is an ASCII grid, please use .asc extension.')                
-            
-            points_rc = zeros(points.shape, dtype='int32')
-            try:
-                points_rc[:,0] = points[:,0]
-                points_rc[:,1] = ceil(self.state.nrows - (points[:,2] - self.state.yllcorner) / self.state.cellsize) - 1
-                points_rc[:,2] = ceil((points[:,1] - self.state.xllcorner) / self.state.cellsize) - 1
-            except IndexError:
-                raise RuntimeError('Error extracting focal node locations. Please check file format.')                
-
-        elif extension == ".asc" or extension == ".npy": # We use Numpy format for quickly passing grids between ArcGIS and Circuitscape.
-            point_map = cs_io.read_poly_map(filename, False, self.state, "Focal node")
-            (rows, cols) = where(point_map > 0)
-
-            values = zeros(rows.shape, dtype='int32') 
-            for i in range(0, rows.size):
-                values[i] = point_map[rows[i], cols[i]]
-            points_rc = c_[values, rows, cols]
-        else:
-            raise RuntimeError('Focal node file must have a .txt or .asc extension')
-
-        try:            
-            i = argsort(points_rc[:,0])
-            points_rc = points_rc[i]
-        except IndexError:
-            raise RuntimeError('Error extracting focal node locations. Please check file format.')                
-        
-        # Check to make sure points fall within cellmap
-        if (min(points_rc[:,1]) < 0) or (min(points_rc[:,2]) < 0) \
-            or (max(points_rc[:,1]) > (self.state.nrows - 1)) \
-            or (max(points_rc[:,2]) > (self.state.ncols - 1)):
-            raise RuntimeError('At least one focal node location falls outside of habitat map')
-        
-        if (unique(asarray(points_rc[:,0]))).shape[0] < 2:
-            raise RuntimeError('Less than two valid focal nodes found. Please check focal node location file.')                    
-        
-        return points_rc
-        
-        
-
-        
-    def read_source_and_ground_maps(self, source_filename, ground_filename): 
-        """Reads srouce and ground raster maps from disk."""
-        #print("reading source and ground maps:\n\t[%s]\n\t[%s]"%(source_filename,ground_filename))  
-        #FIXME: reader does not currently handle infinite inputs for ground conductances.
-        if not os.path.isfile(source_filename):
-            raise RuntimeError('File "'  + source_filename + '" does not exist')
-        
-        base, extension = os.path.splitext(source_filename)
-        if extension == ".txt":  
-            #FIXME: probably want to roll code used for reading source, ground and point text files into single utility
-            try:
-                sources = numpy.loadtxt(source_filename)
-            except ValueError:
-                raise RuntimeError('File "'  + source_filename + '" is not in correct text list format. \n If it is an ASCII grid, please use .asc extension.')                
-
-            sources_rc = zeros(sources.shape, dtype='int32')
-            sources_rc[:,0] = sources[:,0]
-            sources_rc[:,1] = ceil(self.state.nrows - (sources[:,2] - self.state.yllcorner) / self.state.cellsize) - 1
-            sources_rc[:,2] = ceil((sources[:,1] - self.state.xllcorner) / self.state.cellsize) - 1
-            source_map = zeros((self.state.nrows, self.state.ncols), dtype='float64')
-            source_map[sources_rc[:,1], sources_rc[:,2]] = sources_rc[:,0]
-        elif extension=='.asc':
-            (ncols, nrows, xllcorner, yllcorner, cellsize, nodata) = cs_io.read_header(source_filename)
-            if cellsize!= self.state.cellsize:
-                raise RuntimeError('Current source raster must have same cell size and number of rows and columns as habitat raster') 
-            if ncols!= self.state.ncols:
-                raise RuntimeError('Current source raster must have same cell size and number of rows and columns as habitat raster') 
-            if nrows!= self.state.nrows:
-                raise RuntimeError('Current source raster must have same cell size and number of rows and columns as habitat raster') 
-            if yllcorner!= self.state.yllcorner:
-                raise RuntimeError('Current source raster must have same xllcorner and yllcorner as habitat raster') 
-            if xllcorner!= self.state.xllcorner:
-                raise RuntimeError('Current source raster must have same xllcorner and yllcorner as habitat raster') 
-               
-            source_map = cs_io.reader(source_filename, 'float64')
-            source_map = where(source_map == -9999,0,source_map)
-
-        else:
-            raise RuntimeError('Current source files must have a .txt or .asc extension')
-        if self.options.use_unit_currents==True:
-            source_map = where(source_map,1,0)
-
-        if not os.path.isfile(ground_filename):
-            raise RuntimeError('File "'  + ground_filename + '" does not exist')
-        
-        base, extension = os.path.splitext(ground_filename)
-        if extension == ".txt":
-            try:
-                grounds = numpy.loadtxt(ground_filename)
-            except ValueError:
-                raise RuntimeError('File "'  + ground_filename + '" is not in correct text list format. \n If it is an ASCII grid, please use .asc extension.')                
-
-            grounds_rc = zeros(grounds.shape,dtype = 'int32')
-            grounds_rc[:,0] = grounds[:,0]
-            grounds_rc[:,1] = ceil(self.state.nrows - (grounds[:,2] - self.state.yllcorner) / self.state.cellsize) - 1
-            grounds_rc[:,2] = ceil((grounds[:,1] - self.state.xllcorner) / self.state.cellsize) - 1
-            ground_map_raw = -9999 * ones((self.state.nrows, self.state.ncols), dtype = 'float64')
-            ground_map_raw[grounds_rc[:,1], grounds_rc[:,2]] = grounds_rc[:,0]
-        elif extension=='.asc':
-            (ncols, nrows, xllcorner, yllcorner, cellsize, nodata) = cs_io.read_header(ground_filename)
-            if cellsize!= self.state.cellsize:
-                raise RuntimeError('Ground raster must have same cell size and number of rows and columns as habitat raster') 
-            if ncols!= self.state.ncols:
-                raise RuntimeError('Ground raster must have same cell size and number of rows and columns as habitat raster') 
-            if nrows!= self.state.nrows:
-                raise RuntimeError('Ground raster must have same cell size and number of rows and columns as habitat raster') 
-            if yllcorner!= self.state.yllcorner:
-                raise RuntimeError('Ground raster must have same xllcorner and yllcorner as habitat raster') 
-            if xllcorner!= self.state.xllcorner:
-                raise RuntimeError('Ground raster must have same xllcorner and yllcorner as habitat raster') 
-                
-            ground_map_raw = cs_io.reader(ground_filename, 'float64')
-        else:
-            raise RuntimeError('Ground files must have a .txt or .asc extension')
-        if self.options.ground_file_is_resistances==True:
-            ground_map = 1 / ground_map_raw
-            ground_map = where(ground_map_raw == -9999,0,ground_map)
-        else:
-            ground_map = where(ground_map_raw == -9999,0,ground_map_raw)
-        if self.options.use_direct_grounds==True:
-            ground_map = where(ground_map,Inf,0)
-
-        conflicts = logical_and(source_map,ground_map)
-        if self.options.remove_src_or_gnd=='rmvsrc':
-            source_map = where(conflicts,0,source_map)
-        elif self.options.remove_src_or_gnd=='rmvgnd':
-            ground_map = where(conflicts,0,ground_map)
-        elif self.options.remove_src_or_gnd=='rmvall':
-            source_map = where(conflicts,0,source_map)
-            ground_map = where(conflicts,0,ground_map)
-        if size(where(source_map)) == 0:
-            raise RuntimeError('No valid sources detected. Please check source file') 
-        if size(where(ground_map)) == 0:
-            raise RuntimeError('No valid grounds detected. Please check ground file') 
-        return source_map, ground_map
-
-
-    def readincludedPairs(self, filename):
-        """Reads matrix denoting node pairs to include/exclude from calculations.
-        
-        FIXME: matrices are an inconvenient way for users to specify pairs.  Using a 
-        2- or 3-column format would be easier.
-        
-        """  
-        
-        if os.path.isfile(filename)==False:
-            raise RuntimeError('File "'  + filename + '" does not exist')
-        
-        try:
-            f = open(filename, 'r')
-            [ign, minval] = string.split(f.readline())
-            [ign, maxval] = string.split(f.readline())
-            minval = float(minval)
-            maxval = float(maxval)
-            f.close()            
-            
-            includedPairs = numpy.loadtxt(filename, skiprows = 2, dtype = 'Float64')
-            pointIds = includedPairs[:,0]
-            includedPairs = where(includedPairs>maxval,0,includedPairs)
-            includedPairs = where(includedPairs<minval,0,1)             
-            includedPairs[:,0] = pointIds
-            includedPairs[0,:] = pointIds
-            includedPairs[0,0] = -1
-            i = argsort(includedPairs[:,0])
-            includedPairs = includedPairs[i]
-            includedPairs = includedPairs.T            
-            i = argsort(includedPairs[:,0])
-            includedPairs = includedPairs[i] 
-        
-        except:
-            raise RuntimeError('Error reading focal node include/exclude matrix. Please check file format.')                
-
-        return includedPairs
-
         
 
     def enable_low_memory(self, restart):
@@ -2037,39 +1833,39 @@ class circuitscape:
         return focalNodes
 
 
-    def pruneIncludedPairs(self,points_rc):
-        """Remove excluded points from focal node list when using extra file that lists pairs to include/exclude."""  
-        includedPairs = (self.state.includedPairs)
-        includeList = list(includedPairs[0,:])
+    def pruneIncludedPairs(self, points_rc):
+        """Remove excluded points from focal node list when using extra file that lists pairs to include/exclude."""
+        included_pairs = self.state.includedPairs
+        include_list = list(included_pairs[0,:])
         point = 0
-        dropFlag = False
-        while point < points_rc.shape[0]: #Prune out any points not in includeList
-            if points_rc[point,0] in includeList: #match
+        drop_flag = False
+        while point < points_rc.shape[0]: #Prune out any points not in include_list
+            if points_rc[point,0] in include_list: #match
                 point = point+1
             else:
-                dropFlag = True   
-                points_rc = deleterow(points_rc,point)  
+                drop_flag = True   
+                points_rc = deleterow(points_rc, point)  
          
-        includeList = list(points_rc[:,0])
-        numConnectionRows = includedPairs.shape[0]
+        include_list = list(points_rc[:,0])
+        num_connection_rows = included_pairs.shape[0]
         row = 1
-        while row <numConnectionRows: #Prune out any entries in includeList that are not in points_rc
-            if includedPairs [row,0] in includeList: #match
+        while row < num_connection_rows: #Prune out any entries in include_list that are not in points_rc
+            if included_pairs[row,0] in include_list: #match
                 row = row+1
             else:
-                includedPairs = deleterowcol(includedPairs,delrow = row,delcol = row)   
-                dropFlag = True
-                numConnectionRows = numConnectionRows-1
+                included_pairs = deleterowcol(included_pairs, delrow=row, delcol=row)   
+                drop_flag = True
+                num_connection_rows = num_connection_rows-1
 
-        self.state.includedPairs = includedPairs                     
-#         if dropFlag==True:
+        self.state.includedPairs = included_pairs
+#         if drop_flag==True:
 #             print'\nNOTE: Code to exclude pairwise calculations is activated and \nsome entries did not match with focal node file.  \nSome focal nodes may have been dropped.'      
         return points_rc
     
     
-    def get_points_rc_unique(self,point_ids,points_rc):
+    def get_points_rc_unique(self, point_ids, points_rc):
         """Return a list of unique focal node IDs and x-y coordinates."""  
-        points_rc_unique = zeros((point_ids.size,3), int)
+        points_rc_unique = numpy.zeros((point_ids.size, 3), int)
         for i in range(0, point_ids.size):
             for j in range(0, points_rc.shape[0]):
                 if points_rc[j,0]==point_ids[i]:
@@ -2133,33 +1929,33 @@ class circuitscape:
         self.state.g_map = self.read_cell_map(self.options.habitat_file, self.options.habitat_map_is_resistances, reclass_file)
         
         if self.options.use_polygons:
-            self.state.poly_map = cs_io.read_poly_map(self.options.polygon_file, False, self.state, "Short-circuit region")
+            self.state.poly_map = cs_io.read_poly_map(self.options.polygon_file, False, 0, self.state, True, "Short-circuit region", 'int32')
         else:
             self.state.poly_map = []
  
         if self.options.use_mask==True:
-            mask = cs_io.read_poly_map(self.options.mask_file, True, self.state, "Mask")
+            mask = cs_io.read_poly_map(self.options.mask_file, True, 0, self.state, True, "Mask", 'int32')
             mask = where(mask !=  0, 1, 0) 
             self.state.g_map = multiply(self.state.g_map, mask)
             del mask
             
-            sumGmap = (self.state.g_map).sum()
-            #sumGmap = sumGmap.sum()
-            if sumGmap==0:
+            sum_gmap = (self.state.g_map).sum()
+            #sum_gmap = sum_gmap.sum()
+            if sum_gmap==0:
                 raise RuntimeError('All entries in habitat map have been dropped after masking with the mask file.  There is nothing to solve.')             
         else:
             self.state.mask = []
 
         if self.options.scenario=='advanced':
             self.state.points_rc = []
-            (self.state.source_map, self.state.ground_map) = self.read_source_and_ground_maps(self.options.source_file, self.options.ground_file)
+            (self.state.source_map, self.state.ground_map) = cs_io.read_source_and_ground_maps(self.options.source_file, self.options.ground_file, self.state, self.options)
         else:        
-            self.state.points_rc = self.read_point_map(self.options.point_file)
+            self.state.points_rc = cs_io.read_point_map(self.options.point_file, "Focal node", self.state)
             self.state.source_map = []
             self.state.ground_map = []
 
         if self.options.use_included_pairs==True:
-            self.state.includedPairs = self.readincludedPairs(self.options.included_pairs_file)
+            self.state.includedPairs = cs_io.read_included_pairs(self.options.included_pairs_file)
         
         self.state.pointStrengths = None
         if self.options.use_variable_source_strengths==True:
