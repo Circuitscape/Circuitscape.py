@@ -101,15 +101,22 @@ class CSConfig:
                     self.options[item[0]] = ast.literal_eval(item[1])
                 except:
                     self.options[item[0]] = item[1]
- 
-    def write(self, cfgfile):
+
+    def write(self, cfg_filename, is_filename_template=False):
+        if is_filename_template:
+            out_base, out_extn = os.path.splitext(cfg_filename)
+            cfg_filename = out_base + '.ini'
+            out_dir = os.path.split(cfg_filename)[0]
+            if not os.path.isdir(out_dir):
+                raise RuntimeError('Output directory ' + out_dir + ' does not exist!')    
+
         config = ConfigParser.ConfigParser()
         for section in CSConfig.DEFAULTS.keys():
             config.add_section(section)
             for option in CSConfig.DEFAULTS[section].keys():
                 config.set(section, option, self.options[option])
 
-        with open(cfgfile, 'w') as f:
+        with open(cfg_filename, 'w') as f:
             config.write(f)
 
     def check(self):
