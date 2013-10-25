@@ -271,43 +271,43 @@ class CSIO:
 
     @staticmethod
     def read_poly_map(filename, reading_mask, nodata_as, habitat_size, resample, file_type, data_type):
-        """Reads short-circuit region poly_map (aka polygon poly_map) from disk."""  
+        """Reads raster maps for short-circuit regions (aka polygon poly_map), focal nodes, masks, current sources or grounds from disk."""  
         (ncols, nrows, xllcorner, yllcorner, cellsize, nodata) = header = CSIO._read_header(filename)
         
-        msg_resample = '\n********\nWarning: %s raster has different \n%s than habitat raster. \nCircuitscape will try to crudely resample the raster. \nWe recommend using the "Export to Circuitscape" ArcGIS tool to create ASCII grids with compatible cell size and extent.'
+        msg_resample = '%s raster has different %s than habitat raster. Circuitscape will try to crudely resample the raster. We recommend using the "Export to Circuitscape" ArcGIS tool to create ASCII grids with compatible cell size and extent.'
         msg_no_resample = '%s raster must have same %s as habitat raster'
     
         poly_map = CSIO._reader(filename, data_type)
         if nodata_as != None:
             poly_map = np.where(poly_map==nodata, nodata_as, poly_map)
     
-        if cellsize!= habitat_size.cellsize:
+        if cellsize != habitat_size.cellsize:
             if resample:
-                logging.info(msg_resample % (file_type, "cell size",))
+                logging.warning(msg_resample % (file_type, "cell size",))
                 poly_map = CSIO._resample_map(filename, reading_mask, habitat_size, header, poly_map)
             else:
                 raise RuntimeError(msg_no_resample%(file_type, "cell_size"))            
-        elif ncols!= habitat_size.ncols:
+        elif ncols != habitat_size.ncols:
             if resample:
-                logging.info(msg_resample % (file_type, "number of columns",))
+                logging.warning(msg_resample % (file_type, "number of columns",))
                 poly_map = CSIO._resample_map(filename, reading_mask, habitat_size, header, poly_map)
             else:
                 raise RuntimeError(msg_no_resample%(file_type, "number of columns"))            
-        elif nrows!= habitat_size.nrows:
+        elif nrows != habitat_size.nrows:
             if resample:
-                logging.info(msg_resample % (file_type, "number of rows",))
+                logging.warning(msg_resample % (file_type, "number of rows",))
                 poly_map = CSIO._resample_map(filename, reading_mask, habitat_size, header, poly_map)
             else:
                 raise RuntimeError(msg_no_resample%(file_type, "number of rows"))            
-        elif xllcorner!= habitat_size.xllcorner:
+        elif xllcorner != habitat_size.xllcorner:
             if resample:
-                logging.info(msg_resample % (file_type, "xllcorner",))
+                logging.warning(msg_resample % (file_type, "xllcorner",))
                 poly_map = CSIO._resample_map(filename, reading_mask, habitat_size, header, poly_map)
             else:
                 raise RuntimeError(msg_no_resample%(file_type, "xllcorner"))            
-        elif yllcorner!= habitat_size.yllcorner:
+        elif yllcorner != habitat_size.yllcorner:
             if resample:
-                logging.info(msg_resample % (file_type, "yllcorner",))
+                logging.warning(msg_resample % (file_type, "yllcorner",))
                 poly_map = CSIO._resample_map(filename, reading_mask, habitat_size, header, poly_map)
             else:
                 raise RuntimeError(msg_no_resample%(file_type, "yllcorner"))            
