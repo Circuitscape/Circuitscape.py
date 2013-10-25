@@ -2,7 +2,7 @@
 ## Circuitscape (C) 2013, Brad McRae and Viral B. Shah. 
 ##
 
-import os, string, sys
+import sys
 import time
 import numpy as np
 #from numpy import *
