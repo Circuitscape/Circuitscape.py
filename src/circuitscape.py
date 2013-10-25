@@ -3,12 +3,12 @@
 ## Circuitscape (C) 2013, Brad McRae and Viral B. Shah. 
 ##
 
-import time, gc
+import time, gc, logging
 from numpy import *
 from scipy import sparse
 from scipy.sparse.csgraph import connected_components
 
-from cs_util import print_timing, elapsed_time, deletecol, deleterowcol, relabel
+from cs_util import print_timing, deletecol, deleterowcol, relabel
 from cs_io import CSIO
 from cs_raster import CSRaster
 
@@ -35,7 +35,7 @@ class circuitscape(CSRaster):
             self.options.focal_node_file = self.options.point_file
 
         self.state.startTime = time.time()
-        self.state.lastUpdateTime = time.time()        
+        self.state.last_gui_yield_time = time.time()        
         self.log('',1)
         self.log('',2)
 
@@ -82,7 +82,7 @@ class circuitscape(CSRaster):
                 
             else:
                 if self.options.use_included_pairs==True:
-                    self.state.includedPairs = CSIO.read_included_pairs(self.options.included_pairs_file)
+                    self.state.included_pairs = CSIO.read_included_pairs(self.options.included_pairs_file)
                 focalNodes = self.readFocalNodes(self.options.focal_node_file)
                 if numComponents > 1:    #Prune out any focal nodes that are not in component
                     focalNodesInComponent = focalNodes
@@ -182,7 +182,7 @@ class circuitscape(CSRaster):
         solver_failed = False
         if self.options.use_included_pairs==True: #Prune points
             focalNodes = self.pruneIncludedPairsNetwork(focalNodes)          
-            includedPairs = self.state.includedPairs 
+            includedPairs = self.state.included_pairs 
         else:
             includedPairs = ones((focalNodes.size+1,focalNodes.size+1),dtype = 'int32')
 
@@ -196,7 +196,7 @@ class circuitscape(CSRaster):
         else:
             useResistanceCalcShortcut = True
             # This uses a quicker way to calculate pairwise resistances.  There may be something even quicker, I'm looking into this. BHM 3-15-2013
-            print 'Using shortcut'
+            logging.debug('Using shortcut')
             shortcutResistances = -1 * ones((numpoints, numpoints), dtype = 'float64') 
             voltmatrix = zeros((numpoints,numpoints),dtype = 'float64')     
         dstPoint = 0
@@ -218,13 +218,12 @@ class circuitscape(CSRaster):
             
             for j in range(i+1, numpoints):
                 x = x+1
-                (hours,mins,_secs) = elapsed_time(self.state.startTime)
                 if useResistanceCalcShortcut==True:
                     y = numpoints
-                    self.log ('At ' + str(hours) +' hr ' + str(mins) + ' min solving focal node ' + str(x) + ' of '+ str(y) + '.',1)
+                    self.log ('solving focal node ' + str(x) + ' of '+ str(y) + '.',1)
                 else:
                     y = numpoints*(numpoints-1)/2
-                    self.log ('At ' + str(hours) +' hr ' + str(mins) + ' min solving focal pair ' + str(x) + ' of '+ str(y) + '.',1)            
+                    self.log ('solving focal pair ' + str(x) + ' of '+ str(y) + '.',1)            
                 if includedPairs[i+1,j+1]==1:
                     src = self.nameToNode(nodeNames,focalNodes[j])
                     try:
@@ -367,7 +366,7 @@ class circuitscape(CSRaster):
                     raise RuntimeError('Error reading reclass table.  Please check file format.')
                 for i in range (0,reclassTable.shape[0]):
                     data = where(data==reclassTable[i,0],reclassTable[i,1],data)
-                print'\n***** Reclassified habitat graph using', self.options.reclass_file,'*****'
+                logging.debug('Reclassified habitat graph using %s'%(self.options.reclass_file,))
             ########################
             
             if self.options.habitat_map_is_resistances == True:
@@ -426,7 +425,7 @@ class circuitscape(CSRaster):
 
     def pruneIncludedPairsNetwork(self,focalNodes):
         """Remove excluded points from focal node list when using extra file that lists pairs to include/exclude in network mode."""   
-        includedPairs = (self.state.includedPairs)
+        includedPairs = (self.state.included_pairs)
         includeList = list(includedPairs[0,:])
         point = 0
         _drop_flag = False
@@ -448,7 +447,7 @@ class circuitscape(CSRaster):
                 _drop_flag = True
                 numConnectionRows = numConnectionRows-1
 
-        self.state.includedPairs = includedPairs                     
+        self.state.included_pairs = includedPairs                     
 #         if _drop_flag==True:
 #             print'\nNOTE: Code to exclude pairwise calculations is activated and \nsome entries did not match with focal node file.  \nSome focal nodes may have been dropped.'      
         return focalNodes
