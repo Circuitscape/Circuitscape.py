@@ -3,7 +3,7 @@
 ## Circuitscape (C) 2013, Brad McRae and Viral B. Shah. 
 ##
 
-import sys, time, gc, traceback
+import sys, time, gc, traceback, logging, inspect
 import numpy
 from numpy import *
 from scipy import sparse
@@ -26,44 +26,60 @@ except ImportError:
 class CSRaster(object):
     def __init__(self, configFile, logger_func):
         gc.enable()
+        numpy.seterr(invalid='ignore')
+        numpy.seterr(divide='ignore')
+        
         self.state = CSState()
         self.state.amg_hierarchy = None
         self.options = CSConfig(configFile)
+        
+        self.options.use_reclass_table = False
+        self.options.reclass_file = './reclass.txt'        
+
+        print_timing_enabled(self.options.print_timings)
+        #print_timing_enabled(True)
+        
         if logger_func == 'Screen':
             self.options.screenprint_log = True
             logger_func = None
         else:
             self.options.screenprint_log = False
-        numpy.seterr(invalid='ignore')
-        numpy.seterr(divide='ignore')
+        self.options.screenprint_log = True
         
-        self.options.use_reclass_table = False
-        self.options.reclass_file = './reclass.txt'        
-        
-        global logger
-        logger = logger_func
-
-        print_timing_enabled(self.options.print_timings)
-        #print_timing_enabled(True)
-        
+        self.logger = logger_func
+        logging.basicConfig(format='%(asctime)s:%(levelname)s:%(message)s',
+                            datefmt='%m/%d/%Y %I.%M.%S.%p',
+                            level=logging.DEBUG)
+    
+    # TODO: should ultimately be replaced with the logging module.
+    # logging to UI should be handled with another logger or handler
     def log(self, text, col):
-        """Prints updates to GUI or python window."""  
-        #(hours,mins,secs) = elapsed_time(self.state.startTime)
-        (_hours,_mins,secs1) = elapsed_time(self.state.lastUpdateTime)
-        if secs1 > 10: # Force update every 10 secs
-            self.state.lastUpdateTime = time.time()
-            try:
-                if wx_available:
-                    wx.SafeYield(None, True)  
-                    wx.GetApp().Yield(True)
-            except:
-                pass
-        if logger:           
-            logger(text, col)
-        if self.options.screenprint_log == True and len(text) > 1 and col == 1: 
-            print '    --- ',text,' ---'
-        sys.stdout.flush()
-        return
+        """Prints updates to GUI or python window."""
+        if None == self.state.last_gui_yield_time:
+            self.state.last_gui_yield_time = time.time()
+        else: # Force update every 10 secs
+            (hours,mins,secs) = elapsed_time(self.state.last_gui_yield_time)
+            if (secs > 10) or (mins > 0) or (hours > 0):
+                self.state.last_gui_yield_time = time.time()
+                try:
+                    if wx_available: 
+                        wx.SafeYield(None, True)  
+                        wx.GetApp().Yield(True)
+                except:
+                    pass
+            
+        if self.logger or (self.options.screenprint_log == True and len(text) > 1):
+            text = '%s%s'%(' '*len(inspect.stack()), str(text))
+        
+            if self.logger:
+                self.logger(text, col)
+                
+            if self.options.screenprint_log == True and len(text) > 1:
+                if col == 1:
+                    logging.info(text)
+                else:
+                    logging.debug(text)
+                sys.stdout.flush()
 
 
     @print_timing
@@ -73,7 +89,7 @@ class CSRaster(object):
         self.load_maps()
         if self.options.screenprint_log == True:        
             num_nodes = (where(self.state.g_map > 0, 1, 0)).sum()         
-            print '    ---  Resistance/conductance map has',num_nodes,' nodes.  ---'
+            logging.debug('Resistance/conductance map has %d nodes' % (num_nodes,))
 
         if self.options.scenario == 'pairwise':
             resistances, solver_failed = self.pairwise_module(self.state.g_map, self.state.poly_map, self.state.points_rc)
@@ -82,11 +98,11 @@ class CSRaster(object):
 
         elif self.options.scenario == 'advanced':
             self.options.write_max_cur_maps = False
-            self.log ('Calling solver module.',1)
+            self.log ('Calling solver module.', 1)
             voltages, _current_map, solver_failed = self.advanced_module(self.state.g_map, self.state.poly_map, self.state.source_map, self.state.ground_map,None,None,None,None,None)
             self.logCompleteJob()
             if solver_failed == True:
-                print'Solver failed.\n'
+                logging.error('Solver failed')
             return voltages, solver_failed
 
         else:
@@ -139,7 +155,7 @@ class CSRaster(object):
 
         if self.options.use_included_pairs==True: #Prune points
             points_rc = self.pruneIncludedPairs(points_rc)          
-            includedPairs = self.state.includedPairs 
+            includedPairs = self.state.included_pairs 
         point_ids = unique(asarray(points_rc[:,0]))
         points_rc_unique = self.get_points_rc_unique(point_ids,points_rc)      
         
@@ -159,7 +175,7 @@ class CSRaster(object):
             unique_point_map = numpy.zeros((self.state.nrows, self.state.ncols),int)
             unique_point_map[points_rc_unique[:,1],points_rc_unique[:,2]] = points_rc_unique[:,0]
 
-            (strengthMap,strengths_rc) = self.getstrengthMap(points_rc_unique,self.state.pointStrengths)            
+            (strengthMap,strengths_rc) = self.getstrengthMap(points_rc_unique,self.state.point_strengths)            
 
             # Are all points in same component?  If so, can streamline.  Create G here, just once
             # FIXME: place code below into module 
@@ -185,8 +201,8 @@ class CSRaster(object):
             del node_map, component_map, components
 
         for i in range(0, point_ids.size): #These are the 'src' nodes, i.e. the 'one' in all-to-one and one-to-all
-            (hours,mins,secs) = elapsed_time(self.state.startTime)
-            self.log ('At ' + str(hours) +' hr ' + str(mins) + ' min solving focal node ' + str(i+1) + ' of ' + str(point_ids.size) + '.',1)
+
+            self.log ('solving focal node ' + str(i+1) + ' of ' + str(point_ids.size) + '.',1)
 
             if self.options.use_included_pairs==True: # Done above otherwise    
                 #######################   
@@ -205,7 +221,7 @@ class CSRaster(object):
                 unique_point_map = numpy.zeros((self.state.nrows, self.state.ncols),int)
                 unique_point_map[points_rc_unique_temp[:,1],points_rc_unique_temp[:,2]] = points_rc_unique_temp[:,0]        
 
-                (strengthMap,strengths_rc) = self.getstrengthMap(points_rc_unique_temp,self.state.pointStrengths)
+                (strengthMap,strengths_rc) = self.getstrengthMap(points_rc_unique_temp,self.state.point_strengths)
                 ###########################################
                 
             src = point_ids[i]
@@ -249,7 +265,7 @@ class CSRaster(object):
                         if self.options.write_max_cur_maps==True:
                             max_current_map=maximum(max_current_map,current_map)
                 else:
-                    print'Solver failed for at least one focal node.  \nFocal nodes with failed solves will be marked with value of -777 \nin output resistance list.\n'
+                    logging.warning('Solver failed for at least one focal node.  \nFocal nodes with failed solves will be marked with value of -777 \nin output resistance list.\n')
     
                 resistance_vector[i,0] = src
                 resistance_vector[i,1] = resistance
@@ -260,8 +276,8 @@ class CSRaster(object):
                 resistance_vector[i,0] = src
                 resistance_vector[i,1] = -1            
 
-            (hours,mins,secs) = elapsed_time(lastWriteTime)
-            if secs > 120: 
+            (hours,mins,_secs) = elapsed_time(lastWriteTime)
+            if mins > 2 or hours > 0: 
                 lastWriteTime = time.time()
                 CSIO.write_resistances_one_to_all(self.options.output_file, resistance_vector, '_incomplete', self.options.scenario)
                 #self.writeResistancesOneToAll(resistance_vector,'_incomplete')
@@ -347,7 +363,7 @@ class CSRaster(object):
                 (resistances, cum_current_map, max_current_map, solver_failed) = self.single_ground_all_pair_resistances(g_map, poly_map, points_rc,cum_current_map,max_current_map,reportStatus)
                 
             if solver_failed == True:
-                print('Solver failed for at least one focal node pair. ' 
+                logging.warning('Solver failed for at least one focal node pair. ' 
                 '\nThis can happen when input resistances differ by more than' 
                 '\n~6 orders of magnitude. Pairs with failed solves will be '
                 '\nmarked with value of -777 in output resistance matrix.\n')
@@ -357,7 +373,7 @@ class CSRaster(object):
         else:
             if self.options.use_included_pairs == True:
                 points_rc = self.pruneIncludedPairs(points_rc)
-                includedPairs = self.state.includedPairs
+                includedPairs = self.state.included_pairs
             else:
                 numpoints = points_rc.shape[0]
                 point_ids = unique(asarray(points_rc[:,0]))
@@ -396,15 +412,14 @@ class CSRaster(object):
                     numpoints = point_ids.size
                     x = x+1
                     y = numpoints*(numpoints-1)/2
-                    (hours,mins,_secs) = elapsed_time(self.state.startTime)
-                    self.log ('At ' + str(hours) +' hr ' + str(mins) + ' min solving focal pair ' + str(x) + ' of '+ str(y) + '.',1)
+                    self.log ('solving focal pair ' + str(x) + ' of '+ str(y) + '.',1)
                     reportStatus = False
                     
                     (pairwise_resistance, cum_current_map, max_current_map, solver_failed) = self.single_ground_all_pair_resistances(g_map, poly_map_temp, points_rc_temp,cum_current_map,max_current_map,reportStatus)
 
                     del poly_map_temp
                     if solver_failed == True:
-                        print'Solver failed for at least one focal node pair.  \nPairs with failed solves will be marked with value of -777 \nin output resistance matrix.\n'
+                        logging.warning('Solver failed for at least one focal node pair.  \nPairs with failed solves will be marked with value of -777 \nin output resistance matrix.\n')
 
                     resistances[i,j] = pairwise_resistance[0,1]
                     resistances[j,i] = pairwise_resistance[0,1]
@@ -440,7 +455,7 @@ class CSRaster(object):
         if (self.options.use_included_pairs==False) or (self.options.point_file_contains_polygons==True):
             included_pairs = ones((numpoints+1,numpoints+1), dtype='int32')
         else:
-            included_pairs = self.state.includedPairs
+            included_pairs = self.state.included_pairs
         
         if (self.options.point_file_contains_polygons==True) or  (self.options.write_cur_maps == True) or (self.options.write_volt_maps == True) or (self.options.use_included_pairs==True): 
             use_resistance_calc_shortcut = False
@@ -499,13 +514,12 @@ class CSRaster(object):
                                 # tan: parallelize here
                                 if report_status==True:
                                     x = x+1
-                                    (hours,mins,secs) = elapsed_time(self.state.startTime)
                                     if use_resistance_calc_shortcut==True:
                                         y = numpoints
-                                        self.log ('At ' + str(hours) +' hr ' + str(mins) + ' min solving focal node ' + str(x) + ' of '+ str(y) + '.',1)
+                                        self.log ('solving focal node ' + str(x) + ' of '+ str(y) + '.',1)
                                     else:
                                         y = numpoints*(numpoints-1)/2
-                                        self.log ('At ' + str(hours) +' hr ' + str(mins) + ' min solving focal pair ' + str(x) + ' of '+ str(y) + '.',1)
+                                        self.log ('solving focal pair ' + str(x) + ' of '+ str(y) + '.',1)
                                 src = self.grid_to_graph (points_rc[j,1], points_rc[j,2], node_map)
                                 local_src = self.grid_to_graph (points_rc[j,1], points_rc[j,2], local_node_map)
                                 if (src >=  0 and components[src] == c):
@@ -538,15 +552,13 @@ class CSRaster(object):
 
                                         if self.options.write_volt_maps == True:
                                             if report_status==True:
-                                                (hours,mins,secs) = elapsed_time(self.state.startTime)
-                                                self.log ('At ' + str(hours) +' hr ' + str(mins) + ' min writing voltage map ' + str(x) + ' of ' + str(y) + '.',1)
+                                                self.log ('writing voltage map ' + str(x) + ' of ' + str(y) + '.',1)
                                             voltage_map = self.create_voltage_map(local_node_map,voltages) 
                                             CSIO.write_aaigrid('voltmap', '_' + frompoint + '_' + topoint, voltage_map, self.options, self.state)
                                             del voltage_map
                                         if self.options.write_cur_maps == True:
                                             if report_status==True:
-                                                (hours,mins,secs) = elapsed_time(self.state.startTime)
-                                                self.log ('At ' + str(hours) +' hr ' + str(mins) + ' min writing current map ' + str(x) + ' of ' + str(y) + '.',1)
+                                                self.log ('writing current map ' + str(x) + ' of ' + str(y) + '.',1)
                                             finitegrounds = [-9999] #create dummy value for pairwise case
                                             
                                             try:
@@ -578,8 +590,8 @@ class CSRaster(object):
                                                 CSIO.write_aaigrid('curmap', '_' + frompoint + '_' + topoint, current_map, self.options, self.state)
                                             del current_map    
 
-                                        (hours,mins,secs) = elapsed_time(last_write_time)
-                                        if secs > 120: 
+                                        (hours,mins,_secs) = elapsed_time(last_write_time)
+                                        if mins > 2 or hours > 0: 
                                             last_write_time = time.time()
                                             CSIO.save_incomplete_resistances(self.options.output_file, resistances)# Save incomplete resistances
                         if (use_resistance_calc_shortcut==True and i==anchorPoint): # This happens once per component. Anchorpoint is the first i in component
@@ -1256,7 +1268,7 @@ class CSRaster(object):
         
     def pruneIncludedPairs(self, points_rc):
         """Remove excluded points from focal node list when using extra file that lists pairs to include/exclude."""
-        included_pairs = self.state.includedPairs
+        included_pairs = self.state.included_pairs
         include_list = list(included_pairs[0,:])
         point = 0
         _drop_flag = False
@@ -1278,7 +1290,7 @@ class CSRaster(object):
                 _drop_flag = True
                 num_connection_rows = num_connection_rows-1
 
-        self.state.includedPairs = included_pairs
+        self.state.included_pairs = included_pairs
 #         if _drop_flag==True:
 #             print'\nNOTE: Code to exclude pairwise calculations is activated and \nsome entries did not match with focal node file.  \nSome focal nodes may have been dropped.'      
         return points_rc
@@ -1313,7 +1325,7 @@ class CSRaster(object):
         """Returns map and coordinates of point strengths when variable source strengths are used."""  
         if self.options.use_variable_source_strengths==True:
             if self.options.scenario == 'one-to-all': 
-                strengths_rc = self.get_strengths_rc(self.state.pointStrengths,points_rc_unique)
+                strengths_rc = self.get_strengths_rc(self.state.point_strengths,points_rc_unique)
                 strengthMap = None
             else:
                 strengths_rc = self.get_strengths_rc(pointStrengths,points_rc_unique)
@@ -1376,11 +1388,11 @@ class CSRaster(object):
             self.state.ground_map = []
 
         if self.options.use_included_pairs==True:
-            self.state.includedPairs = CSIO.read_included_pairs(self.options.included_pairs_file)
+            self.state.included_pairs = CSIO.read_included_pairs(self.options.included_pairs_file)
         
-        self.state.pointStrengths = None
+        self.state.point_strengths = None
         if self.options.use_variable_source_strengths==True:
-            self.state.pointStrengths = CSIO.read_point_strengths(self.options.variable_source_file) 
+            self.state.point_strengths = CSIO.read_point_strengths(self.options.variable_source_file) 
         
         self.log('Processing maps',1)
         return 

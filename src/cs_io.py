@@ -2,7 +2,7 @@
 ## Circuitscape (C) 2013, Brad McRae and Viral B. Shah. 
 ##
 
-import os, string, gzip
+import os, string, gzip, logging
 import numpy as np
 from cs_util import deleterow
 
@@ -283,31 +283,31 @@ class CSIO:
     
         if cellsize!= habitat_size.cellsize:
             if resample:
-                print(msg_resample % (file_type, "cell size",))
+                logging.info(msg_resample % (file_type, "cell size",))
                 poly_map = CSIO._resample_map(filename, reading_mask, habitat_size, header, poly_map)
             else:
                 raise RuntimeError(msg_no_resample%(file_type, "cell_size"))            
         elif ncols!= habitat_size.ncols:
             if resample:
-                print(msg_resample % (file_type, "number of columns",))
+                logging.info(msg_resample % (file_type, "number of columns",))
                 poly_map = CSIO._resample_map(filename, reading_mask, habitat_size, header, poly_map)
             else:
                 raise RuntimeError(msg_no_resample%(file_type, "number of columns"))            
         elif nrows!= habitat_size.nrows:
             if resample:
-                print(msg_resample % (file_type, "number of rows",))
+                logging.info(msg_resample % (file_type, "number of rows",))
                 poly_map = CSIO._resample_map(filename, reading_mask, habitat_size, header, poly_map)
             else:
                 raise RuntimeError(msg_no_resample%(file_type, "number of rows"))            
         elif xllcorner!= habitat_size.xllcorner:
             if resample:
-                print(msg_resample % (file_type, "xllcorner",))
+                logging.info(msg_resample % (file_type, "xllcorner",))
                 poly_map = CSIO._resample_map(filename, reading_mask, habitat_size, header, poly_map)
             else:
                 raise RuntimeError(msg_no_resample%(file_type, "xllcorner"))            
         elif yllcorner!= habitat_size.yllcorner:
             if resample:
-                print(msg_resample % (file_type, "yllcorner",))
+                logging.info(msg_resample % (file_type, "yllcorner",))
                 poly_map = CSIO._resample_map(filename, reading_mask, habitat_size, header, poly_map)
             else:
                 raise RuntimeError(msg_no_resample%(file_type, "yllcorner"))            
@@ -488,7 +488,7 @@ class CSIO:
                 raise RuntimeError('Error reading reclass table')
             for i in range (0, reclass_table.shape[0]):
                 cell_map = np.where(cell_map==reclass_table[i,0], reclass_table[i,1], cell_map)
-            print'\n***** Reclassified habitat map using', reclass_file,'*****'
+            logging.info('Reclassified habitat map using %s'%(reclass_file,))
         
         if is_resistances == True:
             zeros_in_resistance_map = (np.where(cell_map==0, 1, 0)).sum() > 0
