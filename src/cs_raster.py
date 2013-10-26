@@ -9,7 +9,7 @@ from numpy import *
 from scipy import sparse
 from scipy.sparse.csgraph import connected_components
 
-from cs_util import CSBase, print_timing#, elapsed_time, deleterow, deleterowcol, relabel
+from cs_base import CSBase, print_timing#, elapsed_time, deleterow, deleterowcol, relabel
 from cs_io import CSIO
 
 
