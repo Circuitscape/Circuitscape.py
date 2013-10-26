@@ -8,16 +8,9 @@ from numpy import *
 from scipy import sparse
 from scipy.sparse.csgraph import connected_components
 
-from cs_util import print_timing, deletecol, deleterowcol, relabel
+from cs_util import print_timing, CSBase
 from cs_io import CSIO
 from cs_raster import CSRaster
-
-wx_available = True
-try:
-    import wx
-except ImportError:
-    wx_available = False
-    wx = None
 
 
 class circuitscape(CSRaster):
@@ -34,7 +27,7 @@ class circuitscape(CSRaster):
             self.options.graph_file = self.options.habitat_file
             self.options.focal_node_file = self.options.point_file
 
-        self.state.startTime = time.time()
+        self.state.start_time = time.time()
         self.state.last_gui_yield_time = time.time()        
         self.log('',1)
         self.log('',2)
@@ -70,7 +63,7 @@ class circuitscape(CSRaster):
                 delIndices = where(C != component)
                 indices = where(C == component)
                 nodesInComponent = nodeNames[indices]                
-                g_graph = deleterowcol(full_graph, delrow = delIndices, delcol = delIndices)
+                g_graph = CSBase.deleterowcol(full_graph, delrow = delIndices, delcol = delIndices)
                 
             G = self.laplacian(g_graph)
             del g_graph
@@ -351,9 +344,9 @@ class circuitscape(CSRaster):
 
         try:
             zeros_in_resistance_graph = False           
-            nodes = deletecol(graphList,2) 
+            nodes = CSBase.deletecol(graphList,2) 
             nodeNames = unique(asarray(nodes))
-            nodes[where(nodes>= 0)] = relabel(nodes[where(nodes>= 0)], 0)
+            nodes[where(nodes>= 0)] = CSBase.relabel(nodes[where(nodes>= 0)], 0)
             node1 = nodes[:,0]
             node2 = nodes[:,1]
             data = graphList[:,2]
@@ -399,7 +392,7 @@ class circuitscape(CSRaster):
         focalNodes = CSIO.load_graph(filename)
         try:    
             if filename==self.options.graph_file:#If graph was used as focal node file, then just want first two columns for focalNodes.
-                focalNodes = deletecol(focalNodes, 2)
+                focalNodes = CSBase.deletecol(focalNodes, 2)
             focalNodes = unique(asarray(focalNodes))
         except:
             raise RuntimeError('Error processing focal node file.  Please check file format')
@@ -443,7 +436,7 @@ class circuitscape(CSRaster):
             if includedPairs [row,0] in includeList: #match
                 row = row+1
             else:
-                includedPairs = deleterowcol(includedPairs,delrow = row,delcol = row)   
+                includedPairs = CSBase.deleterowcol(includedPairs,delrow = row,delcol = row)   
                 _drop_flag = True
                 numConnectionRows = numConnectionRows-1
 
