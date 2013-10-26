@@ -4,7 +4,7 @@
 
 import os, string, gzip, logging
 import numpy as np
-from cs_util import CSBase
+from cs_base import CSBase
 
 # gdal_available = True #GDAL disabled for now, but should work- BHM 01/04/12
 # try:
