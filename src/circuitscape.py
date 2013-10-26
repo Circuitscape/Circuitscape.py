@@ -8,7 +8,7 @@ from numpy import *
 from scipy import sparse
 from scipy.sparse.csgraph import connected_components
 
-from cs_util import print_timing, CSBase
+from cs_base import print_timing, CSBase
 from cs_io import CSIO
 from cs_raster import CSRaster
 

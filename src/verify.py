@@ -6,7 +6,7 @@
 import imp, os, sys
 
 import unittest
-from cs_util import *
+from cs_base import *
 from cs_io import CSIO
 from circuitscape import *
 
