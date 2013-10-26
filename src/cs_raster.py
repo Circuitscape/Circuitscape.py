@@ -3,84 +3,19 @@
 ## Circuitscape (C) 2013, Brad McRae and Viral B. Shah. 
 ##
 
-import sys, time, gc, traceback, logging, inspect
+import time, gc, logging
 import numpy
 from numpy import *
 from scipy import sparse
-from scipy.sparse.linalg import cg
 from scipy.sparse.csgraph import connected_components
-from pyamg import smoothed_aggregation_solver
 
-from cs_util import print_timing_enabled, print_timing, elapsed_time, deleterow, deleterowcol, relabel
-from cs_cfg import CSConfig
+from cs_util import CSBase, print_timing#, elapsed_time, deleterow, deleterowcol, relabel
 from cs_io import CSIO
-from cs_state import CSState
 
-wx_available = True
-try:
-    import wx
-except ImportError:
-    wx_available = False
-    wx = None
 
-class CSRaster(object):
+class CSRaster(CSBase):
     def __init__(self, configFile, logger_func):
-        gc.enable()
-        numpy.seterr(invalid='ignore')
-        numpy.seterr(divide='ignore')
-        
-        self.state = CSState()
-        self.state.amg_hierarchy = None
-        self.options = CSConfig(configFile)
-        
-        self.options.use_reclass_table = False
-        self.options.reclass_file = './reclass.txt'        
-
-        print_timing_enabled(self.options.print_timings)
-        #print_timing_enabled(True)
-        
-        if logger_func == 'Screen':
-            self.options.screenprint_log = True
-            logger_func = None
-        else:
-            self.options.screenprint_log = False
-        self.options.screenprint_log = True
-        
-        self.logger = logger_func
-        logging.basicConfig(format='%(asctime)s:%(levelname)s:%(message)s',
-                            datefmt='%m/%d/%Y %I.%M.%S.%p',
-                            level=logging.DEBUG)
-    
-    # TODO: should ultimately be replaced with the logging module.
-    # logging to UI should be handled with another logger or handler
-    def log(self, text, col):
-        """Prints updates to GUI or python window."""
-        if None == self.state.last_gui_yield_time:
-            self.state.last_gui_yield_time = time.time()
-        else: # Force update every 10 secs
-            (hours,mins,secs) = elapsed_time(self.state.last_gui_yield_time)
-            if (secs > 10) or (mins > 0) or (hours > 0):
-                self.state.last_gui_yield_time = time.time()
-                try:
-                    if wx_available: 
-                        wx.SafeYield(None, True)  
-                        wx.GetApp().Yield(True)
-                except:
-                    pass
-            
-        if self.logger or (self.options.screenprint_log == True and len(text) > 1):
-            text = '%s%s'%(' '*len(inspect.stack()), str(text))
-        
-            if self.logger:
-                self.logger(text, col)
-                
-            if self.options.screenprint_log == True and len(text) > 1:
-                if col == 1:
-                    logging.info(text)
-                else:
-                    logging.debug(text)
-                sys.stdout.flush()
-
+        super(CSRaster, self).__init__(configFile, logger_func)
 
     @print_timing
     def compute_raster(self):
@@ -111,19 +46,6 @@ class CSRaster(object):
             return resistance_vector, solver_failed 
             
     
-    def grid_to_graph (self, x, y, node_map):
-        """Returns node corresponding to x-y coordinates in input grid."""  
-        return node_map[x, y] - 1
-        
-        
-    def logCompleteJob(self):
-        """Writes total time elapsed at end of run."""
-        (hours,mins,secs) = elapsed_time(self.state.startTime)
-        if hours>0:
-            self.log('Job took ' + str(hours) +' hours ' + str(mins) + ' minutes to complete.',2)
-        else:
-            self.log('Job took ' + str(mins) +' minutes ' + str(secs) + ' seconds to complete.',2)
- 
   
     def get_overlap_polymap(self, point, point_map, poly_map_temp, new_poly_num): 
         """Creates a map of polygons (aka short-circuit or zero resistance regions) overlapping a focal node."""  
@@ -276,7 +198,7 @@ class CSRaster(object):
                 resistance_vector[i,0] = src
                 resistance_vector[i,1] = -1            
 
-            (hours,mins,_secs) = elapsed_time(lastWriteTime)
+            (hours,mins,_secs) = self.elapsed_time(lastWriteTime)
             if mins > 2 or hours > 0: 
                 lastWriteTime = time.time()
                 CSIO.write_resistances_one_to_all(self.options.output_file, resistance_vector, '_incomplete', self.options.scenario)
@@ -590,7 +512,7 @@ class CSRaster(object):
                                                 CSIO.write_aaigrid('curmap', '_' + frompoint + '_' + topoint, current_map, self.options, self.state)
                                             del current_map    
 
-                                        (hours,mins,_secs) = elapsed_time(last_write_time)
+                                        (hours,mins,_secs) = self.elapsed_time(last_write_time)
                                         if mins > 2 or hours > 0: 
                                             last_write_time = time.time()
                                             CSIO.save_incomplete_resistances(self.options.output_file, resistances)# Save incomplete resistances
@@ -818,7 +740,7 @@ class CSRaster(object):
             #Gsolve = deleterowcol(Gsolve, delrow = dst, delcol = dst)
             keep = delete (arange(0, sources.shape[0]), dst)
             sources = sources[keep]            
-        Gsolve = deleterowcol(Gsolve, delrow = dst_to_delete, delcol = dst_to_delete)
+        Gsolve = self.deleterowcol(Gsolve, delrow = dst_to_delete, delcol = dst_to_delete)
         
         self.create_amg_hierarchy(Gsolve)
         voltages = self.solve_linear_system(Gsolve, sources)
@@ -856,7 +778,7 @@ class CSRaster(object):
                 (pk, pl) = numpy.where(poly_map == polynum) #Added 040309 BHM                
                 if len(pi) > 0:  
                     node_map[pk, pl] = node_map[pi[0], pj[0]] #Modified 040309 BHM  
-        node_map[numpy.where(node_map)] = relabel(node_map[numpy.where(node_map)], 1) #BHM 072409
+        node_map[numpy.where(node_map)] = self.relabel(node_map[numpy.where(node_map)], 1) #BHM 072409
 
         #print "point_file = %s"%(self.options.point_file,)
         #print "node_map ="
@@ -1032,51 +954,6 @@ class CSRaster(object):
         
         return (G, node_map_pruned)
 
-        
-    @print_timing
-    def laplacian(self, G): 
-        """Returns Laplacian of graph."""  
-        n = G.shape[0]
-
-        # FIXME: Potential for memory savings, if assignment is used
-        G = G - sparse.spdiags(G.diagonal(), 0, n, n)
-        G = -G + sparse.spdiags(G.sum(0), 0, n, n)
-
-        return G
-
-        
-    @print_timing
-    def create_amg_hierarchy(self, G): 
-        """Creates AMG hierarchy."""  
-        if self.options.solver == 'amg' or self.options.solver == 'cg+amg':
-            self.state.amg_hierarchy = None
-            # construct the MG hierarchy
-            ml = []
-            #  scipy.io.savemat('c:\\temp\\graph.mat',mdict={'d':G})
-            ml = smoothed_aggregation_solver(G)
-            self.state.amg_hierarchy = ml
-  
-        return
-
-        
-    @print_timing
-    def solve_linear_system(self, G, rhs): 
-        """Solves system of equations."""  
-        gc.collect()
-        # Solve G*x = rhs
-        x = []
-        if self.options.solver == 'cg+amg':
-            ml = self.state.amg_hierarchy
-            G.psolve = ml.psolve
-            (x, flag) = cg(G, rhs, tol = 1e-6, maxiter = 100000)
-            if flag !=  0 or numpy.linalg.norm(G*x-rhs) > 1e-3:
-                raise RuntimeError('CG did not converge. May need more iterations.') 
-
-        if self.options.solver == 'amg':
-            ml = self.state.amg_hierarchy
-            x = ml.solve(rhs, tol = 1e-6);
-
-        return x 
 
         
     @print_timing
@@ -1164,45 +1041,7 @@ class CSRaster(object):
         return branch_currents
 ######################### END CURRENT MAPPING CODE ########################################        
         
-        
-    ### FILE I/O ###        
 
-    def enable_low_memory(self, restart):
-        """Runs circuitscape in low memory mode.  Not incredibly helpful it seems."""  
-        self.state.amg_hierarchy = None
-        gc.collect()
-        if self.options.low_memory_mode==True:
-            if restart==False: #If this module has already been called
-                raise MemoryError
-        self.options.low_memory_mode = True
-        print'\n**************\nMemory error reported.'        
-
-        ex_type, value, tb = sys.exc_info()
-        info = traceback.extract_tb(tb)
-        print'Full traceback:'
-        print info
-        print'***************'
-        filename, lineno, function, _text = info[-1] # last line only
-        print"\n %s:%d: %s: %s (in %s)" %\
-              (filename, lineno, ex_type.__name__, str(value), function)
-
-        ex_type = value = tb = None # clean up
-        print'\nWARNING: CIRCUITSCAPE IS RUNNING LOW ON MEMORY.'
-        if restart==True:
-            print'Restarting in low memory mode, which will take somewhat longer to complete.'
-        else:
-            print'Switching to low memory mode, which will take somewhat longer to complete.'            
-        print'CLOSING OTHER PROGRAMS CAN HELP FREE MEMORY RESOURCES.'
-        print'Please see the user guide for more information on memory requirements.\n'               
-        if restart==True:
-            print'***Restarting in low memory mode***\n'
-        else:
-            print'***Continuing in low memory mode***\n'
-        return
-
-
-
-        
     def getVoltmatrix(self,i,j,numpoints,local_node_map,voltages,points_rc,resistances,voltmatrix):                                            
         """Returns a matrix of pairwise voltage differences between focal nodes.
         
@@ -1277,7 +1116,7 @@ class CSRaster(object):
                 point = point+1
             else:
                 _drop_flag = True   
-                points_rc = deleterow(points_rc, point)  
+                points_rc = self.deleterow(points_rc, point)  
          
         include_list = list(points_rc[:,0])
         num_connection_rows = included_pairs.shape[0]
@@ -1286,7 +1125,7 @@ class CSRaster(object):
             if included_pairs[row,0] in include_list: #match
                 row = row+1
             else:
-                included_pairs = deleterowcol(included_pairs, delrow=row, delcol=row)   
+                included_pairs = self.deleterowcol(included_pairs, delrow=row, delcol=row)   
                 _drop_flag = True
                 num_connection_rows = num_connection_rows-1
 

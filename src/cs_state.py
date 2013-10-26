@@ -15,7 +15,7 @@ class CSState:
         self.points_rc = None
         self.poly_map = None
         self.source_map = None
-        self.startTime = None
+        self.start_time = None
         self.version = None
         self.xllcorner = None
         self.yllcorner = None
