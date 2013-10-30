@@ -181,14 +181,14 @@ class CSIO:
         except ValueError:
             raise RuntimeError('File "'  + filename + '" is not in correct text list format. \n If it is an ASCII grid, please use .asc extension.')                
         
-        points_rc = np.zeros(points.shape, dtype=data_type)
+        pts_remapped = np.zeros(points.shape, dtype=data_type)
         try:
-            points_rc[:,0] = points[:,0]
-            points_rc[:,1] = np.ceil(habitat_size.nrows - (points[:,2] - habitat_size.yllcorner) / habitat_size.cellsize) - 1
-            points_rc[:,2] = np.ceil((points[:,1] - habitat_size.xllcorner) / habitat_size.cellsize) - 1
+            pts_remapped[:,0] = points[:,0]
+            pts_remapped[:,1] = np.ceil(habitat_size.nrows - (points[:,2] - habitat_size.yllcorner) / habitat_size.cellsize) - 1
+            pts_remapped[:,2] = np.ceil((points[:,1] - habitat_size.xllcorner) / habitat_size.cellsize) - 1
         except IndexError:
             raise RuntimeError('Error extracting locations from .txt file. Please check file format.')
-        return points_rc
+        return pts_remapped
     
 
 #     def writeGraph(self,filename,graph,nodeNames):
