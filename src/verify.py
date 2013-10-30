@@ -147,148 +147,148 @@ class cs_verify(unittest.TestCase):
         # Baseline test case generated with points8_mod.asc and cellmap8_mod.asc
         # Settings: habitat map is resistances, 8 neighbor connection
         test_network_sg(self, 'sgNetworkVerify1') 
-
+ 
     def test_network_pairwise_2(self):
         # Baseline test case generated with verify\2 test case
         # Settings: habitat map is conductances, 4 neighbors
         test_network_sg(self, 'sgNetworkVerify2') 
-        
+         
     def test_network_pairwise_3(self):
         # Baseline test case generated with verify\4\cellmap5x5 and points5x5
         # Settings: conductances/8N with resulting baseline graph converted to resistances.  
         test_network_sg(self, 'sgNetworkVerify3') 
-        
+         
     def test_single_ground_all_pairs_resistances_1(self):
         test_sg(self, 'sgVerify1') 
-
+ 
     def test_single_ground_all_pairs_resistances_2(self):
         test_sg(self, 'sgVerify2') 
-
+ 
     def test_single_ground_all_pairs_resistances_3(self):
         test_sg(self, 'sgVerify3') 
-
+ 
     def test_single_ground_all_pairs_resistances_4(self):
         test_sg(self, 'sgVerify4') 
-
+ 
     def test_single_ground_all_pairs_resistances_5(self):
         test_sg(self, 'sgVerify5') 
-
+ 
     def test_single_ground_all_pairs_resistances_6(self):
         test_sg(self, 'sgVerify6') 
-
+ 
     def test_single_ground_all_pairs_resistances_7(self):
         test_sg(self, 'sgVerify7') 
-
+ 
     def test_single_ground_all_pairs_resistances_8(self):
         test_sg(self, 'sgVerify8') 
-
+ 
     def test_single_ground_all_pairs_resistances_9(self):
         test_sg(self, 'sgVerify9') 
-
+ 
     def test_single_ground_all_pairs_resistances_10(self):
         test_sg(self, 'sgVerify10')
-
+ 
     def test_single_ground_all_pairs_resistances_11(self):
         test_sg(self, 'sgVerify11') 
-    
+     
     def test_single_ground_all_pairs_resistances_12(self):
         test_sg(self, 'sgVerify12') 
         
     def test_single_ground_all_pairs_resistances_13(self):
         test_sg(self, 'sgVerify13')         
-
+ 
     def test_single_ground_all_pairs_resistances_13(self):
         # Tests nodata output and max current options
         test_sg(self, 'sgVerify14') 
-        
-        
+         
+         
     def test_multiple_ground_module_1(self):
         test_mg(self, 'mgVerify1') 
-      
+       
     def test_multiple_ground_module_2(self):
         test_mg(self, 'mgVerify2') 
-
+ 
     def test_multiple_ground_module_3(self):
         test_mg(self, 'mgVerify3') 
-        
+         
     def test_multiple_ground_module_4(self):
         test_mg(self, 'mgVerify4')         
-
+ 
     def test_multiple_ground_module_5(self):
         test_mg(self, 'mgVerify5')         
-  
+   
     def test_one_to_all_module_1(self):
         test_one_to_all(self, 'oneToAllVerify1') 
-  
+   
     def test_one_to_all_module_2(self):
         test_one_to_all(self, 'oneToAllVerify2') 
-
+ 
     def test_one_to_all_module_3(self):
         test_one_to_all(self, 'oneToAllVerify3') 
-
+ 
     def test_one_to_all_module_4(self):
         test_one_to_all(self, 'oneToAllVerify4') 
-
+ 
     def test_one_to_all_module_5(self):
         test_one_to_all(self, 'oneToAllVerify5') 
-  
+   
     def test_one_to_all_module_6(self):
         test_one_to_all(self, 'oneToAllVerify6') 
-
+ 
     def test_one_to_all_module_7(self):
         test_one_to_all(self, 'oneToAllVerify7') 
-
+ 
     def test_one_to_all_module_8(self):
         test_one_to_all(self, 'oneToAllVerify8') 
-
+ 
     def test_one_to_all_module_9(self):
         test_one_to_all(self, 'oneToAllVerify9') 
-  
+   
     def test_one_to_all_module_10(self):
         test_one_to_all(self, 'oneToAllVerify10') 
-
+ 
     def test_one_to_all_module_11(self):
         test_one_to_all(self, 'oneToAllVerify11') 
-
+ 
     def test_one_to_all_module_12(self):
         test_one_to_all(self, 'oneToAllVerify12') 
-        
+         
     def test_all_to_one_module_1(self):
         test_all_to_one(self, 'allToOneVerify1') 
-  
+   
     def test_all_to_one_module_2(self):
         test_all_to_one(self, 'allToOneVerify2') 
-
+ 
     def test_all_to_one_module_3(self):
         test_all_to_one(self, 'allToOneVerify3') 
-
+ 
     def test_all_to_one_module_4(self):
         test_all_to_one(self, 'allToOneVerify4') 
-
+ 
     def test_all_to_one_module_5(self):
         test_all_to_one(self, 'allToOneVerify5') 
-  
+   
     def test_all_to_one_module_6(self):
         test_all_to_one(self, 'allToOneVerify6') 
-
+ 
     def test_all_to_one_module_7(self):
         test_all_to_one(self, 'allToOneVerify7') 
-
+ 
     def test_all_to_one_module_8(self):
         test_all_to_one(self, 'allToOneVerify8') 
-
+ 
     def test_all_to_one_module_9(self):
         test_all_to_one(self, 'allToOneVerify9') 
-  
+   
     def test_all_to_one_module_10(self):
         test_all_to_one(self, 'allToOneVerify10') 
-
+ 
     def test_all_to_one_module_11(self):
         test_all_to_one(self, 'allToOneVerify11')   
-        
+         
     def test_all_to_one_module_12(self):
         test_all_to_one(self, 'allToOneVerify12')           
-        
+         
             
 if __name__ == '__main__':
     unittest.main()

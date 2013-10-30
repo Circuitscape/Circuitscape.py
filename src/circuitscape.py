@@ -59,11 +59,11 @@ class circuitscape(CSRaster):
         fullNodeCurrents = []
         for component in range (1,numComponents + 1):
             if numComponents > 1:
-                indices = nodeNames[where(C == component)]
+                #indices = nodeNames[where(C == component)]
                 delIndices = where(C != component)
+                g_graph = CSBase.deleterowcol(full_graph, delrow = delIndices, delcol = delIndices)
                 indices = where(C == component)
                 nodesInComponent = nodeNames[indices]                
-                g_graph = CSBase.deleterowcol(full_graph, delrow = delIndices, delcol = delIndices)
                 
             G = self.laplacian(g_graph)
             del g_graph
@@ -97,7 +97,7 @@ class circuitscape(CSRaster):
                 if self.options.scenario=='pairwise':
                     if numFocalNodes > 1:
                         # module returns arrays with node names
-                        cumBranchCurrents,cumNodeCurrents,resistances3columns,solver_failed = self.pairwise_module_network(G,focalNodesInComponent,nodesInComponent,numComponents)
+                        cumBranchCurrents,cumNodeCurrents,resistances3columns,solver_failed = self.pairwise_module_network(G,focalNodesInComponent,nodesInComponent)
                     else: #nothing to solve
                         cumNodeCurrents = zeros((len(nodesInComponent),2),dtype = 'float64')
                         cumNodeCurrents[:,0] = nodesInComponent
@@ -163,7 +163,7 @@ class circuitscape(CSRaster):
         return fullResistances,solver_failed #Fixme: need to check solver failed.
 
           
-    def pairwise_module_network(self, G, focalNodes, nodeNames, numComponents):
+    def pairwise_module_network(self, G, focalNodes, nodeNames):
         """Overhead module to solves arbitrary graphs in pairwise mode.
         
         Returns branch currents in 3-col format plus 3-column voltages,
@@ -217,7 +217,7 @@ class circuitscape(CSRaster):
                 else:
                     y = numpoints*(numpoints-1)/2
                     self.log ('solving focal pair ' + str(x) + ' of '+ str(y) + '.',1)            
-                if includedPairs[i+1,j+1]==1:
+                if includedPairs[i+1, j+1] == 1:
                     src = self.nameToNode(nodeNames,focalNodes[j])
                     try:
                         voltages = self.single_ground_solver(G, src, dst)
@@ -417,7 +417,7 @@ class circuitscape(CSRaster):
 
 
     def pruneIncludedPairsNetwork(self,focalNodes):
-        """Remove excluded points from focal node list when using extra file that lists pairs to include/exclude in network mode."""   
+        """Remove excluded points from focal node list when using extra file that lists pairs to include/exclude in network mode."""
         includedPairs = (self.state.included_pairs)
         includeList = list(includedPairs[0,:])
         point = 0

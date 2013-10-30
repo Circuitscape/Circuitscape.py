@@ -9,7 +9,7 @@ from numpy import *
 from scipy import sparse
 from scipy.sparse.csgraph import connected_components
 
-from cs_base import CSBase, print_timing#, elapsed_time, deleterow, deleterowcol, relabel
+from cs_base import CSBase, CSFocalPoints, print_timing
 from cs_io import CSIO
 
 
@@ -48,7 +48,7 @@ class CSRaster(CSBase):
     
   
     def get_overlap_polymap(self, point, point_map, poly_map_temp, new_poly_num): 
-        """Creates a map of polygons (aka short-circuit or zero resistance regions) overlapping a focal node."""  
+        """Creates a map of polygons (aka short-circuit or zero resistance regions) overlapping a focal node."""
         point_poly = numpy.where(point_map == point, 1, 0) 
         poly_point_overlap = numpy.multiply(point_poly, poly_map_temp)
         overlap_vals = numpy.unique(numpy.asarray(poly_point_overlap))
@@ -76,7 +76,7 @@ class CSRaster(CSBase):
         lastWriteTime = time.time()
 
         if self.options.use_included_pairs==True: #Prune points
-            points_rc = self.pruneIncludedPairs(points_rc)          
+            points_rc = self._prune_included_pairs(points_rc)          
             includedPairs = self.state.included_pairs 
         point_ids = unique(asarray(points_rc[:,0]))
         points_rc_unique = self.get_points_rc_unique(point_ids,points_rc)      
@@ -260,7 +260,8 @@ class CSRaster(CSBase):
             if self.options.write_max_cur_maps == True:
                 max_current_map = cum_current_map
         return (cum_current_map, max_current_map)
-    
+
+
     @print_timing   
     def pairwise_module(self, g_map, poly_map, points_rc):
         """Overhead module for pairwise mode with raster data."""  
@@ -271,18 +272,16 @@ class CSRaster(CSBase):
         if self.options.point_file_contains_polygons == False:
             if points_rc.shape[0] != (unique(asarray(points_rc[:,0]))).shape[0]:
                 raise RuntimeError('At least one focal node contains multiple cells.  If this is what you really want, then choose focal REGIONS in the pull-down menu') 
-            
-            if self.options.use_included_pairs == True:
-                points_rc = self.pruneIncludedPairs(points_rc)
-            
+
             reportStatus = True
             try:
-                (resistances, cum_current_map, max_current_map, solver_failed) = self.single_ground_all_pair_resistances(g_map, poly_map, points_rc, cum_current_map, max_current_map, reportStatus)
+                fp = CSFocalPoints(points_rc, self.state.included_pairs)
+                (resistances, cum_current_map, max_current_map, solver_failed) = self.single_ground_all_pair_resistances(g_map, poly_map, fp, cum_current_map, max_current_map, reportStatus)
             except MemoryError: #Give it a try, but starting again never seems to helps even from GUI.
                 self.enable_low_memory(True) #This doesn't seem to really clear out memory or truly restart.
                 cum_current_map, max_current_map = self._pairwise_module_alloc_current_maps()
                 #Note: This does not go through when it should.
-                (resistances, cum_current_map, max_current_map, solver_failed) = self.single_ground_all_pair_resistances(g_map, poly_map, points_rc,cum_current_map,max_current_map,reportStatus)
+                (resistances, cum_current_map, max_current_map, solver_failed) = self.single_ground_all_pair_resistances(g_map, poly_map, points_rc, cum_current_map, max_current_map, reportStatus)
                 
             if solver_failed == True:
                 logging.warning('Solver failed for at least one focal node pair. ' 
@@ -293,60 +292,50 @@ class CSRaster(CSBase):
             point_ids = points_rc[:,0]
 
         else:
-            if self.options.use_included_pairs == True:
-                points_rc = self.pruneIncludedPairs(points_rc)
-                includedPairs = self.state.included_pairs
-            else:
-                numpoints = points_rc.shape[0]
-                point_ids = unique(asarray(points_rc[:,0]))
-                points_rc_unique = self.get_points_rc_unique(point_ids, points_rc)#Nov13_2010   #Fixme: can just use point ids for index size
-                num_unique_points = points_rc_unique.shape[0]#Nov13_2010
-                includedPairs = ones((num_unique_points+1, num_unique_points+1), dtype='int32')#Nov13_2010
-
             point_map = numpy.zeros((self.state.nrows, self.state.ncols), int)
             point_map[points_rc[:,1], points_rc[:,2]] = points_rc[:,0]
+            
+            fp = CSFocalPoints(points_rc, self.state.included_pairs)
+            fp = CSFocalPoints(fp.get_unique_coordinates(), self.state.included_pairs)
+            point_ids = fp.point_ids
+            
+            numpoints = point_ids.size
+            resistances = -1 * numpy.ones((numpoints, numpoints), dtype='float64')
+            
+            num_points_solved = 0
+            num_points_to_solve = numpoints*(numpoints-1)/2
+            
+            for (pt1_idx, pt2_idx) in fp.point_pair_idxs():
+                if pt2_idx == -1:
+                    continue    # we don't need to do anything special for row end condition
+                
+                if poly_map == []:
+                    poly_map_temp = numpy.zeros((self.state.nrows, self.state.ncols), int)
+                    new_poly_num = 1
+                else:
+                    poly_map_temp = poly_map
+                    new_poly_num = numpy.max(poly_map) + 1
+                
+                poly_map_temp = self.get_overlap_polymap(point_ids[pt1_idx], point_map, poly_map_temp, new_poly_num) 
+                poly_map_temp = self.get_overlap_polymap(point_ids[pt2_idx], point_map, poly_map_temp, new_poly_num+1) 
+            
+                # create a subset of points_rc by getting first instance of each point in points_rc
+                fp_subset = fp.get_subset([pt1_idx, pt2_idx])
+            
+                num_points_solved += 1
+                self.log ('solving focal pair ' + str(num_points_solved) + ' of '+ str(num_points_to_solve) + '.', 1)
+                reportStatus = False
+            
+                (pairwise_resistance, cum_current_map, max_current_map, solver_failed) = self.single_ground_all_pair_resistances(g_map, poly_map_temp, fp_subset, cum_current_map, max_current_map, reportStatus)
 
-            point_ids = unique(asarray(points_rc[:,0]))
-            points_rc_unique = self.get_points_rc_unique(point_ids, points_rc)
+                del poly_map_temp
+                if solver_failed == True:
+                    logging.warning('Solver failed for at least one focal node pair.  \nPairs with failed solves will be marked with value of -777 \nin output resistance matrix.\n')
 
-            resistances = -1 * numpy.ones((point_ids.size, point_ids.size), dtype='float64')
-            x = 0
-            for i in range(0, point_ids.size-1):
-                for j in range(i+1, point_ids.size):
-                    if includedPairs[i+1,j+1] != 1:
-                        continue
+                resistances[pt2_idx, pt1_idx] = resistances[pt1_idx, pt2_idx] = pairwise_resistance[0,1]
 
-                    if poly_map == []:
-                        poly_map_temp = zeros((self.state.nrows, self.state.ncols),int)
-                        new_poly_num = 1
-                    else:
-                        poly_map_temp = poly_map
-                        new_poly_num = numpy.max(poly_map)+1
-                    #point = point_ids[i]
-                    poly_map_temp = self.get_overlap_polymap(point_ids[i], point_map, poly_map_temp, new_poly_num) 
-                    poly_map_temp = self.get_overlap_polymap(point_ids[j], point_map, poly_map_temp, new_poly_num+1) 
-
-                    #Get first instance of each point in points_rc
-                    points_rc_temp = numpy.zeros((2,3), int)
-                    points_rc_temp[0,:] = points_rc_unique[i,:]
-                    points_rc_temp[1,:] = points_rc_unique[j,:]
-
-                    numpoints = point_ids.size
-                    x = x+1
-                    y = numpoints*(numpoints-1)/2
-                    self.log ('solving focal pair ' + str(x) + ' of '+ str(y) + '.',1)
-                    reportStatus = False
-                    
-                    (pairwise_resistance, cum_current_map, max_current_map, solver_failed) = self.single_ground_all_pair_resistances(g_map, poly_map_temp, points_rc_temp,cum_current_map,max_current_map,reportStatus)
-
-                    del poly_map_temp
-                    if solver_failed == True:
-                        logging.warning('Solver failed for at least one focal node pair.  \nPairs with failed solves will be marked with value of -777 \nin output resistance matrix.\n')
-
-                    resistances[i,j] = pairwise_resistance[0,1]
-                    resistances[j,i] = pairwise_resistance[0,1]
-
-        for i in range(0,resistances.shape[0]): #Set diagonal to zero
+        #Set diagonal to zero
+        for i in range(0,resistances.shape[0]): 
             resistances[i, i] = 0
 
         #Add row and column headers and write resistances to disk
@@ -364,178 +353,153 @@ class CSRaster(CSBase):
                     CSIO.write_aaigrid('max_curmap', '', max_current_map, self.options, self.state)
 
         return resistances,solver_failed
-    
-    
+
+
     @print_timing
-    def single_ground_all_pair_resistances(self, g_map, poly_map, points_rc, cum_current_map, max_current_map, report_status):
+    def single_ground_all_pair_resistances(self, g_map, poly_map, fp, cum_current_map, max_current_map, report_status):
         """Handles pairwise resistance/current/voltage calculations.  
         
         Called once when focal points are used, called multiple times when focal regions are used.
         """  
         last_write_time = time.time()
-        numpoints = points_rc.shape[0]
-        if (self.options.use_included_pairs==False) or (self.options.point_file_contains_polygons==True):
-            included_pairs = ones((numpoints+1,numpoints+1), dtype='int32')
-        else:
-            included_pairs = self.state.included_pairs
+        numpoints = fp.num_points()
         
         if (self.options.point_file_contains_polygons==True) or  (self.options.write_cur_maps == True) or (self.options.write_volt_maps == True) or (self.options.use_included_pairs==True): 
             use_resistance_calc_shortcut = False
         else:     
             use_resistance_calc_shortcut = True # We use this when there are no focal regions.  It saves time when we are also not creating maps
-            shortcut_resistances = -1 * ones((numpoints, numpoints), dtype='float64') 
+            shortcut_resistances = -1 * numpy.ones((numpoints, numpoints), dtype='float64') 
            
         solver_failed_somewhere = False
         node_map = self.construct_node_map(g_map, poly_map) # Polygons burned in to node map 
         (component_map, components) = self.construct_component_map(g_map, node_map)
         
-        self.log('Graph has ' + str(node_map.max()) + ' nodes and '+ str(components.max())+ ' components.',2)
-        resistances = -1 * ones((numpoints, numpoints), dtype = 'float64')         #Inf creates trouble in python 2.5 on Windows. Use -1 instead.
+        self.log('Graph has ' + str(node_map.max()) + ' nodes, ' + str(numpoints) + ' focal points and '+ str(components.max())+ ' components.',2)
+        resistances = -1 * numpy.ones((numpoints, numpoints), dtype = 'float64')         #Inf creates trouble in python 2.5 on Windows. Use -1 instead.
         
-        x = 0
-        for c in range(1,int(components.max()+1)):
-            points_in_this_component = self.checkPointsInComponent(c,numpoints,components,points_rc,node_map)
+        num_points_solved = 0
+        for c in range(1, int(components.max()+1)):
+            if not fp.exists_points_in_component(c, components, node_map):
+                continue
                         
-            if points_in_this_component:
-                (G, local_node_map) = self.node_pruner(g_map, poly_map, component_map, c)
-                if c==int(components.max()):
-                    del component_map 
-                if (use_resistance_calc_shortcut==True):
-                    voltmatrix = zeros((numpoints,numpoints),dtype = 'float64')     #For resistance calc shortcut
-                
-                dstPoint = 0
-                anchorPoint = 0 #For resistance calc shortcut
-                
-                ##############
-                for i in range(0, numpoints):
-                    if range(i, numpoints) == []:
-                        break
-
-                    if (use_resistance_calc_shortcut==True) and (dstPoint>0): 
-                        break #No need to continue, we've got what we need to calculate resistances
-
-                    dst = self.grid_to_graph (points_rc[i,1], points_rc[i,2], node_map)
-                    local_dst = self.grid_to_graph (points_rc[i,1], points_rc[i,2], local_node_map)
-                    if (dst >=  0 and components[dst] == c):
-                        dstPoint = dstPoint+1
-                        #Gsolve = []
-                    
-                        G_dst_dst = G[local_dst, local_dst] 
-                        G[local_dst,local_dst] = 0
-    
-                        self.state.amg_hierarchy = None
-                        gc.collect()
-                        self.create_amg_hierarchy(G)
-
-                        ################    
-                        for j in range(i+1, numpoints):
-                            if included_pairs[i+1,j+1]==1: #Test for pair in included_pairs
-                                if self.state.amg_hierarchy==None: #Called in case of memory error in current mapping
-                                    self.create_amg_hierarchy(G)
-                               
-                                # tan: parallelize here
-                                if report_status==True:
-                                    x = x+1
-                                    if use_resistance_calc_shortcut==True:
-                                        y = numpoints
-                                        self.log ('solving focal node ' + str(x) + ' of '+ str(y) + '.',1)
-                                    else:
-                                        y = numpoints*(numpoints-1)/2
-                                        self.log ('solving focal pair ' + str(x) + ' of '+ str(y) + '.',1)
-                                src = self.grid_to_graph (points_rc[j,1], points_rc[j,2], node_map)
-                                local_src = self.grid_to_graph (points_rc[j,1], points_rc[j,2], local_node_map)
-                                if (src >=  0 and components[src] == c):
-                                    # Solve resistive network (Kirchoff's laws)
-                                    solver_failed = False
-                                    try:
-                                        voltages = self.single_ground_solver(G, local_src, local_dst)
-
-                                    except:
-                                        solver_failed = True
-                                        solver_failed_somewhere = True
-                                        resistances[i, j] = -777
-                                        resistances[j, i] = -777
-        
-                                    if solver_failed == False:
-                                        if self.options.low_memory_mode==True or self.options.point_file_contains_polygons==True:
-                                            self.state.amg_hierarchy = None
-                                            gc.collect()    
-                                        
-                                        resistances[i, j] = voltages[local_src] - voltages[local_dst]
-                                        resistances[j, i] = voltages[local_src] - voltages[local_dst]
-                                        # Write maps to files
-                                        frompoint = str(points_rc[i,0])
-                                        topoint = str(points_rc[j,0])
-                                        
-                                        if use_resistance_calc_shortcut==True:
-                                            if dstPoint==1: #this occurs for first i that is in component
-                                                anchorPoint = i #for use later in shortcult resistance calc
-                                                voltmatrix = self.getVoltmatrix(i,j,numpoints,local_node_map,voltages,points_rc,resistances,voltmatrix)                                          
-
-                                        if self.options.write_volt_maps == True:
-                                            if report_status==True:
-                                                self.log ('writing voltage map ' + str(x) + ' of ' + str(y) + '.',1)
-                                            voltage_map = self.create_voltage_map(local_node_map,voltages) 
-                                            CSIO.write_aaigrid('voltmap', '_' + frompoint + '_' + topoint, voltage_map, self.options, self.state)
-                                            del voltage_map
-                                        if self.options.write_cur_maps == True:
-                                            if report_status==True:
-                                                self.log ('writing current map ' + str(x) + ' of ' + str(y) + '.',1)
-                                            finitegrounds = [-9999] #create dummy value for pairwise case
-                                            
-                                            try:
-                                                G = G.tocoo()#Can cause memory error
-                                            except MemoryError:
-                                                self.enable_low_memory(False)
-                                                G = G.tocoo()
-                                            try:
-                                                current_map = self.create_current_map(voltages, G, local_node_map, finitegrounds)   
-                                            except MemoryError:
-                                                self.enable_low_memory(False)
-                                                current_map = self.create_current_map(voltages, G, local_node_map, finitegrounds)                                                                                    
-                                            G = G.tocsr()
-
-                                            if self.options.set_focal_node_currents_to_zero==True:
-                                                # set source and target node currents to zero
-                                                focal_node_pair_map = where(local_node_map == local_src+1, 0, 1)
-                                                focal_node_pair_map = where(local_node_map == local_dst+1, 0, focal_node_pair_map)                                                
-                                                #print'fn', focal_node_pair_map
-                                                current_map = multiply(focal_node_pair_map, current_map)
-                                                #print 'c',current_map
-                                                del focal_node_pair_map
-                                            cum_current_map = cum_current_map + current_map 
-                                            if self.options.write_max_cur_maps==True:
-                                                max_current_map = maximum(max_current_map, current_map) 
-                                            if self.options.write_cum_cur_map_only==False:
-                                                if self.options.log_transform_maps==True:
-                                                    current_map = where(current_map>0,log10(current_map),self.state.nodata)
-                                                CSIO.write_aaigrid('curmap', '_' + frompoint + '_' + topoint, current_map, self.options, self.state)
-                                            del current_map    
-
-                                        (hours,mins,_secs) = self.elapsed_time(last_write_time)
-                                        if mins > 2 or hours > 0: 
-                                            last_write_time = time.time()
-                                            CSIO.save_incomplete_resistances(self.options.output_file, resistances)# Save incomplete resistances
-                        if (use_resistance_calc_shortcut==True and i==anchorPoint): # This happens once per component. Anchorpoint is the first i in component
-                            shortcut_resistances = self.getShortcutResistances(anchorPoint,voltmatrix,numpoints,resistances,shortcut_resistances)
-                                                
-                        G[local_dst, local_dst] = G_dst_dst
-
-                    #End for
+            (G, local_node_map) = self.node_pruner(g_map, poly_map, component_map, c)
+            if c == int(components.max()):
+                del component_map 
+            if use_resistance_calc_shortcut:
+                voltmatrix = numpy.zeros((numpoints,numpoints), dtype='float64')     #For resistance calc shortcut
+            
+            anchorPoint = 0 #For resistance calc shortcut
+            
+            G_dst_dst = None
+            for (pt1_idx, pt2_idx) in fp.point_pair_idxs_in_component(c, components, node_map):
+                if pt2_idx == -1:
                     self.state.amg_hierarchy = None
                     gc.collect()
+                                    
+                    if G_dst_dst != None:
+                        last_local_dst = fp.get_graph_node_idx(pt1_idx, local_node_map)
+                        G[last_local_dst, last_local_dst] = G_dst_dst
+                        G_dst_dst = None
+                        
+                    #print voltmatrix
+                    if (use_resistance_calc_shortcut==True and pt1_idx==anchorPoint): # This happens once per component. Anchorpoint is the first i in component
+                        shortcut_resistances = self.getShortcutResistances(anchorPoint, voltmatrix, numpoints, resistances, shortcut_resistances)
 
-                #End if
-                self.state.amg_hierarchy = None
-                gc.collect()
+                    if (use_resistance_calc_shortcut==True): # and (dstPoint > 0):
+                        break #No need to continue, we've got what we need to calculate resistances
+                    else:
+                        continue
+
+                if self.state.amg_hierarchy == None:
+                    self.create_amg_hierarchy(G)
+
+                if G_dst_dst == None:
+                    local_dst = fp.get_graph_node_idx(pt1_idx, local_node_map)
+                    G_dst_dst = G[local_dst, local_dst] 
+                    G[local_dst, local_dst] = 0
+
+                if report_status==True:
+                    num_points_solved += 1
+                    if use_resistance_calc_shortcut==True:
+                        y = numpoints
+                        self.log ('solving focal node ' + str(num_points_solved) + ' of '+ str(y) + '.',1)
+                    else:
+                        y = numpoints*(numpoints-1)/2
+                        self.log ('solving focal pair ' + str(num_points_solved) + ' of '+ str(y) + '.',1)
+            
+                local_src = fp.get_graph_node_idx(pt2_idx, local_node_map)
+
+                try:
+                    voltages = self.single_ground_solver(G, local_src, local_dst)
+                except:
+                    solver_failed_somewhere = True
+                    resistances[pt2_idx, pt1_idx] = resistances[pt1_idx, pt2_idx] = -777
+                    continue
+
+                if self.options.low_memory_mode==True or self.options.point_file_contains_polygons==True:
+                    self.state.amg_hierarchy = None
+                    gc.collect()
+                        
+                resistances[pt2_idx, pt1_idx] = resistances[pt1_idx, pt2_idx] = voltages[local_src] - voltages[local_dst]
+                
+                # Write maps to files
+                frompoint = str(fp.point_id(pt1_idx))
+                topoint = str(fp.point_id(pt2_idx))
+                        
+                if use_resistance_calc_shortcut==True:
+                    anchorPoint = pt1_idx #for use later in shortcult resistance calc
+                    voltmatrix = self.new_get_voltmatrix(pt1_idx, pt2_idx, numpoints, local_node_map, voltages, fp, resistances, voltmatrix)                                          
+
+                if self.options.write_volt_maps == True:
+                    if report_status==True:
+                        self.log ('writing voltage map ' + str(num_points_solved) + ' of ' + str(y) + '.',1)
+                    voltage_map = self.create_voltage_map(local_node_map, voltages) 
+                    CSIO.write_aaigrid('voltmap', '_' + frompoint + '_' + topoint, voltage_map, self.options, self.state)
+                    del voltage_map
+                    
+                if self.options.write_cur_maps == True:
+                    if report_status==True:
+                        self.log ('writing current map ' + str(num_points_solved) + ' of ' + str(y) + '.',1)
+                    finitegrounds = [-9999] #create dummy value for pairwise case
+                    
+                    try:
+                        current_map = self.create_current_map(voltages, G.tocoo(), local_node_map, finitegrounds)   
+                    except MemoryError:
+                        self.enable_low_memory(False)
+                        current_map = self.create_current_map(voltages, G.tocoo(), local_node_map, finitegrounds)                                                                                    
+
+                    if self.options.set_focal_node_currents_to_zero==True:
+                        # set source and target node currents to zero
+                        focal_node_pair_map = numpy.where(local_node_map == local_src+1, 0, 1)
+                        focal_node_pair_map = numpy.where(local_node_map == local_dst+1, 0, focal_node_pair_map)                                                
+                        #print'fn', focal_node_pair_map
+                        current_map = numpy.multiply(focal_node_pair_map, current_map)
+                        #print 'c',current_map
+                        del focal_node_pair_map
+                    cum_current_map = cum_current_map + current_map 
+                    if self.options.write_max_cur_maps==True:
+                        max_current_map = numpy.maximum(max_current_map, current_map) 
+                    if self.options.write_cum_cur_map_only==False:
+                        if self.options.log_transform_maps==True:
+                            current_map = numpy.where(current_map>0, log10(current_map), self.state.nodata)
+                        CSIO.write_aaigrid('curmap', '_' + frompoint + '_' + topoint, current_map, self.options, self.state)
+                    del current_map    
+
+                (hours,mins,_secs) = self.elapsed_time(last_write_time)
+                if mins > 2 or hours > 0: 
+                    last_write_time = time.time()
+                    CSIO.save_incomplete_resistances(self.options.output_file, resistances)# Save incomplete resistances
+
+        self.state.amg_hierarchy = None
+        gc.collect()
 
         # Finally, resistance to self is 0.
         if use_resistance_calc_shortcut==True: 
             resistances = shortcut_resistances
-        for i in range(0,numpoints):
+        for i in range(0, numpoints):
             resistances[i, i] = 0
 
-        return resistances,cum_current_map,max_current_map,solver_failed_somewhere
+        return resistances, cum_current_map, max_current_map, solver_failed_somewhere
 
         
     @print_timing
@@ -1041,8 +1005,23 @@ class CSRaster(CSBase):
         return branch_currents
 ######################### END CURRENT MAPPING CODE ########################################        
         
+    def new_get_voltmatrix(self, i, j, numpoints, local_node_map, voltages, fp, resistances, voltmatrix):                                            
+        """Returns a matrix of pairwise voltage differences between focal nodes.
+        
+        Used for shortcut calculations of effective resistance when no
+        voltages or currents are mapped.
+        
+        """  
+        voltvector = numpy.zeros((numpoints,1),dtype = 'float64')  
+        voltage_map = self.create_voltage_map(local_node_map,voltages) 
+        for point in range(1,numpoints):
+            voltageAtPoint = voltage_map[fp.get_coordinates(point)]
+            voltageAtPoint = 1-(voltageAtPoint/resistances[i, j])
+            voltvector[point] = voltageAtPoint
+        voltmatrix[:,j] = voltvector[:,0] 
+        return voltmatrix
 
-    def getVoltmatrix(self,i,j,numpoints,local_node_map,voltages,points_rc,resistances,voltmatrix):                                            
+    def getVoltmatrix(self, i, j, numpoints, local_node_map, voltages, points_rc, resistances, voltmatrix):                                            
         """Returns a matrix of pairwise voltage differences between focal nodes.
         
         Used for shortcut calculations of effective resistance when no
@@ -1105,7 +1084,7 @@ class CSRaster(CSBase):
         return resistances3columns        
         
         
-    def pruneIncludedPairs(self, points_rc):
+    def _prune_included_pairs(self, points_rc):
         """Remove excluded points from focal node list when using extra file that lists pairs to include/exclude."""
         included_pairs = self.state.included_pairs
         include_list = list(included_pairs[0,:])
@@ -1146,21 +1125,19 @@ class CSRaster(CSBase):
         return points_rc_unique          
         
         
-    def checkPointsInComponent(self,c,numpoints,components,points_rc,node_map):
+    def exist_points_in_component(self, c, numpoints, components, points_rc, node_map):
         """Checks to see if there are focal points in a given component."""  
-        points_in_this_component = False            
         for pt1 in range(0, numpoints): 
-            if points_in_this_component == False:
-                src = self.grid_to_graph (points_rc[pt1,1], points_rc[pt1,2], node_map)
-                for pt2 in range(pt1+1, numpoints):
-                    dst = self.grid_to_graph (points_rc[pt2,1], points_rc[pt2,2], node_map)
-                    if (src >=  0 and components[src] == c) and (dst >=  0 and components[dst] == c):
-                        points_in_this_component = True
-                        break        
-        return points_in_this_component    
+            src = self.grid_to_graph(points_rc[pt1,1], points_rc[pt1,2], node_map)
+            for pt2 in range(pt1+1, numpoints):
+                dst = self.grid_to_graph (points_rc[pt2,1], points_rc[pt2,2], node_map)
+                if (src >=  0 and components[src] == c) and (dst >=  0 and components[dst] == c):
+                    return True
+
+        return False    
 
         
-    def getstrengthMap(self,points_rc_unique,pointStrengths):
+    def getstrengthMap(self, points_rc_unique, pointStrengths):
         """Returns map and coordinates of point strengths when variable source strengths are used."""  
         if self.options.use_variable_source_strengths==True:
             if self.options.scenario == 'one-to-all': 
@@ -1175,7 +1152,7 @@ class CSRaster(CSBase):
             return None,None
         
         
-    def get_strengths_rc(self,pointStrengths,points_rc_unique):
+    def get_strengths_rc(self, pointStrengths, points_rc_unique):
         """Returns coordinates of point strengths when variable source strengths are used."""  
         strengths_rc = zeros(points_rc_unique.shape,dtype = 'float64')
         strengths_rc[:,1] = points_rc_unique[:,1]
