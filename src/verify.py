@@ -3,12 +3,12 @@
 ## Circuitscape (C) 2013, Brad McRae and Viral B. Shah. 
 ##
 
-import imp, os, sys
+import os
 
 import unittest
-from cs_base import *
+import numpy as np
 from cs_io import CSIO
-from circuitscape import *
+from circuitscape import circuitscape
 
 def approxEqual(a, b):
     m = a.shape[0]
@@ -31,8 +31,8 @@ def test_sg(ut, test_name):
     #print test_name
     configFile='.//verify//config_files//' + test_name + '.ini'
     cs = circuitscape(configFile, None)
-    resistances_computed,solver_failed = cs.compute()
-    resistances_saved=loadtxt('.//verify//baseline_results//' + test_name + '_resistances.txt') 
+    resistances_computed, _solver_failed = cs.compute()
+    resistances_saved=np.loadtxt('.//verify//baseline_results//' + test_name + '_resistances.txt') 
     
     ut.assertEquals (approxEqual(resistances_saved, resistances_computed), True)    
 
@@ -60,18 +60,18 @@ def test_network_sg(ut, test_name):
     cs = circuitscape(configFile, None)
 
     # These baseline outputs generated using rasters, with outputs written in graph format using 'write_baseline_results' option.
-    resistances_computed,solver_failed = cs.compute()
-    resistances_saved=loadtxt('.//verify//baseline_results//' + test_name + '_resistances_3columns.txt') 
-    cum_node_currents_saved=loadtxt('.//verify//baseline_results//' + test_name + '_node_currents_cum.txt', 'float64') 
-    cum_node_currents_computed=loadtxt('.//verify//output//' + test_name + '_node_currents_cum.txt', 'float64') 
-    branch_currents_0_1_computed=loadtxt('.//verify//output//' + test_name + '_branch_currents_0_1.txt', 'float64') 
-    branch_currents_0_1_saved=loadtxt('.//verify//baseline_results//' + test_name + '_branch_currents_0_1.txt', 'float64')
-    voltage_map_0_1_computed=loadtxt('.//verify//output//' + test_name + '_voltages_0_1.txt', 'float64') 
-    voltage_map_0_1_saved=loadtxt('.//verify//baseline_results//' + test_name + '_voltages_0_1.txt', 'float64') 
+    resistances_computed, _solver_failed = cs.compute()
+    resistances_saved=np.loadtxt('.//verify//baseline_results//' + test_name + '_resistances_3columns.txt') 
+    cum_node_currents_saved=np.loadtxt('.//verify//baseline_results//' + test_name + '_node_currents_cum.txt', 'float64') 
+    cum_node_currents_computed=np.loadtxt('.//verify//output//' + test_name + '_node_currents_cum.txt', 'float64') 
+    branch_currents_0_1_computed=np.loadtxt('.//verify//output//' + test_name + '_branch_currents_0_1.txt', 'float64') 
+    branch_currents_0_1_saved=np.loadtxt('.//verify//baseline_results//' + test_name + '_branch_currents_0_1.txt', 'float64')
+    voltage_map_0_1_computed=np.loadtxt('.//verify//output//' + test_name + '_voltages_0_1.txt', 'float64') 
+    voltage_map_0_1_saved=np.loadtxt('.//verify//baseline_results//' + test_name + '_voltages_0_1.txt', 'float64') 
 
     # Baseline cumulative branch currents generated using network code.
-    cum_branch_currents_computed=loadtxt('.//verify//output//' + test_name + '_branch_currents_cum.txt', 'float64') 
-    cum_branch_currents_saved=loadtxt('.//verify//baseline_results//' + test_name + '_branch_currents_cum.txt', 'float64')     
+    cum_branch_currents_computed=np.loadtxt('.//verify//output//' + test_name + '_branch_currents_cum.txt', 'float64') 
+    cum_branch_currents_saved=np.loadtxt('.//verify//baseline_results//' + test_name + '_branch_currents_cum.txt', 'float64')     
 
     ut.assertEquals (approxEqual(resistances_saved, resistances_computed), True)        
     ut.assertEquals (approxEqual(cum_node_currents_saved, cum_node_currents_computed), True)
@@ -85,9 +85,9 @@ def test_one_to_all(ut, test_name):
     #print test_name
     configFile='.//verify//config_files//' + test_name + '.ini'
     cs = circuitscape(configFile, None)
-    resistances_computed,solver_failed = cs.compute()
+    resistances_computed, _solver_failed = cs.compute()
 
-    resistances_saved=loadtxt('.//verify//baseline_results//' + test_name + '_resistances.txt') 
+    resistances_saved=np.loadtxt('.//verify//baseline_results//' + test_name + '_resistances.txt') 
 
     current_map_1_computed=CSIO._reader('.//verify//output//' + test_name + '_curmap_1.asc', 'float64') 
     current_map_1_saved=CSIO._reader('.//verify//baseline_results//' + test_name + '_curmap_1.asc', 'float64') 
@@ -109,7 +109,7 @@ def test_all_to_one(ut, test_name):
     #print test_name
     configFile='.//verify//config_files//' + test_name + '.ini'
     cs = circuitscape(configFile, None)
-    resistances_computed,solver_failed = cs.compute()
+    _resistances_computed, _solver_failed = cs.compute()
 
     current_map_1_computed=CSIO._reader('.//verify//output//' + test_name + '_curmap_1.asc', 'float64') 
     current_map_1_saved=CSIO._reader('.//verify//baseline_results//' + test_name + '_curmap_1.asc', 'float64') 
@@ -130,7 +130,7 @@ def test_mg(ut, test_name):
     #print test_name
     configFile='.//verify//config_files//' + test_name + '.ini'
     cs = circuitscape(configFile, None)
-    voltages = cs.compute()
+    _voltages = cs.compute()
    
     cum_current_map_computed=CSIO._reader('.//verify//output//' + test_name + '_curmap.asc', 'float64') 
     cum_current_map_saved=CSIO._reader('.//verify//baseline_results//' + test_name + '_curmap.asc', 'float64') 
@@ -140,7 +140,8 @@ def test_mg(ut, test_name):
     
     ut.assertEquals (approxEqual(cum_current_map_saved, cum_current_map_computed), True)
     ut.assertEquals (approxEqual(voltage_map_saved, voltage_map_computed), True)
-        
+
+
 class cs_verify(unittest.TestCase):
 
     def test_network_pairwise_1(self):
@@ -194,9 +195,9 @@ class cs_verify(unittest.TestCase):
     def test_single_ground_all_pairs_resistances_12(self):
         test_sg(self, 'sgVerify12') 
         
-    def test_single_ground_all_pairs_resistances_13(self):
-        test_sg(self, 'sgVerify13')         
- 
+#     def test_single_ground_all_pairs_resistances_13(self):
+#         test_sg(self, 'sgVerify13')         
+    # TODO: correct the method name and result data 
     def test_single_ground_all_pairs_resistances_13(self):
         # Tests nodata output and max current options
         test_sg(self, 'sgVerify14') 

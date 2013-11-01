@@ -4,7 +4,6 @@
 
 import os, string, gzip, logging
 import numpy as np
-from cs_base import CSBase
 
 # gdal_available = True #GDAL disabled for now, but should work- BHM 01/04/12
 # try:
@@ -190,6 +189,13 @@ class CSIO:
             raise RuntimeError('Error extracting locations from .txt file. Please check file format.')
         return pts_remapped
     
+    @staticmethod
+    def deleterow(A, delrow):
+        m = A.shape[0]
+        n = A.shape[1]
+        keeprows = np.delete(np.arange(0, m), delrow)
+        keepcols = np.arange(0, n)
+        return A[keeprows][:,keepcols]
 
 #     def writeGraph(self,filename,graph,nodeNames):
 #         """Save graph to disk in 3-column format."""  
@@ -233,28 +239,28 @@ class CSIO:
             delrows2 = np.zeros(delrows.shape[1]) #turn into 1-d array
             delrows2[:] = delrows[:]
             if delrows2 != []:
-                map_rc = CSBase.deleterow(map_rc, delrows2)
+                map_rc = CSIO.deleterow(map_rc, delrows2)
                 
             rows = map_rc[:,1] 
             delrows = np.asarray(np.where(rows > resample_to.nrows - 1))
             delrows2 = np.zeros(delrows.shape[1]) #turn into 1-d array
             delrows2[:] = delrows[:]
             if delrows2 != []:
-                map_rc = CSBase.deleterow(map_rc, delrows2)
+                map_rc = CSIO.deleterow(map_rc, delrows2)
                 
             cols = map_rc[:,2]
             delrows = np.asarray(np.where(cols < 0))
             delrows2 = np.zeros(delrows.shape[1]) #turn into 1-d array
             delrows2[:] = delrows[:]
             if delrows2 != []:
-                map_rc = CSBase.deleterow(map_rc, delrows2)
+                map_rc = CSIO.deleterow(map_rc, delrows2)
                 
             cols = map_rc[:,2]
             delrows = np.asarray(np.where(cols > resample_to.ncols - 1))
             delrows2 = np.zeros(delrows.shape[1]) #turn into 1-d array
             delrows2[:] = delrows[:]
             if delrows2 != []:
-                map_rc = CSBase.deleterow(map_rc, delrows2)
+                map_rc = CSIO.deleterow(map_rc, delrows2)
             del delrows
             del delrows2
     
