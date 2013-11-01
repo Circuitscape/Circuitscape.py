@@ -7,9 +7,11 @@ import numpy as np
 from scipy.sparse.linalg import cg
 from scipy import sparse
 from pyamg import smoothed_aggregation_solver
+from scipy.sparse.csgraph import connected_components
 
 from cs_cfg import CSConfig
 from cs_state import CSState
+from cs_io import CSIO
 
 #from numpy import *
 
@@ -105,7 +107,7 @@ class CSBase(object):
                 sys.stdout.flush()
     
         
-    def logCompleteJob(self):
+    def log_complete_job(self):
         """Writes total time elapsed at end of run."""
         (hours,mins,secs) = self.elapsed_time(self.state.start_time)
         if hours>0:
@@ -300,7 +302,7 @@ class CSFocalPoints:
                     point = point+1
                 else:
                     _drop_flag = True   
-                    self.points_rc = self.deleterow(self.points_rc, point)  
+                    self.points_rc = CSBase.deleterow(self.points_rc, point)  
              
             include_list = list(self.points_rc[:,0])
         
@@ -370,12 +372,18 @@ class CSFocalPoints:
         return node_map[x, y] - 1
 
 
-    def exists_points_in_component(self, comp, components, node_map):
+    def exists_points_in_component(self, comp, habitat):
         """Checks to see if there are focal points in a given component.
         
+        Last parameter can either be a habitat object or a tuple of components and node_map.
         In network mode, components and node_map both are vectors.
-        In raster mode, components and node_map are matrices.
+        In raster mode, components is a vector and node_map is a matrix.
         """
+        if type(habitat) == tuple:
+            components, node_map = habitat
+        else:
+            components = habitat.components
+            node_map = habitat.node_map
         if self.mode == CSFocalPoints.MODE_NETWORK:
             indices = np.where(components == comp)
             nodes_in_component = node_map[indices]            
@@ -434,11 +442,17 @@ class CSFocalPoints:
                     yield (pt1_idx, pt2_idx)
                 yield(pt1_idx, -1)
         
-    def point_pair_idxs_in_component(self, comp, components, node_map):
+    def point_pair_idxs_in_component(self, comp, habitat):
         """Returns pairs of point indices that belong to the same component.
         
         Returns (x, -1) to denote end of each first node number.
         """
+        if type(habitat) == tuple:
+            components, node_map = habitat
+        else:
+            components = habitat.components
+            node_map = habitat.node_map
+        
         if self.mode == CSFocalPoints.MODE_NETWORK:
             indices = np.where(components == comp)
             nodes_in_component = node_map[indices]            
@@ -467,4 +481,486 @@ class CSFocalPoints:
                     if (src >=  0 and components[src] == comp):
                         yield (pt1_idx, pt2_idx)
                 yield(pt1_idx, -1)
+
+
+
+
+class CSHabitatGraph:
+    MODE_RASTER = 1
+    MODE_NETWORK = 2
+    
+    def __init__(self, g_map=None, poly_map=None, connect_using_avg_resistances=False, connect_four_neighbors_only=False, g_graph=None, node_names=None):
+        if None != g_map:
+            self.mode = CSHabitatGraph.MODE_RASTER
+            self.g_map = g_map
+            self.poly_map = poly_map
+            self.connect_using_avg_resistances = connect_using_avg_resistances
+            self.connect_four_neighbors_only = connect_four_neighbors_only
+            
+            self.node_map = CSHabitatGraph._construct_node_map(g_map, poly_map)
+            (component_map, components) = CSHabitatGraph._construct_component_map(g_map, self.node_map, connect_using_avg_resistances, connect_four_neighbors_only)
+            self.component_map = component_map
+            self.components = components
+            
+            self.num_components = components.max()
+            self.num_nodes = self.node_map.max()
+        else:
+            self.mode = CSHabitatGraph.MODE_NETWORK
+            self.g_graph = g_graph          # is the sparse CSR matrix 
+            self.node_map = node_names    # list of node names
+            
+            (_num_components, C) = connected_components(g_graph)
+            C += 1
+            self.components = C
+            
+            self.num_components = C.max()
+            self.num_nodes = self.node_map.size
+    
+    def prune_nodes_for_component(self, keep_component):
+        """Removes nodes outside of component being operated on.
+        
+        Returns node map and adjacency matrix that only include nodes in keep_component.
+        """
+        if self.mode == CSHabitatGraph.MODE_RASTER:
+            selector = self.component_map == keep_component
+            
+            g_map_pruned = selector * self.g_map
+            poly_map_pruned = []
+            if self.poly_map !=  []:
+                poly_map_pruned = selector * self.poly_map
+    
+            node_map_pruned = CSHabitatGraph._construct_node_map(g_map_pruned, poly_map_pruned)
+            G_pruned = CSHabitatGraph._construct_g_graph(g_map_pruned, node_map_pruned, self.connect_using_avg_resistances, self.connect_four_neighbors_only)
+             
+            return (G_pruned, node_map_pruned)
+        else:
+            del_indices = np.where(self.components != keep_component)
+            pruned_graph = CSBase.deleterowcol(self.g_graph, delrow=del_indices, delcol=del_indices)
+            indices = np.where(self.components == keep_component)
+            nodes_in_component = self.node_map[indices]
+            return (pruned_graph, nodes_in_component)                
+        
+    @staticmethod
+    @print_timing
+    def _construct_node_map(g_map, poly_map):
+        """Creates a grid of node numbers corresponding to raster pixels with non-zero conductances."""  
+        node_map = np.zeros(g_map.shape, dtype='int32')
+        node_map[g_map.nonzero()] = np.arange(1, np.sum(g_map>0)+1, dtype='int32')
+
+        if poly_map == []:
+            return node_map
+
+        # Remove extra points from poly_map that are not in g_map
+        poly_map_pruned = np.zeros(g_map.shape, dtype='int32')
+        poly_map_pruned[np.where(g_map)] = poly_map[np.where(g_map)]
+        
+        polynums = np.unique(poly_map)
+   
+        for i in range(0, polynums.size):
+            polynum = polynums[i]
+            if polynum !=  0:
+                (pi, pj) = np.where(poly_map_pruned == polynum) #
+                (pk, pl) = np.where(poly_map == polynum) #Added 040309 BHM                
+                if len(pi) > 0:  
+                    node_map[pk, pl] = node_map[pi[0], pj[0]] #Modified 040309 BHM  
+        node_map[np.where(node_map)] = CSBase.relabel(node_map[np.where(node_map)], 1) #BHM 072409
+
+        return node_map
+
+    @staticmethod
+    @print_timing
+    def _construct_component_map(g_map, node_map, connect_using_avg_resistances, connect_four_neighbors_only):
+        """Assigns component numbers to grid corresponding to pixels with non-zero conductances.
+        
+        Nodes with the same component number are in single, connected components.
+        
+        """  
+        G = CSHabitatGraph._construct_g_graph(g_map, node_map, connect_using_avg_resistances, connect_four_neighbors_only) 
+        (_num_components, C) = connected_components(G)
+        C += 1 # Number components from 1
+
+        (I, J) = np.where(node_map)
+        nodes = node_map[I, J].flatten()
+
+        component_map = np.zeros(node_map.shape, dtype = 'int32')
+        component_map[I, J] = C[nodes-1]
+
+        return (component_map, C)
+    
+    @staticmethod
+    @print_timing
+    def _construct_g_graph(g_map, node_map, connect_using_avg_resistances, connect_four_neighbors_only):
+        """Construct sparse adjacency matrix given raster maps of conductances and nodes."""
+        numnodes = node_map.max()
+        (node1, node2, conductances) = CSHabitatGraph._get_conductances(g_map, node_map, connect_using_avg_resistances, connect_four_neighbors_only)
+        return CSHabitatGraph._make_sparse_csr(node1, node2, conductances, numnodes)
+        
+    @staticmethod
+    def _make_sparse_csr(node1, node2, conductances, numnodes):
+        G = sparse.csr_matrix((conductances, (node1, node2)), shape = (numnodes, numnodes)) # Memory hogging operation?
+        g_graph = G + G.T
+        
+        return g_graph
+
+
+    @staticmethod
+    def _neighbors_horiz(g_map):
+        """Returns values of horizontal neighbors in conductance map."""  
+        m = g_map.shape[0]
+        n = g_map.shape[1]
+
+        g_map_l = g_map[:, 0:(n-1)]
+        g_map_r = g_map[:, 1:n]
+        g_map_lr = np.double(np.logical_and(g_map_l, g_map_r))
+        s_horiz = np.where(np.c_[g_map_lr, np.zeros((m,1), dtype='int32')].flatten())
+        t_horiz = np.where(np.c_[np.zeros((m,1), dtype='int32'), g_map_lr].flatten())
+
+        return (s_horiz, t_horiz)
+
+        
+    @staticmethod
+    def _neighbors_vert(g_map):
+        """Returns values of vertical neighbors in conductance map."""  
+        m = g_map.shape[0]
+        n = g_map.shape[1]
+
+        g_map_u = g_map[0:(m-1), :]
+        g_map_d = g_map[1:m    , :]
+        g_map_ud = np.double(np.logical_and(g_map_u, g_map_d))
+        s_vert = np.where(np.r_[g_map_ud, np.zeros((1,n), dtype='int32')].flatten())
+        t_vert = np.where(np.r_[np.zeros((1,n), dtype='int32'), g_map_ud].flatten())
+        
+        return (s_vert, t_vert)
+
+        
+    @staticmethod
+    def _neighbors_diag1(g_map):
+        """Returns values of 1st diagonal neighbors in conductance map."""  
+        m = g_map.shape[0]
+        n = g_map.shape[1]
+
+        z1 = np.zeros((m-1, 1), dtype='int32')
+        z2 = np.zeros((1  , n), dtype='int32')
+        
+        g_map_ul  = g_map[0:m-1, 0:n-1]
+        g_map_dr  = g_map[1:m  , 1:n  ]
+        g_map_udr = np.double(np.logical_and(g_map_ul, g_map_dr)) 
+        s_dr      = np.where(np.r_[np.c_[g_map_udr, z1], z2].flatten())
+        t_dr      = np.where(np.r_[z2, np.c_[z1, g_map_udr]].flatten())
+        
+        return (s_dr, t_dr)
+
+        
+    @staticmethod
+    def _neighbors_diag2(g_map):
+        """Returns values of 2nd diagonal neighbors in conductance map."""  
+        m = g_map.shape[0]
+        n = g_map.shape[1]
+
+        z1 = np.zeros((m-1, 1), dtype='int32')
+        z2 = np.zeros((1  , n), dtype='int32')
+
+        g_map_ur  = g_map[0:m-1, 1:n  ]
+        g_map_dl  = g_map[1:m  , 0:n-1]
+        g_map_udl = np.double(np.logical_and(g_map_ur, g_map_dl)) 
+        s_dl      = np.where(np.r_[np.c_[z1, g_map_udl], z2].flatten())
+        t_dl      = np.where(np.r_[z2, np.c_[g_map_udl, z1]].flatten())
+                        
+        return (s_dl, t_dl)
+        
+    @staticmethod
+    def _get_conductances(g_map, node_map, connect_using_avg_resistances, connect_four_neighbors_only):
+        """Calculates conductances between adjacent nodes given a raster conductance map.
+        
+        Returns an adjacency matrix with values representing node-to-node conductance values.
+        
+        """  
+        (s_horiz, t_horiz) = CSHabitatGraph._neighbors_horiz(g_map)
+        (s_vert,  t_vert)  = CSHabitatGraph._neighbors_vert(g_map)
+
+        s = np.c_[s_horiz, s_vert].flatten()
+        t = np.c_[t_horiz, t_vert].flatten()
+
+        # Conductances
+        g1 = g_map.flatten()[s]
+        g2 = g_map.flatten()[t]
+
+        if connect_using_avg_resistances == False:
+            conductances = (g1+g2)/2
+        else:
+            conductances = 1 /((1/g1+1/g2)/2)
+
+        if connect_four_neighbors_only == False:
+            (s_dr, t_dr) = CSHabitatGraph._neighbors_diag1(g_map)
+            (s_dl, t_dl) = CSHabitatGraph._neighbors_diag2(g_map)
+
+            sd = np.c_[s_dr, s_dl].flatten()
+            td = np.c_[t_dr, t_dl].flatten()
+
+            # Conductances
+            g1 = g_map.flatten()[sd]
+            g2 = g_map.flatten()[td]
+
+            if connect_using_avg_resistances == False:
+                conductances_d = (g1+g2) / (2*np.sqrt(2))
+            else:
+                conductances_d =  1 / (np.sqrt(2)*(1/g1 + 1/g2) / 2)
+
+            conductances = np.r_[conductances, conductances_d]
+
+            s = np.r_[s, sd].flatten()
+            t = np.r_[t, td].flatten()
+
+        # Nodes in the g_graph. 
+        # Subtract 1 for Python's 0-based indexing. Node numbers start from 1
+        node1 = node_map.flatten()[s]-1
+        node2 = node_map.flatten()[t]-1
+        
+        return (node1, node2, conductances)
+
+
+class CSOutput:
+    """Handles output of current and voltage maps"""
+    def __init__(self, options, state, report_status, g_shape=None):
+        self.options = options
+        self.state = state
+        self.report_status = report_status
+        self.g_shape = g_shape
+        
+        self.is_network = (self.options.data_type == 'network')
+        self.scenario = self.options.scenario
+        
+        if self.scenario == 'pairwise':
+            if self.is_network:
+                self._network_module_alloc_current_maps()
+            else:
+                self._pairwise_module_alloc_current_maps()
+
+    
+    def write_cum_current_map(self, node_map):
+        if not self.options.write_cur_maps:
+            return
+        
+        if self.is_network:
+            self.full_branch_currents = CSOutput._convert_graph_to_3_col(self.full_branch_currents, node_map)
+            self.full_node_currents =  CSOutput._append_names_to_node_currents(self.full_node_currents, node_map)
+            
+            ind = np.lexsort((self.full_branch_currents[:, 1], self.full_branch_currents[:, 0]))
+            self.full_branch_currents = self.full_branch_currents[ind]                        
                 
+            ind = np.lexsort((self.full_node_currents[:, 1], self.full_node_currents[:, 0]))
+            self.full_node_currents = self.full_node_currents[ind]                        
+
+            CSIO.write_currents(self.options.output_file, self.full_branch_currents, self.full_node_currents, 'cum')
+        else:
+            CSIO.write_aaigrid('cum_curmap', '', self._log_transform(self.cum_current_map), self.options, self.state)
+            
+            if self.options.write_max_cur_maps:      
+                CSIO.write_aaigrid('max_curmap', '', self._log_transform(self.max_current_map), self.options, self.state)
+
+
+    def write_current_map(self, G, local_src, local_dst, voltages, node_map, frompoint, topoint, point_number, num_points):
+        if not self.options.write_cur_maps:
+            return
+
+        if self.report_status==True:
+            #self.log ('writing current map ' + str(point_number) + ' of ' + str(num_points) + '.',1)
+            logging.info('writing current map ' + str(point_number) + ' of ' + str(num_points) + '.')
+            
+        finitegrounds = [-9999] #create dummy value for pairwise case
+        
+        if self.is_network:
+            (node_currents, branch_currents) = self._create_current_maps(voltages, G, finitegrounds)
+            
+            if not self.options.write_cum_cur_map_only:                
+                # Append node names and convert to array format
+                branch_currents_array = CSOutput._convert_graph_to_3_col(branch_currents, node_map)
+                node_currents_array = CSOutput._append_names_to_node_currents(node_currents, node_map)                
+                CSIO.write_currents(self.options.output_file, branch_currents_array, node_currents_array, str(frompoint) + '_' + str(topoint))
+
+            self.full_node_currents[node_map] += node_currents
+            
+            branch_currents_array = CSOutput._convert_graph_to_3_col(branch_currents, node_map)
+            
+            self.full_branch_currents = self.full_branch_currents + sparse.csr_matrix((branch_currents_array[:,2], (branch_currents_array[:,0], branch_currents_array[:,1])), shape=self.full_branch_currents.shape) 
+        else:
+            try:
+                current_map = self._create_current_maps(voltages, G, finitegrounds, node_map)   
+            except MemoryError:
+                CSBase.enable_low_memory(False)
+                current_map = self._create_current_maps(voltages, G, finitegrounds, node_map)                                                                                    
+    
+            if self.options.set_focal_node_currents_to_zero==True:
+                # set source and target node currents to zero
+                focal_node_pair_map = np.where(node_map == local_src+1, 0, 1)
+                focal_node_pair_map = np.where(node_map == local_dst+1, 0, focal_node_pair_map)                                                
+                current_map = np.multiply(focal_node_pair_map, current_map)
+                del focal_node_pair_map
+                
+            self.cum_current_map = self.cum_current_map + current_map
+             
+            if self.options.write_max_cur_maps:
+                self.max_current_map = np.maximum(self.max_current_map, current_map)
+                 
+            if not self.options.write_cum_cur_map_only:
+                CSIO.write_aaigrid('curmap', '_' + str(frompoint) + '_' + str(topoint), self._log_transform(current_map), self.options, self.state)
+
+
+
+    def write_voltage_map(self, voltages, node_map, frompoint, topoint, point_number, num_points):
+        if not self.options.write_volt_maps:
+            return
+        
+        if self.report_status==True:
+            logging.info('writing voltage map ' + str(point_number) + ' of ' + str(num_points) + '.')
+
+        if self.is_network:
+            CSIO.write_voltages(self.options.output_file, voltages, node_map, str(frompoint) + '_' + str(topoint))
+        else:
+            voltage_map = self._create_voltage_map(node_map, voltages) 
+            CSIO.write_aaigrid('voltmap', '_' + str(frompoint) + '_' + str(topoint), voltage_map, self.options, self.state)
+
+    def _log_transform(self, map_to_transform):
+        if self.options.log_transform_maps:
+            map_to_transform = np.where(map_to_transform > 0, np.log10(map_to_transform), self.state.nodata)
+        return map_to_transform
+
+    def _network_module_alloc_current_maps(self):
+        self.full_branch_currents = sparse.csr_matrix(self.g_shape)
+        self.full_node_currents = np.zeros((self.g_shape[0], 1), dtype='float64')
+
+        
+    def _pairwise_module_alloc_current_maps(self):
+        self.cum_current_map = self.max_current_map = []
+        if self.options.write_cur_maps == True:
+            self.cum_current_map = np.zeros((self.state.nrows, self.state.ncols), dtype='float64') 
+            if self.options.write_max_cur_maps == True:
+                self.max_current_map = self.cum_current_map
+
+    @print_timing
+    def _create_current_maps(self, voltages, G, finitegrounds, node_map=None):
+        """In raster mode, returns raster current map given node voltage vector, adjacency matrix, etc.
+        In network mode returns node and branch currents given voltages in arbitrary graphs.
+        """  
+        gc.collect()
+        G =  G.tocoo()
+        node_currents = CSOutput._get_node_currents(voltages, G, finitegrounds)
+        
+        if self.is_network:
+            node_currents_col = np.zeros((node_currents.shape[0],1), dtype='float64')
+            node_currents_col[:,0] = node_currents[:]
+            branch_currents = CSOutput._get_branch_currents(G, voltages, True) 
+            branch_currents = np.absolute(branch_currents) 
+            return node_currents_col, branch_currents
+        else:
+            (rows, cols) = np.where(node_map)
+            vals = node_map[rows, cols]-1
+            current_map = np.zeros((self.state.nrows, self.state.ncols), dtype='float64')
+            current_map[rows,cols] = node_currents[vals]    
+            return current_map
+
+
+    @staticmethod
+    def _get_node_currents(voltages, G, finitegrounds):
+        """Calculates currents at nodes."""  
+        node_currents_pos = CSOutput._get_node_currents_posneg(G, voltages, finitegrounds, True) 
+        node_currents_neg = CSOutput._get_node_currents_posneg(G, voltages, finitegrounds, False)
+        node_currents = np.where(node_currents_neg > node_currents_pos, node_currents_neg, node_currents_pos)
+
+        return np.asarray(node_currents)[0]
+
+    
+    @staticmethod
+    def _get_node_currents_posneg(G, voltages, finitegrounds, pos):
+        """Calculates positive or negative node currents based on pos flag."""  
+        branch_currents = CSOutput._get_branch_currents(G, voltages, pos)
+        branch_currents = branch_currents - branch_currents.T #Can cause memory error
+        
+        branch_currents = branch_currents.tocoo() #Can cause memory error, but this and code below more memory efficient than previous version.
+        mask = branch_currents.data > 0
+        row  = branch_currents.row[mask]
+        col  = branch_currents.col[mask]
+        data = branch_currents.data[mask]
+        del mask
+        n = G.shape[0]
+        branch_currents = sparse.csr_matrix((data, (row, col)), shape = (n,n))
+           
+        if finitegrounds[0]!= -9999:  
+            finiteground_currents = np.multiply(finitegrounds, voltages)
+            if pos:
+                finiteground_currents = np.where(finiteground_currents < 0, -finiteground_currents, 0)
+            else:
+                finiteground_currents = np.where(finiteground_currents > 0, finiteground_currents, 0)  
+            n = G.shape[0]
+            branch_currents = branch_currents + sparse.spdiags(finiteground_currents.T, 0, n, n)        
+
+        return branch_currents.sum(0)
+    
+    
+    @staticmethod
+    def _get_branch_currents(G, voltages, pos):    
+        """Calculates branch currents."""  
+        branch_currents = CSOutput._get_branch_currents_posneg(G, voltages, pos)
+        n = G.shape[0]
+        mask = G.row < G.col
+        branch_currents = sparse.csr_matrix((branch_currents, (G.row[mask], G.col[mask])), shape = (n,n)) #SQUARE MATRIX, SAME DIMENSIONS AS GRAPH
+        return branch_currents
+
+
+    @staticmethod
+    def _get_branch_currents_posneg(G, voltages, pos):
+        """Calculates positive or negative node currents based on pos flag."""  
+        mask = G.row < G.col
+        if pos:
+            vdiff = voltages[G.row[mask]]              
+            vdiff -=  voltages[G.col[mask]]             
+        else:
+            vdiff = voltages[G.col[mask]]              
+            vdiff -=  voltages[G.row[mask]]             
+
+        conductances = np.where(G.data[mask] < 0, -G.data[mask], 0)
+        del mask
+        
+        branch_currents = np.asarray(np.multiply(conductances, vdiff.T)).flatten()
+        maxcur = max(branch_currents)
+        branch_currents = np.where(np.absolute(branch_currents/maxcur) < 1e-8, 0, branch_currents) #Delete very small branch currents to save memory
+        return branch_currents
+
+    @print_timing
+    def _create_voltage_map(self, node_map, voltages):
+        """Creates raster map of voltages given node voltage vector."""
+        voltage_map = np.zeros((self.state.nrows, self.state.ncols), dtype = 'float64')
+        ind = node_map > 0
+        voltage_map[np.where(ind)] = np.asarray(voltages[node_map[ind]-1]).flatten()
+        return voltage_map
+
+    @staticmethod
+    def _convert_graph_to_3_col(graph, node_names): 
+        """Converts a sparse adjacency matrix to 3-column format."""  
+        Gcoo =  graph.tocoo()
+        mask = Gcoo.data > 0
+        
+        graph_n_col = np.zeros((Gcoo.row[mask].size, 3), dtype="float64") #Fixme: this may result in zero-current nodes being left out.  Needed to make change so dimensions would match Gcoo.data[mask]
+        
+        if node_names == None:
+            graph_n_col[:,0] = Gcoo.row[mask]
+            graph_n_col[:,1] = Gcoo.col[mask]
+        else:
+            graph_n_col[:,0] = node_names[Gcoo.row[mask]]
+            graph_n_col[:,1] = node_names[Gcoo.col[mask]]
+        graph_n_col[:,2] = Gcoo.data[mask]
+        return graph_n_col
+
+
+    @staticmethod
+    def _append_names_to_node_currents(node_currents, node_names):
+        """Adds names of focal nodes to node current lists."""    
+        output_node_currents = np.zeros((len(node_currents),2), dtype='float64')
+        output_node_currents[:,0] = node_names[:]
+        try:
+            output_node_currents[:,1] = node_currents[:,0]
+        except:
+            output_node_currents[:,1] = node_currents[:]
+        return output_node_currents
+
+
