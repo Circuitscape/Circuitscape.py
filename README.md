@@ -1,4 +1,4 @@
-<a href="http://www.circuitscape.org/Circuitscape/Welcome_files/sa_sb2.jpg"><img src="http://www.circuitscape.org/Circuitscape/Welcome_files/sa_sb2.jpg"/></a>
+<a href="http://www.circuitscape.org/home/sa_sb2.jpg"><img src="http://www.circuitscape.org/home/sa_sb2.jpg"/></a>
 
 ## Circuitscape v4 (in development)
 
@@ -12,4 +12,4 @@ Mac OS X, Windows, and Linux.
 
 ## Authors
 
-[Brad McRae and Viral B. Shah](http://www.circuitscape.org/Circuitscape/About_the_Authors.html)
+[Brad McRae, Viral B. Shah, and Tanmay Mohapatra](http://www.circuitscape.org/about-the-authors)
