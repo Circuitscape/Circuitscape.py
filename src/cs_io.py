@@ -566,10 +566,12 @@ class CSIO:
         """
         out_base, _out_ext = os.path.splitext(outfile_template)
         
+        if fileadd != '':
+            fileadd = ('_' + fileadd)
         if branch_currents!=None:
-            filename = out_base + '_branch_currents_' + fileadd + '.txt'
+            filename = out_base + '_branch_currents' + fileadd + '.txt'
             np.savetxt(filename, branch_currents)
-        filename = out_base + '_node_currents_' + fileadd + '.txt'
+        filename = out_base + '_node_currents' + fileadd + '.txt'
         np.savetxt(filename, node_currents)      
 
     @staticmethod
