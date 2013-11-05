@@ -4,10 +4,8 @@
 ##
 
 import time, gc, logging
-import numpy
-from numpy import *
+import numpy as np
 from scipy import sparse
-from scipy.sparse.csgraph import connected_components
 
 from cs_base import CSBase, CSFocalPoints, CSHabitatGraph, CSOutput, print_timing
 from cs_io import CSIO
@@ -23,7 +21,7 @@ class CSRaster(CSBase):
         
         self.load_maps()
         if self.options.screenprint_log == True:        
-            num_nodes = (where(self.state.g_map > 0, 1, 0)).sum()         
+            num_nodes = (np.where(self.state.g_map > 0, 1, 0)).sum()         
             logging.debug('Resistance/conductance map has %d nodes' % (num_nodes,))
 
         if self.options.scenario == 'pairwise':
@@ -34,12 +32,14 @@ class CSRaster(CSBase):
         elif self.options.scenario == 'advanced':
             self.options.write_max_cur_maps = False
             self.log ('Calling solver module.', 1)
-            voltages, _current_map, solver_failed = self.advanced_module(self.state.g_map, self.state.poly_map, self.state.source_map, self.state.ground_map,None,None,None,None,None)
+            g_habitat = CSHabitatGraph(g_map=self.state.g_map, poly_map=self.state.poly_map, connect_using_avg_resistances=self.options.connect_using_avg_resistances, connect_four_neighbors_only=self.options.connect_four_neighbors_only)
+            cs = CSOutput(self.options, self.state, False)
+            voltages, _current_map, solver_failed = self.advanced_module(g_habitat, cs, self.state.source_map, self.state.ground_map)
             self.log_complete_job()
             if solver_failed == True:
                 logging.error('Solver failed')
             return voltages, solver_failed
-
+        
         else:
             resistance_vector, solver_failed = self.one_to_all_module(self.state.g_map, self.state.poly_map, self.state.points_rc)
             self.log_complete_job()
@@ -47,24 +47,24 @@ class CSRaster(CSBase):
             
     
   
-    def get_overlap_polymap(self, point, point_map, poly_map_temp, new_poly_num): 
+    def get_overlap_polymap(self, point, point_map, poly_map, new_poly_num): 
         """Creates a map of polygons (aka short-circuit or zero resistance regions) overlapping a focal node."""
-        point_poly = numpy.where(point_map == point, 1, 0) 
-        poly_point_overlap = numpy.multiply(point_poly, poly_map_temp)
-        overlap_vals = numpy.unique(numpy.asarray(poly_point_overlap))
-        rows = numpy.where(overlap_vals > 0)
+        point_poly = np.where(point_map == point, 1, 0) 
+        poly_point_overlap = np.multiply(point_poly, poly_map)
+        overlap_vals = np.unique(np.asarray(poly_point_overlap))
+        rows = np.where(overlap_vals > 0)
         overlap_vals = overlap_vals[rows] #LIST OF EXISTING POLYGONS THAT OVERLAP WITH POINT
-        for a in range (0, overlap_vals.size):
-            poly_map_temp = numpy.where(poly_map_temp==overlap_vals[a], new_poly_num, poly_map_temp)
-        poly_map_temp = numpy.where(point_map == point, new_poly_num, poly_map_temp)
-        return poly_map_temp
+        for a in range(0, overlap_vals.size):
+            poly_map = np.where(poly_map==overlap_vals[a], new_poly_num, poly_map)
+        poly_map = np.where(point_map == point, new_poly_num, poly_map)
+        return poly_map
 
 
     def append_names_to_resistances(self, point_ids, resistances):        
         """Adds names of focal nodes to resistance matrices."""  
-        focal_labels = insert(point_ids, [0], 0, axis = 0)
-        resistances = insert(resistances, [0], 0, axis = 0)
-        resistances = insert(resistances, [0], 0, axis = 1)
+        focal_labels = np.insert(point_ids, [0], 0, axis = 0)
+        resistances = np.insert(resistances, [0], 0, axis = 0)
+        resistances = np.insert(resistances, [0], 0, axis = 1)
         resistances[0,:] = focal_labels
         resistances[:,0] = focal_labels
         return resistances
@@ -73,149 +73,120 @@ class CSRaster(CSBase):
     @print_timing
     def one_to_all_module(self, g_map, poly_map, points_rc):
         """Overhead module for one-to-all AND all-to-one modes with raster data."""  
-        lastWriteTime = time.time()
+        last_write_time = time.time()
 
-        if self.options.use_included_pairs==True: #Prune points
-            points_rc = self._prune_included_pairs(points_rc)          
-            includedPairs = self.state.included_pairs 
-        point_ids = unique(asarray(points_rc[:,0]))
-        points_rc_unique = self.get_points_rc_unique(point_ids,points_rc)      
+        cs = CSOutput(self.options, self.state, False)
+        if self.options.write_cur_maps:
+            cs.alloc_c_map('')
+            if self.options.write_max_cur_maps:
+                cs.alloc_c_map('max')
         
-        resistance_vector = zeros((point_ids.size,2),float)
+        fp = CSFocalPoints(points_rc, self.state.included_pairs)
+        fp = CSFocalPoints(fp.get_unique_coordinates(), self.state.included_pairs)
+        point_ids = fp.point_ids
+        points_rc_unique = fp.points_rc
+        included_pairs = self.state.included_pairs
+            
+        resistance_vector = np.zeros((point_ids.size,2), float)
         solver_failed_somewhere = False
-        if self.options.write_cur_maps == True:
-            cum_current_map = zeros((self.state.nrows, self.state.ncols),dtype = 'float64')         
-        if self.options.write_max_cur_maps==True:
-            max_current_map=cum_current_map
-        oneToAllStreamline = False        
+        
         if self.options.use_included_pairs==False: #Will do this each time later if using included pairs
-            point_map = numpy.zeros((self.state.nrows, self.state.ncols),int)
-            point_map[points_rc[:,1],points_rc[:,2]] = points_rc[:,0]
+            point_map = np.zeros((self.state.nrows, self.state.ncols), int)
+            point_map[points_rc[:,1], points_rc[:,2]] = points_rc[:,0]
        
             #combine point map and poly map
-            poly_map_temp = self.get_poly_map_temp(poly_map,point_map,point_ids,None,None)
-            unique_point_map = numpy.zeros((self.state.nrows, self.state.ncols),int)
-            unique_point_map[points_rc_unique[:,1],points_rc_unique[:,2]] = points_rc_unique[:,0]
+            poly_map_temp = self.get_poly_map_temp(poly_map, point_map, point_ids)
+            unique_point_map = np.zeros((self.state.nrows, self.state.ncols), int)
+            unique_point_map[points_rc_unique[:,1], points_rc_unique[:,2]] = points_rc_unique[:,0]
 
-            (strengthMap,strengths_rc) = self.getstrengthMap(points_rc_unique,self.state.point_strengths)            
+            (strength_map, strengths_rc) = self.get_strength_map(points_rc_unique, self.state.point_strengths)            
 
-            # Are all points in same component?  If so, can streamline.  Create G here, just once
-            # FIXME: place code below into module 
-            node_map = self.construct_node_map(g_map, poly_map_temp) #******WANT POLYS BURNED IN 
-            (component_map, components) = self.construct_component_map(g_map, node_map)
-            pointComponents = where(unique_point_map, component_map, 0)#TODO use this to choose component to operate on below, unless all points in same component
-            self.log('Graph has ' + str(node_map.max()) + ' nodes and '+ str(components.max()) + ' components.',2)
-            del node_map
-            uniquePointComponentList = unique(pointComponents)
-            numComponentsWithPoints = uniquePointComponentList.size
-            if uniquePointComponentList[0]==0:
-                numComponentsWithPoints = numComponentsWithPoints-1
-            if numComponentsWithPoints==1:
-                componentWithPoints = max(uniquePointComponentList)
-                (G, node_map) = self.node_pruner(g_map, poly_map_temp, component_map, componentWithPoints) #FIXME drops polymaptemp node 1... #We'll keep node_map around in this case.  Only need to create it and G once.
-                oneToAllStreamline = True
-            else:
-                del component_map, components  
+            g_habitat = CSHabitatGraph(g_map=g_map, poly_map=poly_map_temp, connect_using_avg_resistances=self.options.connect_using_avg_resistances, connect_four_neighbors_only=self.options.connect_four_neighbors_only)
+            self.log('Graph has ' + str(g_habitat.num_nodes) + ' nodes and '+ str(g_habitat.num_components) + ' components.', 2)
+            component_with_points = g_habitat.unique_component_with_points(unique_point_map)
         else:
-            node_map = self.construct_node_map(g_map, poly_map) #******WANT POLYS BURNED IN 
-            (component_map, components) = self.construct_component_map(g_map, node_map)
-            self.log('Graph has ' + str(node_map.max()) + ' nodes and '+ str(components.max()) + ' components.',2)
-            del node_map, component_map, components
+            g_habitat = CSHabitatGraph(g_map=g_map, poly_map=poly_map, connect_using_avg_resistances=self.options.connect_using_avg_resistances, connect_four_neighbors_only=self.options.connect_four_neighbors_only)
+            self.log('Graph has ' + str(g_habitat.num_nodes) + ' nodes and '+ str(g_habitat.num_components) + ' components.', 2)
+            component_with_points = None
 
-        for i in range(0, point_ids.size): #These are the 'src' nodes, i.e. the 'one' in all-to-one and one-to-all
+        for pt_idx in range(0, point_ids.size): # These are the 'src' nodes, pt_idx.e. the 'one' in all-to-one and one-to-all
 
-            self.log ('solving focal node ' + str(i+1) + ' of ' + str(point_ids.size) + '.',1)
+            self.log ('solving focal node ' + str(pt_idx+1) + ' of ' + str(point_ids.size) + '.',1)
 
             if self.options.use_included_pairs==True: # Done above otherwise    
                 #######################   
-                points_rc_unique_temp = numpy.copy(points_rc_unique)
-                point_map = numpy.zeros((self.state.nrows, self.state.ncols),int)
-                point_map[points_rc[:,1],points_rc[:,2]] = points_rc[:,0]       
+                points_rc_unique_temp = np.copy(points_rc_unique)
+                point_map = np.zeros((self.state.nrows, self.state.ncols), int)
+                point_map[points_rc[:,1], points_rc[:,2]] = points_rc[:,0]       
 
-                for pair in range(0, point_ids.size): #loop thru exclude[point,:], delete included pairs of focal point from point_map and points_rc_unique_temp 
-                    if includedPairs[i+1,pair+1]==0 and i !=  pair:
-                            pt_id = point_ids[pair]
-                            point_map = where(point_map==pt_id,0,point_map)
-                            points_rc_unique_temp[pair,0] = 0 #point will not be burned in to unique_point_map
+                #loop thru exclude[point,:], delete included pairs of focal point from point_map and points_rc_unique_temp
+                for pair in range(0, point_ids.size):  
+                    if (included_pairs[pt_idx+1, pair+1] == 0) and (pt_idx !=  pair):
+                        pt_id = point_ids[pair]
+                        point_map = np.where(point_map==pt_id, 0, point_map)
+                        points_rc_unique_temp[pair, 0] = 0 #point will not be burned in to unique_point_map
 
-                poly_map_temp = self.get_poly_map_temp2(poly_map,point_map,points_rc_unique_temp,includedPairs,i)
+                poly_map_temp = self.get_poly_map_temp2(poly_map, point_map, points_rc_unique_temp, included_pairs, pt_idx)
+                g_habitat = CSHabitatGraph(g_map=g_map, poly_map=poly_map_temp, connect_using_avg_resistances=self.options.connect_using_avg_resistances, connect_four_neighbors_only=self.options.connect_four_neighbors_only)
 
-                unique_point_map = numpy.zeros((self.state.nrows, self.state.ncols),int)
-                unique_point_map[points_rc_unique_temp[:,1],points_rc_unique_temp[:,2]] = points_rc_unique_temp[:,0]        
-
-                (strengthMap,strengths_rc) = self.getstrengthMap(points_rc_unique_temp,self.state.point_strengths)
+                unique_point_map = np.zeros((self.state.nrows, self.state.ncols),int)
+                unique_point_map[points_rc_unique_temp[:,1], points_rc_unique_temp[:,2]] = points_rc_unique_temp[:,0]
+                
+                (strength_map, strengths_rc) = self.get_strength_map(points_rc_unique_temp, self.state.point_strengths)
                 ###########################################
                 
-            src = point_ids[i]
-            sumConnections = unique_point_map.sum()
-            sumConnections = sumConnections.sum()
-            if sumConnections!= point_ids[i]: #If there are points to connect with src point
+            src = point_ids[pt_idx]
+            if unique_point_map.sum() == src: # src is the only point
+                resistance_vector[pt_idx,0] = src
+                resistance_vector[pt_idx,1] = -1            
+            else: # there are points to connect with src point
                 if self.options.scenario == 'one-to-all':
-                    if self.options.use_variable_source_strengths==True:
-                        strength = strengths_rc[i,0]
-                    else:
-                        strength = 1
-                    source_map = where(unique_point_map == src,strength,0)
-                    ground_map = point_map
-                    ground_map =  where(unique_point_map == src,0,unique_point_map)
-                    ground_map =  where(ground_map,Inf,0) 
+                    strength = strengths_rc[pt_idx,0] if self.options.use_variable_source_strengths else 1
+                    source_map = np.where(unique_point_map == src, strength, 0)
+                    ground_map =  np.where(unique_point_map == src, 0, unique_point_map)
+                    ground_map =  np.where(ground_map, np.Inf, 0) 
                     self.options.remove_src_or_gnd = 'rmvgnd'
-                else:
+                else: # all-to-one
                     if self.options.use_variable_source_strengths==True:
-                        source_map = where(unique_point_map == src,0,strengthMap)
+                        source_map = np.where(unique_point_map == src, 0, strength_map)
                     else:
-                        source_map = where(unique_point_map,1,0)
-                        source_map = where(unique_point_map == src,0,source_map)
-                        
-                    ground_map = point_map
-                    ground_map =  where(unique_point_map == src,1,0)
-                    ground_map =  where(ground_map,Inf,0)   
-
+                        source_map = np.where(unique_point_map, 1, 0)
+                        source_map = np.where(unique_point_map == src, 0, source_map)
+                    ground_map =  np.where(unique_point_map == src, np.Inf, 0)                    
                     self.options.remove_src_or_gnd = 'rmvsrc'
                 #FIXME: right now one-to-all *might* fail if there is just one node that is not grounded (I haven't encountered this problem lately BHM Nov 2009).
-
-                if oneToAllStreamline==False:
-                    G = None
-                    node_map = None
-                    component_map = None
-                    componentWithPoints = None
-                    
-                resistance,current_map,solver_failed = self.advanced_module(self.state.g_map, poly_map_temp, source_map, ground_map, src, G, node_map, component_map, componentWithPoints)
-                if solver_failed == False:
-                    if self.options.write_cur_maps == True:
-                        cum_current_map = cum_current_map+current_map
-                        if self.options.write_max_cur_maps==True:
-                            max_current_map=maximum(max_current_map,current_map)
+                
+                resistance, current_map, solver_failed = self.advanced_module(g_habitat, cs, source_map, ground_map, src, component_with_points)
+                if not solver_failed:
+                    if self.options.write_cur_maps:
+                        cs.accumulate_c_map_with_values('', current_map)
+                        if self.options.write_max_cur_maps:    
+                            cs.store_max_c_map_values('max', current_map)
                 else:
                     logging.warning('Solver failed for at least one focal node.  \nFocal nodes with failed solves will be marked with value of -777 \nin output resistance list.\n')
     
-                resistance_vector[i,0] = src
-                resistance_vector[i,1] = resistance
+                resistance_vector[pt_idx,0] = src
+                resistance_vector[pt_idx,1] = resistance
                     
                 if solver_failed==True:
                     solver_failed_somewhere = True
-            else:
-                resistance_vector[i,0] = src
-                resistance_vector[i,1] = -1            
 
-            (hours,mins,_secs) = self.elapsed_time(lastWriteTime)
+            (hours,mins,_secs) = self.elapsed_time(last_write_time)
             if mins > 2 or hours > 0: 
-                lastWriteTime = time.time()
+                last_write_time = time.time()
                 CSIO.write_resistances_one_to_all(self.options.output_file, resistance_vector, '_incomplete', self.options.scenario)
-                #self.writeResistancesOneToAll(resistance_vector,'_incomplete')
       
-        if solver_failed_somewhere==False:
-            if self.options.write_cur_maps == True:
-                CSIO.write_aaigrid('cum_curmap', '', cum_current_map, self.options, self.state)
-                if self.options.write_max_cur_maps==True:
-                    CSIO.write_aaigrid('max_curmap', '', max_current_map, self.options, self.state)
+        if not solver_failed_somewhere:
+            if self.options.write_cur_maps:
+                cs.write_c_map('', True)
+                if self.options.write_max_cur_maps:
+                    cs.write_c_map('max', True)
 
         CSIO.write_resistances_one_to_all(self.options.output_file, resistance_vector, '', self.options.scenario)
-        #self.writeResistancesOneToAll(resistance_vector,'')
        
-        return resistance_vector,solver_failed_somewhere 
+        return resistance_vector, solver_failed_somewhere 
 
-    def get_poly_map_temp(self, poly_map, point_map, point_ids, includedPairs, point1):
+    def get_poly_map_temp(self, poly_map, point_map, point_ids):
         """Returns polygon map for each solve given source and destination nodes.  
         Used in all-to-one and one-to-all modes only.
         """  
@@ -223,19 +194,15 @@ class CSRaster(CSBase):
             poly_map_temp = point_map
         else:
             poly_map_temp = poly_map
-            new_poly_num = numpy.max(poly_map)
-            for point2 in range(0, point_ids.shape[0]):
-                if (self.options.use_included_pairs==True) and (includedPairs[point1+1,point2+1] == 1):
-                    new_poly_num = new_poly_num+1
-                    poly_map_temp = self.get_overlap_polymap(point_ids[point2],point_map,poly_map_temp, new_poly_num) 
-                else: 
-                    new_poly_num = new_poly_num+1
-                    poly_map_temp = self.get_overlap_polymap(point_ids[point2],point_map,poly_map_temp, new_poly_num)                 
+            new_poly_num = np.max(poly_map)
+            for pt_idx in range(0, point_ids.shape[0]):
+                new_poly_num = new_poly_num+1
+                poly_map_temp = self.get_overlap_polymap(point_ids[pt_idx], point_map, poly_map_temp, new_poly_num) 
                 
         return poly_map_temp
 
         
-    def get_poly_map_temp2(self, poly_map, point_map, points_rc_unique_temp, includedPairs, i):
+    def get_poly_map_temp2(self, poly_map, point_map, points_rc, included_pairs, pt1_idx):
         """Returns polygon map for each solve given source and destination nodes.  
         Used in all-to-one and one-to-all modes when included/excluded pairs are used.
         """  
@@ -243,13 +210,13 @@ class CSRaster(CSBase):
             poly_map_temp = point_map
         else:
             poly_map_temp = poly_map
-            new_poly_num = numpy.max(poly_map)
-            #burn in src point to polygon map
-            poly_map_temp = self.get_overlap_polymap(points_rc_unique_temp[i,0],point_map,poly_map_temp, new_poly_num)                     
-            for point in range(0, points_rc_unique_temp.shape[0]): #burn in dst points to polygon map
-                if includedPairs[i+1,point+1] == 1:  
+            new_poly_num = np.max(poly_map)
+            #burn in src pt_idx to polygon map
+            poly_map_temp = self.get_overlap_polymap(points_rc[pt1_idx,0], point_map, poly_map_temp, new_poly_num)                     
+            for pt_idx in range(0, points_rc.shape[0]): #burn in dst points to polygon map
+                if included_pairs[pt1_idx+1, pt_idx+1] == 1:  
                     new_poly_num = new_poly_num+1
-                    poly_map_temp = self.get_overlap_polymap(points_rc_unique_temp[point,0],point_map,poly_map_temp, new_poly_num) 
+                    poly_map_temp = self.get_overlap_polymap(points_rc[pt_idx,0], point_map, poly_map_temp, new_poly_num) 
         return poly_map_temp
 
 
@@ -257,11 +224,15 @@ class CSRaster(CSBase):
     def pairwise_module(self, g_map, poly_map, points_rc):
         """Overhead module for pairwise mode with raster data."""  
         cs = CSOutput(self.options, self.state, False)
+        if self.options.write_cur_maps:
+            cs.alloc_c_map('')
+            if self.options.write_max_cur_maps:
+                cs.alloc_c_map('max')
 
         # If there are no focal regions, pass all points to single_ground_all_pair_resistances,
         # otherwise, pass one point at a time.
         if self.options.point_file_contains_polygons == False:
-            if points_rc.shape[0] != (unique(asarray(points_rc[:,0]))).shape[0]:
+            if points_rc.shape[0] != (np.unique(np.asarray(points_rc[:,0]))).shape[0]:
                 raise RuntimeError('At least one focal node contains multiple cells.  If this is what you really want, then choose focal REGIONS in the pull-down menu') 
 
             fp = CSFocalPoints(points_rc, self.state.included_pairs)
@@ -283,7 +254,7 @@ class CSRaster(CSBase):
             point_ids = points_rc[:,0]
 
         else:
-            point_map = numpy.zeros((self.state.nrows, self.state.ncols), int)
+            point_map = np.zeros((self.state.nrows, self.state.ncols), int)
             point_map[points_rc[:,1], points_rc[:,2]] = points_rc[:,0]
             
             fp = CSFocalPoints(points_rc, self.state.included_pairs)
@@ -291,7 +262,7 @@ class CSRaster(CSBase):
             point_ids = fp.point_ids
             
             numpoints = point_ids.size
-            resistances = -1 * numpy.ones((numpoints, numpoints), dtype='float64')
+            resistances = -1 * np.ones((numpoints, numpoints), dtype='float64')
             
             num_points_solved = 0
             num_points_to_solve = numpoints*(numpoints-1)/2
@@ -301,11 +272,11 @@ class CSRaster(CSBase):
                     continue    # we don't need to do anything special for row end condition
                 
                 if poly_map == []:
-                    poly_map_temp = numpy.zeros((self.state.nrows, self.state.ncols), int)
+                    poly_map_temp = np.zeros((self.state.nrows, self.state.ncols), int)
                     new_poly_num = 1
                 else:
                     poly_map_temp = poly_map
-                    new_poly_num = numpy.max(poly_map) + 1
+                    new_poly_num = np.max(poly_map) + 1
                 
                 poly_map_temp = self.get_overlap_polymap(point_ids[pt1_idx], point_map, poly_map_temp, new_poly_num) 
                 poly_map_temp = self.get_overlap_polymap(point_ids[pt2_idx], point_map, poly_map_temp, new_poly_num+1) 
@@ -330,8 +301,11 @@ class CSRaster(CSBase):
             resistances[i, i] = 0
 
         # Add row and column headers and write resistances to disk
-        resistances, _resistances_3col = self.writeResistances(point_ids, resistances)
-        cs.write_cum_current_map(None)
+        resistances, _resistances_3col = self.write_resistances(point_ids, resistances)
+        if self.options.write_cur_maps:
+            cs.write_c_map('')
+            if self.options.write_max_cur_maps:
+                cs.write_c_map('max')
 
         return resistances,solver_failed
 
@@ -342,7 +316,6 @@ class CSRaster(CSBase):
         
         Called once when focal points are used, called multiple times when focal regions are used.
         """
-        # TODO: don't need cum_current_map and max_current_map and possibly report_status
         last_write_time = time.time()
         numpoints = fp.num_points()
         
@@ -350,12 +323,12 @@ class CSRaster(CSBase):
             use_resistance_calc_shortcut = False
         else:     
             use_resistance_calc_shortcut = True # We use this when there are no focal regions.  It saves time when we are also not creating maps
-            shortcut_resistances = -1 * numpy.ones((numpoints, numpoints), dtype='float64') 
+            shortcut_resistances = -1 * np.ones((numpoints, numpoints), dtype='float64') 
            
         solver_failed_somewhere = False
         
         self.log('Graph has ' + str(g_habitat.num_nodes) + ' nodes, ' + str(numpoints) + ' focal points and '+ str(g_habitat.num_components)+ ' components.', 2)
-        resistances = -1 * numpy.ones((numpoints, numpoints), dtype = 'float64')         #Inf creates trouble in python 2.5 on Windows. Use -1 instead.
+        resistances = -1 * np.ones((numpoints, numpoints), dtype = 'float64')         #Inf creates trouble in python 2.5 on Windows. Use -1 instead.
         
         if use_resistance_calc_shortcut==True:
             num_points_to_solve = numpoints
@@ -372,7 +345,7 @@ class CSRaster(CSBase):
             del G_pruned 
             
             if use_resistance_calc_shortcut:
-                voltmatrix = numpy.zeros((numpoints,numpoints), dtype='float64')     #For resistance calc shortcut
+                voltmatrix = np.zeros((numpoints,numpoints), dtype='float64')     #For resistance calc shortcut
             
             anchorPoint = 0 #For resistance calc shortcut
             
@@ -427,15 +400,25 @@ class CSRaster(CSBase):
                 resistances[pt2_idx, pt1_idx] = resistances[pt1_idx, pt2_idx] = voltages[local_src] - voltages[local_dst]
                 
                 # Write maps to files
-                frompoint = fp.point_id(pt1_idx)
-                topoint = fp.point_id(pt2_idx)
+                frompoint = int(fp.point_id(pt1_idx))
+                topoint = int(fp.point_id(pt2_idx))
                         
-                if use_resistance_calc_shortcut==True:
+                if use_resistance_calc_shortcut:
                     anchorPoint = pt1_idx #for use later in shortcult resistance calc
                     voltmatrix = self.get_voltmatrix(pt1_idx, pt2_idx, numpoints, local_node_map, voltages, fp, resistances, voltmatrix)
                 else:
-                    cs.write_voltage_map(voltages, local_node_map, frompoint, topoint, num_points_solved, num_points_to_solve)
-                    cs.write_current_map(G, local_src, local_dst, voltages, local_node_map, frompoint, topoint, num_points_solved, num_points_to_solve)
+                    cv_map_name = str(frompoint)+'_'+str(topoint)
+                    cs.write_v_map(cv_map_name, False, voltages, local_node_map)
+                    if self.options.write_cur_maps:
+                        finitegrounds = [-9999] #create dummy value for pairwise case
+                        if self.options.write_cum_cur_map_only:
+                            cs.store_c_map(cv_map_name, voltages, G, local_node_map, finitegrounds, local_src, local_dst)
+                        else:
+                            cs.write_c_map(cv_map_name, False, voltages, G, local_node_map, finitegrounds, local_src, local_dst)
+                        cs.accumulate_c_map_from('', cv_map_name)
+                        if self.options.write_max_cur_maps:
+                            cs.store_max_c_map('max', cv_map_name)
+                        cs.rm_c_map(cv_map_name)
 
                 (hours,mins,_secs) = self.elapsed_time(last_write_time)
                 if mins > 2 or hours > 0: 
@@ -458,9 +441,9 @@ class CSRaster(CSBase):
     def single_ground_solver(self, G, src, dst):
         """Solver used for pairwise mode."""  
         n = G.shape[0]
-        rhs = zeros(n, dtype = 'float64')
+        rhs = np.zeros(n, dtype = 'float64')
         if src==dst:
-            voltages = zeros(n, dtype = 'float64')
+            voltages = np.zeros(n, dtype = 'float64')
         else:
             rhs[dst] = -1
             rhs[src] = 1
@@ -468,62 +451,53 @@ class CSRaster(CSBase):
 
         return voltages
 
-        
     @print_timing
-    def advanced_module(self, g_map, poly_map, source_map, ground_map,source_id, G, node_map, component_map, componentWithPoints): 
-        """Overhead module for advanced mode with raster data."""  
-        if node_map==None:
-            oneToAllStreamline = False
-        else:
-            oneToAllStreamline = True
+    def advanced_module(self, g_habitat, cs, source_map, ground_map, source_id=None, component_with_points=None):
         solver_called = False
-        solver_failed = False 
-
-        if oneToAllStreamline==False:
-            node_map = self.construct_node_map(g_map, poly_map)
-            (component_map, components) = self.construct_component_map(g_map, node_map)
+        solver_failed = False
+         
         if self.options.scenario=='advanced':
-            self.log('Graph has ' + str(node_map.max()) + ' nodes and '+ str(components.max())+ ' components.',2)
-            
-        if self.options.write_cur_maps == True:
-            cum_current_map = zeros((self.state.nrows, self.state.ncols),dtype = 'float64')         
+            self.log('Graph has ' + str(g_habitat.num_nodes) + ' nodes and '+ str(g_habitat.num_components)+ ' components.', 2)
+
+        if component_with_points != None:
+            G = g_habitat.get_graph()
+            G = self.laplacian(G)
+            node_map = g_habitat.node_map
         
-        if self.options.write_volt_maps == True: 
-            cum_voltage_map = zeros((self.state.nrows, self.state.ncols),dtype = 'float64') 
-        elif self.options.scenario=='one-to-all':
-            cum_voltage_map = zeros((self.state.nrows, self.state.ncols),dtype = 'float64') 
+        vc_map_id = '' if source_id==None else str(source_id)
+        cs.alloc_v_map(vc_map_id)
         
-        if oneToAllStreamline==False:        
-            cmin = 1
-            cmax = components.max()
-        else:
-            cmin = componentWithPoints
-            cmax = componentWithPoints
+        if self.options.write_cur_maps:
+            cs.alloc_c_map(vc_map_id)
             
-        for c in range(cmin,int(cmax+1)):
-            c_map = where(component_map == c, 1, 0)
-            local_source_map = multiply(c_map, source_map)
-            local_ground_map = where(c_map, ground_map, 0) 
+        for comp in range(1, g_habitat.num_components+1):
+            if (component_with_points != None) and (comp != component_with_points):
+                continue
+
+            c_map = np.where(g_habitat.component_map == comp, 1, 0)
+            local_source_map = np.multiply(c_map, source_map)
+            local_ground_map = np.where(c_map, ground_map, 0) 
             del c_map
             
-            source_in_component = (where(local_source_map, 1, 0)).sum() > 0
-            ground_in_component = (where(local_ground_map, 1, 0)).sum() > 0
+            source_in_component = (np.where(local_source_map, 1, 0)).sum() > 0
+            ground_in_component = (np.where(local_ground_map, 1, 0)).sum() > 0
             
             if (source_in_component) & (ground_in_component):
-                (rows, cols) = where(local_source_map)
+                (rows, cols) = np.where(local_source_map)
                 values = local_source_map[rows,cols]
-                local_sources_rc = c_[values,rows,cols]
-                (rows, cols) = where(local_ground_map)
+                local_sources_rc = np.c_[values,rows,cols]
+                (rows, cols) = np.where(local_ground_map)
                 values = local_ground_map[rows,cols]
-                local_grounds_rc = c_[values,rows,cols]
+                local_grounds_rc = np.c_[values,rows,cols]
                 del rows, cols, values, local_source_map, local_ground_map 
 
-                if oneToAllStreamline==False:
-                    (G, node_map) = self.node_pruner(g_map, poly_map, component_map, c)
+                if component_with_points == None:
+                    (G, node_map) = g_habitat.prune_nodes_for_component(comp)
+                    G = self.laplacian(G)
 
                 numnodes = node_map.max()
-                sources = zeros(numnodes)
-                grounds = zeros(numnodes)
+                sources = np.zeros(numnodes)
+                grounds = np.zeros(numnodes)
                 num_local_sources = local_sources_rc.shape[0]
                 num_local_grounds = local_grounds_rc.shape[0]
 
@@ -543,92 +517,63 @@ class CSRaster(CSBase):
                 try:
                     voltages = self.multiple_solver(G, sources, grounds, finitegrounds) 
                     del sources, grounds
-                    if c==int(cmax):
-                        del g_map, poly_map, ground_map
-                        gc.collect()
                 except MemoryError:
                     raise MemoryError
                 except:
                     voltages = -777
                     solver_failed = True
-                    
+
                 if solver_failed==False:
                     ##Voltage and current mapping are cumulative, since there may be independent components.
-                    if self.options.write_volt_maps == True: 
-                        cum_voltage_map +=  self.create_voltage_map(node_map,voltages) 
-                    elif self.options.scenario=='one-to-all':
-                        cum_voltage_map +=  self.create_voltage_map(node_map,voltages) 
-                    if self.options.write_cur_maps == True:
-                        G = G.tocoo()
-                        cum_current_map +=  self.create_current_map(voltages, G, node_map, finitegrounds) 
-                
-        if self.options.write_volt_maps == True: 
-            if solver_failed==False:
-                filetext = 'voltmap'
-                if self.options.scenario=='advanced':
-                    fileadd = ''
-                else:
-                    fileadd = '_'+str(source_id)
-                CSIO.write_aaigrid(filetext, fileadd, cum_voltage_map, self.options, self.state)  
-
-        if self.options.scenario=='advanced':
-            if self.options.write_cur_maps == True: 
-                if solver_failed==False:
-                    if self.options.log_transform_maps==True:
-                        cum_current_map = where(cum_current_map>0,log10(cum_current_map),self.state.nodata) 
-                    filetext = 'curmap'
-                    fileadd = ''
-                    CSIO.write_aaigrid(filetext, fileadd, cum_current_map, self.options, self.state) 
-            else:
-                cum_current_map = None
-
-        else:
-            if self.options.write_cur_maps == True: 
-                if self.options.write_cum_cur_map_only==False:
-                    if solver_failed==False:
-                        if self.options.log_transform_maps==True:
-                            cum_current_map = where(cum_current_map>0,log10(cum_current_map),self.state.nodata) 
-                        filetext = 'curmap'   
-                        fileadd = '_'+str(source_id)   
-                        CSIO.write_aaigrid(filetext, fileadd, cum_current_map, self.options, self.state) 
-            else:
-                cum_current_map = None
+                    if self.options.write_volt_maps or (self.options.scenario=='one-to-all'):
+                        cs.accumulate_v_map(vc_map_id, voltages, node_map)
+                        
+                    if self.options.write_cur_maps:
+                        cs.accumulate_c_map(vc_map_id, voltages, G, node_map, finitegrounds, None, None)
+        
+        if solver_failed==False:
+            cs.write_v_map(vc_map_id)
+            
+        if ((source_id == None) and self.options.write_cur_maps) or ((source_id != None) and (self.options.write_cum_cur_map_only==False)):
+            cs.write_c_map(vc_map_id)
             
         if self.options.scenario=='one-to-all':
             if solver_failed==False:
-                (row, col) = where(source_map>0)
-                voltages = cum_voltage_map[row,col]/source_map[row,col] #allows for variable source strength
+                (row, col) = np.where(source_map>0)
+                vmap = cs.get_v_map(vc_map_id)
+                voltages = vmap[row,col]/source_map[row,col] #allows for variable source strength
         elif self.options.scenario=='all-to-one':
             if solver_failed==False:
                 voltages = 0 #return 0 voltage/resistance for all-to-one mode           
 
+        cs.rm_v_map(vc_map_id)
         # Advanced mode will return voltages of the last component solved only for verification purposes.  
         if solver_called==False:
             voltages = -1
 
-        return voltages,cum_current_map,solver_failed
+        return voltages, cs.get_c_map(vc_map_id, True), solver_failed
 
         
     def resolve_conflicts(self, sources, grounds):
         """Handles conflicting grounds and sources for advanced mode according to user preferences."""  
-        finitegrounds = where(grounds<Inf,grounds,0)
-        if (where(finitegrounds==0, 0, 1)).sum()==0:
+        finitegrounds = np.where(grounds < np.Inf, grounds, 0)
+        if (np.where(finitegrounds==0, 0, 1)).sum()==0:
             finitegrounds = [-9999]
-        infgrounds = where(grounds==Inf,1,0)
+        infgrounds = np.where(grounds==np.Inf, 1, 0)
         
         ##Resolve conflicts bewteen sources and grounds
-        conflicts = logical_and(sources,grounds)
-        if self.options.remove_src_or_gnd=='rmvsrc':
-            sources = where(conflicts,0,sources)
-        elif self.options.remove_src_or_gnd=='rmvgnd':
-            grounds = where(conflicts,0,grounds)
-        elif self.options.remove_src_or_gnd=='rmvall':
-            sources = where(conflicts,0,sources)
-        infconflicts = logical_and(sources,infgrounds)
-        grounds = where(infconflicts,0,grounds)
-        if size(where(sources)) == 0:
+        conflicts = np.logical_and(sources, grounds)
+        if self.options.remove_src_or_gnd == 'rmvsrc':
+            sources = np.where(conflicts, 0, sources)
+        elif self.options.remove_src_or_gnd == 'rmvgnd':
+            grounds = np.where(conflicts, 0, grounds)
+        elif self.options.remove_src_or_gnd == 'rmvall':
+            sources = np.where(conflicts, 0, sources)
+        infconflicts = np.logical_and(sources, infgrounds)
+        grounds = np.where(infconflicts, 0, grounds)
+        if np.size(np.where(sources)) == 0:
             raise RuntimeError('All sources conflicted with grounds and were removed. There is nothing to solve.') 
-        if size(where(grounds)) == 0:
+        if np.size(np.where(grounds)) == 0:
             raise RuntimeError('All grounds conflicted with sources and were removed.  There is nothing to solve.') 
 
         return (sources, grounds, finitegrounds)
@@ -638,14 +583,14 @@ class CSRaster(CSBase):
     def multiple_solver(self, G, sources, grounds, finitegrounds):
         """Solver used for advanced mode."""  
         if finitegrounds[0]==-9999:#Fixme: no need to do this, right?
-            finitegrounds = zeros(G.shape[0],dtype = 'int32') #create dummy vector for pairwise case
+            finitegrounds = np.zeros(G.shape[0], dtype='int32') #create dummy vector for pairwise case
             Gsolve = G + sparse.spdiags(finitegrounds.T, 0, G.shape[0], G.shape[0]) 
             finitegrounds = [-9999]
         else:
             Gsolve = G + sparse.spdiags(finitegrounds.T, 0, G.shape[0], G.shape[0]) 
            
         ##remove infinite grounds from graph
-        infgroundlist = where(grounds==Inf)
+        infgroundlist = np.where(grounds==np.Inf)
         infgroundlist = infgroundlist[0]
         numinfgrounds = infgroundlist.shape[0]
         
@@ -654,7 +599,7 @@ class CSRaster(CSBase):
             dst = infgroundlist[numinfgrounds-ground]
             dst_to_delete.append(dst)
             #Gsolve = deleterowcol(Gsolve, delrow = dst, delcol = dst)
-            keep = delete (arange(0, sources.shape[0]), dst)
+            keep = np.delete(np.arange(0, sources.shape[0]), dst)
             sources = sources[keep]            
         Gsolve = self.deleterowcol(Gsolve, delrow = dst_to_delete, delcol = dst_to_delete)
         
@@ -668,287 +613,19 @@ class CSRaster(CSBase):
             #replace infinite grounds in voltage vector
             for ground in range(numinfgrounds,0, -1): 
                 node = infgroundlist[numinfgrounds - ground] 
-                voltages = asmatrix(insert(voltages,node,0)).T
-        return asarray(voltages).reshape(voltages.size)
+                voltages = np.asmatrix(np.insert(voltages,node,0)).T
+        return np.asarray(voltages).reshape(voltages.size)
             
-            
-    @print_timing
-    def construct_node_map(self, g_map, poly_map):
-        """Creates a grid of node numbers corresponding to raster pixels with non-zero conductances."""  
-        node_map = numpy.zeros(g_map.shape, dtype = 'int32')
-        node_map[g_map.nonzero()] = numpy.arange(1, numpy.sum(g_map>0)+1, dtype='int32')
-
-        if poly_map == []:
-            return node_map
-
-        # Remove extra points from poly_map that are not in g_map
-        poly_map_pruned = numpy.zeros(g_map.shape, dtype='int32')
-        poly_map_pruned[numpy.where(g_map)] = poly_map[numpy.where(g_map)]
-        
-        polynums = numpy.unique(poly_map)
-   
-        for i in range(0, polynums.size):
-            polynum = polynums[i]
-            if polynum !=  0:
-                (pi, pj) = numpy.where(poly_map_pruned == polynum) #
-                (pk, pl) = numpy.where(poly_map == polynum) #Added 040309 BHM                
-                if len(pi) > 0:  
-                    node_map[pk, pl] = node_map[pi[0], pj[0]] #Modified 040309 BHM  
-        node_map[numpy.where(node_map)] = self.relabel(node_map[numpy.where(node_map)], 1) #BHM 072409
-
-        return node_map
-
-    @print_timing
-    def construct_component_map(self, g_map, node_map):
-        """Assigns component numbers to grid corresponding to pixels with non-zero conductances.
-        
-        Nodes with the same component number are in single, connected components.
-        
-        """  
-        prunedMap = False
-        G = self.construct_g_graph(g_map, node_map, prunedMap) 
-        (_numComponents, C) = connected_components(G)
-        C += 1 # Number components from 1
-
-        (I, J) = where(node_map)
-        nodes = node_map[I, J].flatten()
-
-        component_map = zeros(node_map.shape, dtype = 'int32')
-        component_map[I, J] = C[nodes-1]
-
-        return (component_map, C)
-
-
-    @print_timing
-    def construct_g_graph(self, g_map, node_map, prunedMap):
-        """Construct sparse adjacency matrix given raster maps of conductances and nodes."""  
-        numnodes = node_map.max()
-        (node1, node2, conductances) = self.get_conductances(g_map, node_map)
-        G = sparse.csr_matrix((conductances, (node1, node2)), shape = (numnodes, numnodes)) # Memory hogging operation?
-        g_graph = G + G.T
-        
-        return g_graph
-
-    def get_horiz_neighbors(self, g_map):
-        """Returns values of horizontal neighbors in conductance map."""  
-        m = g_map.shape[0]
-        n = g_map.shape[1]
-
-        g_map_l = g_map[:, 0:(n-1)]
-        g_map_r = g_map[:, 1:n]
-        g_map_lr = double(logical_and(g_map_l, g_map_r))
-        s_horiz = where(c_[g_map_lr, zeros((m,1), dtype = 'int32')].flatten())
-        t_horiz = where(c_[zeros((m,1), dtype = 'int32'), g_map_lr].flatten())
-
-        return (s_horiz, t_horiz)
-
-        
-    def get_vert_neighbors(self, g_map):
-        """Returns values of vertical neighbors in conductance map."""  
-        m = g_map.shape[0]
-        n = g_map.shape[1]
-
-        g_map_u = g_map[0:(m-1), :]
-        g_map_d = g_map[1:m    , :]
-        g_map_ud = double(logical_and(g_map_u, g_map_d))
-        s_vert = where(r_[g_map_ud, zeros((1,n), dtype = 'int32')].flatten())
-        t_vert = where(r_[zeros((1,n), dtype = 'int32'), g_map_ud].flatten())
-        
-        return (s_vert, t_vert)
-
-        
-    def get_diag1_neighbors(self, g_map):
-        """Returns values of 1st diagonal neighbors in conductance map."""  
-        m = g_map.shape[0]
-        n = g_map.shape[1]
-
-        z1 = zeros((m-1, 1), dtype = 'int32')
-        z2 = zeros((1  , n), dtype = 'int32')
-        
-        g_map_ul  = g_map[0:m-1, 0:n-1]
-        g_map_dr  = g_map[1:m  , 1:n  ]
-        g_map_udr = double(logical_and(g_map_ul, g_map_dr)) 
-        s_dr      = where(r_[c_[g_map_udr, z1], z2].flatten())
-        t_dr      = where(r_[z2, c_[z1, g_map_udr]].flatten())
-        
-        return (s_dr, t_dr)
-
-        
-    def get_diag2_neighbors(self, g_map):
-        """Returns values of 2nd diagonal neighbors in conductance map."""  
-        m = g_map.shape[0]
-        n = g_map.shape[1]
-
-        z1 = zeros((m-1, 1), dtype = 'int32')
-        z2 = zeros((1  , n), dtype = 'int32')
-
-        g_map_ur  = g_map[0:m-1, 1:n  ]
-        g_map_dl  = g_map[1:m  , 0:n-1]
-        g_map_udl = double(logical_and(g_map_ur, g_map_dl)) 
-        s_dl      = where(r_[c_[z1, g_map_udl], z2].flatten())
-        t_dl      = where(r_[z2, c_[g_map_udl, z1]].flatten())
-                        
-        return (s_dl, t_dl)
-        
-        
-    def get_conductances(self, g_map, node_map):
-        """Calculates conductances between adjacent nodes given a raster conductance map.
-        
-        Returns an adjacency matrix with values representing node-to-node conductance values.
-        
-        """  
-        (s_horiz, t_horiz) = self.get_horiz_neighbors(g_map)
-        (s_vert,  t_vert)  = self.get_vert_neighbors(g_map)
-
-        s = c_[s_horiz, s_vert].flatten()
-        t = c_[t_horiz, t_vert].flatten()
-
-        # Conductances
-        g1 = g_map.flatten()[s]
-        g2 = g_map.flatten()[t]
-
-        if self.options.connect_using_avg_resistances == False:
-            conductances = (g1+g2)/2
-        else:
-            conductances = 1 /((1/g1+1/g2)/2)
-
-        if self.options.connect_four_neighbors_only == False:
-            (s_dr, t_dr) = self.get_diag1_neighbors(g_map)
-            (s_dl, t_dl) = self.get_diag2_neighbors(g_map)
-
-            sd = c_[s_dr, s_dl].flatten()
-            td = c_[t_dr, t_dl].flatten()
-
-            # Conductances
-            g1 = g_map.flatten()[sd]
-            g2 = g_map.flatten()[td]
-
-            if self.options.connect_using_avg_resistances == False:
-                conductances_d = (g1+g2) / (2*sqrt(2))
-            else:
-                conductances_d =  1 / (sqrt(2)*(1/g1 + 1/g2) / 2)
-
-            conductances = r_[conductances, conductances_d]
-
-            s = r_[s, sd].flatten()
-            t = r_[t, td].flatten()
-
-        # Nodes in the g_graph. 
-        # Subtract 1 for Python's 0-based indexing. Node numbers start from 1
-        node1 = node_map.flatten()[s]-1
-        node2 = node_map.flatten()[t]-1
-        
-        return (node1, node2, conductances)
-
-    @print_timing
-    def node_pruner(self, g_map, poly_map, component_map, keep_component):
-        """Removes nodes outside of component being operated on.
-        
-        Returns node map and adjacency matrix that only include nodes in keep_component.
-        
-        """  
-        selector = component_map == keep_component
-        
-        g_map_pruned = selector * g_map
-        poly_map_pruned = []
-        if poly_map !=  []:
-            poly_map_pruned = selector * poly_map
-
-        node_map_pruned = self.construct_node_map (g_map_pruned, poly_map_pruned)
-        prunedMap = True
-        G_pruned = self.construct_g_graph (g_map_pruned, node_map_pruned, prunedMap) 
-        G = self.laplacian(G_pruned) 
-        
-        return (G, node_map_pruned)
-
-
         
     @print_timing
     def create_voltage_map(self, node_map, voltages):
         """Creates raster map of voltages given node voltage vector."""
-        voltage_map = numpy.zeros((self.state.nrows, self.state.ncols), dtype = 'float64')
+        voltage_map = np.zeros((self.state.nrows, self.state.ncols), dtype = 'float64')
         ind = node_map > 0
-        voltage_map[where(ind)] = numpy.asarray(voltages[node_map[ind]-1]).flatten()
+        voltage_map[np.where(ind)] = np.asarray(voltages[node_map[ind]-1]).flatten()
         return voltage_map
             
-
-
-######################### BEGIN CURRENT MAPPING CODE ########################################
-    @print_timing
-    def create_current_map(self, voltages, G, node_map, finitegrounds):
-        """Creates raster current map given node voltage vector, adjacency matrix, etc."""  
-        gc.collect()
-        node_currents = self.get_node_currents(voltages, G, finitegrounds)
-        (rows, cols) = numpy.where(node_map)
-        vals = node_map[rows, cols]-1
-        current_map = numpy.zeros((self.state.nrows, self.state.ncols),dtype = 'float64')
-        current_map[rows,cols] = node_currents[vals]
-
-        return current_map
-
-    def get_node_currents(self, voltages, G, finitegrounds):
-        """Calculates currents at nodes."""  
-        node_currents_pos = self.get_node_currents_posneg(G, voltages, finitegrounds, True) 
-        node_currents_neg = self.get_node_currents_posneg(G, voltages, finitegrounds, False)
-        node_currents = numpy.where(node_currents_neg > node_currents_pos, node_currents_neg, node_currents_pos)
-
-        return numpy.asarray(node_currents)[0]
-
-        
-    def get_node_currents_posneg (self, G, voltages, finitegrounds, pos):
-        """Calculates positive or negative node currents based on pos flag."""  
-        branch_currents = self.get_branch_currents(G,voltages,pos)
-        branch_currents = branch_currents-branch_currents.T #Can cause memory error
-        
-        branch_currents = branch_currents.tocoo() #Can cause memory error, but this and code below more memory efficient than previous version.
-        mask = branch_currents.data > 0
-        row  = branch_currents.row[mask]
-        col  = branch_currents.col[mask]
-        data = branch_currents.data[mask]
-        del mask
-        n = G.shape[0]
-        branch_currents = sparse.csr_matrix((data, (row, col)), shape = (n,n))
-           
-        if finitegrounds[0]!= -9999:  
-            finiteground_currents = multiply(finitegrounds, voltages)
-            if pos == True:
-                finiteground_currents = where(finiteground_currents < 0, -finiteground_currents, 0)
-            else:
-                finiteground_currents = where(finiteground_currents > 0, finiteground_currents, 0)  
-            n = G.shape[0]
-            branch_currents = branch_currents + sparse.spdiags(finiteground_currents.T, 0, n, n)        
-
-        return branch_currents.sum(0)
-    
-    
-    def get_branch_currents(self,G,voltages,pos):    
-        """Calculates branch currents."""  
-        branch_currents = self.get_branch_currents_posneg(G,voltages,pos)
-        n = G.shape[0]
-        mask = G.row < G.col
-        branch_currents = sparse.csr_matrix((branch_currents, (G.row[mask], G.col[mask])), shape = (n,n)) #SQUARE MATRIX, SAME DIMENSIONS AS GRAPH
-        return branch_currents
-
-        
-    def get_branch_currents_posneg(self,G,voltages,pos):
-        """Calculates positive or negative node currents based on pos flag."""  
-        mask = G.row < G.col
-        if pos==True:
-            vdiff = voltages[G.row[mask]]              
-            vdiff -=  voltages[G.col[mask]]             
-        else:
-            vdiff = voltages[G.col[mask]]              
-            vdiff -=  voltages[G.row[mask]]             
-
-        conductances = where(G.data[mask] < 0, -G.data[mask], 0)
-        del mask
-        
-        branch_currents = asarray(multiply(conductances,vdiff.T)).flatten()
-        maxcur = max(branch_currents)
-        branch_currents = where(absolute(branch_currents/maxcur) < 1e-8,0,branch_currents) #Delete very small branch currents to save memory
-        return branch_currents
-######################### END CURRENT MAPPING CODE ########################################        
-        
+ 
     def get_voltmatrix(self, i, j, numpoints, local_node_map, voltages, fp, resistances, voltmatrix):                                            
         """Returns a matrix of pairwise voltage differences between focal nodes.
         
@@ -956,7 +633,7 @@ class CSRaster(CSBase):
         voltages or currents are mapped.
         
         """  
-        voltvector = numpy.zeros((numpoints,1),dtype = 'float64')  
+        voltvector = np.zeros((numpoints,1),dtype = 'float64')  
         voltage_map = self.create_voltage_map(local_node_map,voltages) 
         for point in range(1,numpoints):
             voltageAtPoint = voltage_map[fp.get_coordinates(point)]
@@ -986,7 +663,7 @@ class CSRaster(CSBase):
         return shortcut_resistances                        
 
 
-    def writeResistances(self, point_ids, resistances):
+    def write_resistances(self, point_ids, resistances):
         """Writes resistance file to disk."""  
         outputResistances = self.append_names_to_resistances(point_ids, resistances)
         resistances3Columns = self.convertResistances3cols(outputResistances)
@@ -997,7 +674,7 @@ class CSRaster(CSBase):
         """Converts resistances from matrix to 3-column format."""  
         numPoints = resistances.shape[0]-1
         numEntries = numPoints*(numPoints-1)/2
-        resistances3columns = zeros((numEntries,3),dtype = 'float64') 
+        resistances3columns = np.zeros((numEntries,3),dtype = 'float64') 
         x = 0
         for i in range(1,numPoints):
             for j in range(i+1,numPoints+1):
@@ -1007,76 +684,35 @@ class CSRaster(CSBase):
                 x = x+1
         return resistances3columns        
         
-        
-    def _prune_included_pairs(self, points_rc):
-        """Remove excluded points from focal node list when using extra file that lists pairs to include/exclude."""
-        included_pairs = self.state.included_pairs
-        include_list = list(included_pairs[0,:])
-        point = 0
-        _drop_flag = False
-        while point < points_rc.shape[0]: #Prune out any points not in include_list
-            if points_rc[point,0] in include_list: #match
-                point = point+1
-            else:
-                _drop_flag = True   
-                points_rc = self.deleterow(points_rc, point)  
-         
-        include_list = list(points_rc[:,0])
-        num_connection_rows = included_pairs.shape[0]
-        row = 1
-        while row < num_connection_rows: #Prune out any entries in include_list that are not in points_rc
-            if included_pairs[row,0] in include_list: #match
-                row = row+1
-            else:
-                included_pairs = self.deleterowcol(included_pairs, delrow=row, delcol=row)   
-                _drop_flag = True
-                num_connection_rows = num_connection_rows-1
-
-        self.state.included_pairs = included_pairs
-#         if _drop_flag==True:
-#             print'\nNOTE: Code to exclude pairwise calculations is activated and \nsome entries did not match with focal node file.  \nSome focal nodes may have been dropped.'      
-        return points_rc
     
-    
-    def get_points_rc_unique(self, point_ids, points_rc):
-        """Return a list of unique focal node IDs and x-y coordinates."""  
-        points_rc_unique = numpy.zeros((point_ids.size, 3), int)
-        for i in range(0, point_ids.size):
-            for j in range(0, points_rc.shape[0]):
-                if points_rc[j,0]==point_ids[i]:
-                    points_rc_unique[i,:] = points_rc[j,:] 
-                    break                    
-        return points_rc_unique          
         
-        
-        
-    def getstrengthMap(self, points_rc_unique, pointStrengths):
+    def get_strength_map(self, points_rc, point_strengths):
         """Returns map and coordinates of point strengths when variable source strengths are used."""  
         if self.options.use_variable_source_strengths==True:
+            strengths_rc = self.get_strengths_rc(points_rc, point_strengths)
             if self.options.scenario == 'one-to-all': 
-                strengths_rc = self.get_strengths_rc(self.state.point_strengths,points_rc_unique)
-                strengthMap = None
+                strength_map = None
             else:
-                strengths_rc = self.get_strengths_rc(pointStrengths,points_rc_unique)
-                strengthMap = numpy.zeros((self.state.nrows,self.state.ncols),dtype = 'Float64')
-                strengthMap[points_rc_unique[:,1],points_rc_unique[:,2]] = strengths_rc[:,0]     
-            return strengthMap,strengths_rc
+                strength_map = np.zeros((self.state.nrows, self.state.ncols), dtype='Float64')
+                strength_map[points_rc[:,1], points_rc[:,2]] = strengths_rc[:,0]     
+            return strength_map,strengths_rc
         else:
             return None,None
         
-        
-    def get_strengths_rc(self, pointStrengths, points_rc_unique):
+    @staticmethod
+    def get_strengths_rc(points_rc, point_strengths):
         """Returns coordinates of point strengths when variable source strengths are used."""  
-        strengths_rc = zeros(points_rc_unique.shape,dtype = 'float64')
-        strengths_rc[:,1] = points_rc_unique[:,1]
-        strengths_rc[:,2] = points_rc_unique[:,2]
-        for point in range(0,points_rc_unique.shape[0]):
+        strength_ids = list(point_strengths[:,0])
+        strength_values = list(point_strengths[:,1])
+        
+        strengths_rc = np.zeros(points_rc.shape, dtype='float64')
+        strengths_rc[:,1] = points_rc[:,1]
+        strengths_rc[:,2] = points_rc[:,2]
+        for point in range(0, points_rc.shape[0]):
             try:
-                strengthIds = list(pointStrengths[:,0])
-                strengthValues = list(pointStrengths[:,1])
-                pointId = points_rc_unique[point,0]
-                indx = strengthIds.index(pointId)
-                strengths_rc[point,0] = strengthValues[indx]
+                point_id = points_rc[point,0]
+                indx = strength_ids.index(point_id)
+                strengths_rc[point,0] = strength_values[indx]
             except ValueError:
                 strengths_rc[point,0] = 1
         return strengths_rc        
@@ -1097,12 +733,11 @@ class CSRaster(CSBase):
  
         if self.options.use_mask==True:
             mask = CSIO.read_poly_map(self.options.mask_file, True, 0, self.state, True, "Mask", 'int32')
-            mask = where(mask !=  0, 1, 0) 
-            self.state.g_map = multiply(self.state.g_map, mask)
+            mask = np.where(mask !=  0, 1, 0) 
+            self.state.g_map = np.multiply(self.state.g_map, mask)
             del mask
             
             sum_gmap = (self.state.g_map).sum()
-            #sum_gmap = sum_gmap.sum()
             if sum_gmap==0:
                 raise RuntimeError('All entries in habitat map have been dropped after masking with the mask file.  There is nothing to solve.')             
         else:

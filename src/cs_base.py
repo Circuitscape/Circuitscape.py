@@ -13,8 +13,6 @@ from cs_cfg import CSConfig
 from cs_state import CSState
 from cs_io import CSIO
 
-#from numpy import *
-
 print_timings_spaces = 0
 print_timings = False
 
@@ -256,20 +254,18 @@ class CSBase(object):
 
 class CSFocalPoints:
     """Represents a set of focal points and associate logic to work with them"""
-    MODE_RASTER = 1
-    MODE_NETWORK = 2
     def __init__(self, points, included_pairs):
         self.included_pairs = included_pairs
         pdims = len(points.shape)
         if pdims == 2:
             # raster mode
-            self.mode = CSFocalPoints.MODE_RASTER
+            self.is_network = False
             self.points_rc = points
             self._prune_included_pairs()
             self.point_ids = self._get_point_ids()
         elif pdims == 1:
             # network mode
-            self.mode = CSFocalPoints.MODE_NETWORK
+            self.is_network = True
             self.points_rc = None
             self.point_ids = points
             self._prune_included_pairs()
@@ -287,7 +283,7 @@ class CSFocalPoints:
         point = 0
         _drop_flag = False
         
-        if self.mode == CSFocalPoints.MODE_NETWORK:
+        if self.is_network:
             while point < self.point_ids.size: #Prune out any points not in includeList
                 if self.point_ids[point] in include_list: #match
                     point = point+1
@@ -316,8 +312,8 @@ class CSFocalPoints:
                 _drop_flag = True
                 num_connection_rows = num_connection_rows-1
 
-        if _drop_flag==True:
-            logging.info('\nNOTE: Code to exclude pairwise calculations is activated and some entries did not match with focal node file. Some focal nodes may have been dropped.')      
+        #if _drop_flag==True:
+        #    logging.info('\nNOTE: Code to exclude pairwise calculations is activated and some entries did not match with focal node file. Some focal nodes may have been dropped.')      
 
 
     def _get_point_ids(self):
@@ -325,14 +321,14 @@ class CSFocalPoints:
         return np.unique(np.asarray(self.points_rc[:,0]))
 
     def num_points(self):
-        if self.mode == CSFocalPoints.MODE_NETWORK:
+        if self.is_network:
             return self.point_ids.size
         else:
             return self.points_rc.shape[0]
     
     def get_unique_coordinates(self):
         """Return a list of unique focal node IDs and x-y coordinates."""
-        if self.mode == CSFocalPoints.MODE_NETWORK:
+        if self.is_network:
             raise RuntimeError('Not available in network mode')
           
         points_rc_unique = np.zeros((self.point_ids.size, 3), int)
@@ -346,7 +342,7 @@ class CSFocalPoints:
 
     def get_coordinates(self, pt_idx=None):
         """Returns a list of focal node IDs and x-y coordinates or only x-y coordinates if an index or ID is specified"""
-        if self.mode == CSFocalPoints.MODE_NETWORK:
+        if self.is_network:
             raise RuntimeError('Not available in network mode')
           
         if pt_idx != None:
@@ -356,7 +352,7 @@ class CSFocalPoints:
 
     def get_subset(self, idx_list):
         """Returns a subset of focal point coordinates for supplied indexes"""
-        if self.mode == CSFocalPoints.MODE_NETWORK:
+        if self.is_network:
             raise RuntimeError('Not available in network mode')
         
         ncoords = len(idx_list)
@@ -384,7 +380,7 @@ class CSFocalPoints:
         else:
             components = habitat.components
             node_map = habitat.node_map
-        if self.mode == CSFocalPoints.MODE_NETWORK:
+        if self.is_network:
             indices = np.where(components == comp)
             nodes_in_component = node_map[indices]            
             include_list = nodes_in_component.tolist()
@@ -408,14 +404,14 @@ class CSFocalPoints:
         In network mode, node_map is a vector. It can be a pruned node map representing only one component of the map.
         In raster mode, node_map is a matrix.
         """
-        if self.mode == CSFocalPoints.MODE_NETWORK:
+        if self.is_network:
             return node_map.tolist().index(self.point_ids[focal_point_idx])
         else:
             return self.grid_to_graph(self.points_rc[focal_point_idx,1], self.points_rc[focal_point_idx,2], node_map)
     
     
     def point_id(self, idx):
-        if self.mode == CSFocalPoints.MODE_NETWORK:
+        if self.is_network:
             return self.point_ids[idx]
         else:
             return self.points_rc[idx,0]    
@@ -425,7 +421,7 @@ class CSFocalPoints:
         
         Returns (x, -1) to denote end of each first node number.
         """
-        if self.mode == CSFocalPoints.MODE_NETWORK:
+        if self.is_network:
             numpoints = self.point_ids.size
             for n1_idx in range(0, numpoints-1):
                 for n2_idx in range(n1_idx+1, numpoints):
@@ -453,7 +449,7 @@ class CSFocalPoints:
             components = habitat.components
             node_map = habitat.node_map
         
-        if self.mode == CSFocalPoints.MODE_NETWORK:
+        if self.is_network:
             indices = np.where(components == comp)
             nodes_in_component = node_map[indices]            
             include_list = list(nodes_in_component[:])
@@ -486,12 +482,9 @@ class CSFocalPoints:
 
 
 class CSHabitatGraph:
-    MODE_RASTER = 1
-    MODE_NETWORK = 2
-    
     def __init__(self, g_map=None, poly_map=None, connect_using_avg_resistances=False, connect_four_neighbors_only=False, g_graph=None, node_names=None):
         if None != g_map:
-            self.mode = CSHabitatGraph.MODE_RASTER
+            self.is_network = False
             self.g_map = g_map
             self.poly_map = poly_map
             self.connect_using_avg_resistances = connect_using_avg_resistances
@@ -505,7 +498,7 @@ class CSHabitatGraph:
             self.num_components = components.max()
             self.num_nodes = self.node_map.max()
         else:
-            self.mode = CSHabitatGraph.MODE_NETWORK
+            self.is_network = True
             self.g_graph = g_graph          # is the sparse CSR matrix 
             self.node_map = node_names    # list of node names
             
@@ -516,12 +509,21 @@ class CSHabitatGraph:
             self.num_components = C.max()
             self.num_nodes = self.node_map.size
     
+    def get_graph(self):
+        return CSHabitatGraph._construct_g_graph(self.g_map, self.node_map, self.connect_using_avg_resistances, self.connect_four_neighbors_only)
+    
     def prune_nodes_for_component(self, keep_component):
         """Removes nodes outside of component being operated on.
         
         Returns node map and adjacency matrix that only include nodes in keep_component.
         """
-        if self.mode == CSHabitatGraph.MODE_RASTER:
+        if self.is_network:
+            del_indices = np.where(self.components != keep_component)
+            pruned_graph = CSBase.deleterowcol(self.g_graph, delrow=del_indices, delcol=del_indices)
+            indices = np.where(self.components == keep_component)
+            nodes_in_component = self.node_map[indices]
+            return (pruned_graph, nodes_in_component)                
+        else:
             selector = self.component_map == keep_component
             
             g_map_pruned = selector * self.g_map
@@ -533,13 +535,21 @@ class CSHabitatGraph:
             G_pruned = CSHabitatGraph._construct_g_graph(g_map_pruned, node_map_pruned, self.connect_using_avg_resistances, self.connect_four_neighbors_only)
              
             return (G_pruned, node_map_pruned)
-        else:
-            del_indices = np.where(self.components != keep_component)
-            pruned_graph = CSBase.deleterowcol(self.g_graph, delrow=del_indices, delcol=del_indices)
-            indices = np.where(self.components == keep_component)
-            nodes_in_component = self.node_map[indices]
-            return (pruned_graph, nodes_in_component)                
+            
+    
+    def unique_component_with_points(self, point_map):
+        components_with_points = self.components_with_points(point_map)
+        return None if (components_with_points.size > 1) else components_with_points[0]
         
+    def components_with_points(self, point_map):
+        if self.is_network:
+            raise RuntimeError('Not available in network mode')
+        
+        sub_component_map = np.where(point_map, self.component_map, 0)
+        sub_components = np.unique(sub_component_map)
+        return sub_components if (sub_components[0] != 0) else sub_components[1:]
+
+                  
     @staticmethod
     @print_timing
     def _construct_node_map(g_map, poly_map):
@@ -729,66 +739,85 @@ class CSOutput:
         
         self.is_network = (self.options.data_type == 'network')
         self.scenario = self.options.scenario
-        
-        if self.scenario == 'pairwise':
-            if self.is_network:
-                self._network_module_alloc_current_maps()
-            else:
-                self._pairwise_module_alloc_current_maps()
+        self.voltage_maps = {}
+        self.current_maps = {}
 
+
+    def get_c_map(self, name, remove=False):
+        """Get current map identified by name. Remove it from storage if remove is True."""
+        ret = self.current_maps.get(name, None)
+        if remove:
+            self.rm_c_map(name)
+        return ret
     
-    def write_cum_current_map(self, node_map):
-        if not self.options.write_cur_maps:
-            return
-        
-        if self.is_network:
-            self.full_branch_currents = CSOutput._convert_graph_to_3_col(self.full_branch_currents, node_map)
-            self.full_node_currents =  CSOutput._append_names_to_node_currents(self.full_node_currents, node_map)
-            
-            ind = np.lexsort((self.full_branch_currents[:, 1], self.full_branch_currents[:, 0]))
-            self.full_branch_currents = self.full_branch_currents[ind]                        
-                
-            ind = np.lexsort((self.full_node_currents[:, 1], self.full_node_currents[:, 0]))
-            self.full_node_currents = self.full_node_currents[ind]                        
+    def rm_c_map(self, name):
+        """Remove current map identified by name if present"""
+        if self.current_maps.has_key(name):
+            del self.current_maps[name]
 
-            CSIO.write_currents(self.options.output_file, self.full_branch_currents, self.full_node_currents, 'cum')
+    def store_max_c_map(self, max_name, name, remove=False):
+        """Store the maximum currents into map identified by max_name by comparing it with that identified by name.
+        Implemented only for raster mode."""
+        self.store_max_c_map_values(max_name, self.current_maps[name])
+        if remove:
+            self.rm_c_map(name)
+            
+    def store_max_c_map_values(self, max_name, values):
+        self.current_maps[max_name] = np.maximum(self.current_maps[max_name], values)
+
+    def accumulate_c_map_from(self, name, fromname):
+        self.accumulate_c_map_with_values(name, self.current_maps[fromname])
+    
+    def accumulate_c_map_with_values(self, name, values):
+        if self.is_network:
+            _branch_currents, node_currents, branch_currents_array, node_map = values
+            full_branch_currents, full_node_currents, _bca, _np = self.current_maps[name]
+            full_node_currents[node_map] += node_currents            
+            full_branch_currents = full_branch_currents + sparse.csr_matrix((branch_currents_array[:,2], (branch_currents_array[:,0], branch_currents_array[:,1])), shape=full_branch_currents.shape)
+            self.current_maps[name] = (full_branch_currents, full_node_currents, branch_currents_array, node_map)
         else:
-            CSIO.write_aaigrid('cum_curmap', '', self._log_transform(self.cum_current_map), self.options, self.state)
+            self.current_maps[name] += values
             
-            if self.options.write_max_cur_maps:      
-                CSIO.write_aaigrid('max_curmap', '', self._log_transform(self.max_current_map), self.options, self.state)
+    def accumulate_c_map(self, name, voltages, G, node_map, finitegrounds, local_src, local_dst):
+        self._write_store_c_map(name, False, False, True, voltages, G, node_map, finitegrounds, local_src, local_dst)
 
-
-    def write_current_map(self, G, local_src, local_dst, voltages, node_map, frompoint, topoint, point_number, num_points):
-        if not self.options.write_cur_maps:
-            return
-
-        if self.report_status==True:
-            #self.log ('writing current map ' + str(point_number) + ' of ' + str(num_points) + '.',1)
-            logging.info('writing current map ' + str(point_number) + ' of ' + str(num_points) + '.')
-            
-        finitegrounds = [-9999] #create dummy value for pairwise case
+    def store_c_map(self, name, voltages, G, node_map, finitegrounds, local_src, local_dst):
+        self._write_store_c_map(name, False, False, False, voltages, G, node_map, finitegrounds, local_src, local_dst)
+    
+    def write_c_map(self, name, remove=False, voltages=None, G=None, node_map=None, finitegrounds=None, local_src=None, local_dst=None):
+        self._write_store_c_map(name, remove, True, False, voltages, G, node_map, finitegrounds, local_src, local_dst)
         
+    def _write_store_c_map(self, name, remove, write, accumulate, voltages, G, node_map, finitegrounds, local_src, local_dst):
         if self.is_network:
-            (node_currents, branch_currents) = self._create_current_maps(voltages, G, finitegrounds)
-            
-            if not self.options.write_cum_cur_map_only:                
-                # Append node names and convert to array format
+            if voltages != None:
+                (node_currents, branch_currents) = self._create_current_maps(voltages, G, finitegrounds)
                 branch_currents_array = CSOutput._convert_graph_to_3_col(branch_currents, node_map)
+            else:
+                branch_currents, node_currents, branch_currents_array, _node_map = self.current_maps[name]
+            
+            if write:                
+                # Append node names and convert to array format
                 node_currents_array = CSOutput._append_names_to_node_currents(node_currents, node_map)                
-                CSIO.write_currents(self.options.output_file, branch_currents_array, node_currents_array, str(frompoint) + '_' + str(topoint))
-
-            self.full_node_currents[node_map] += node_currents
-            
-            branch_currents_array = CSOutput._convert_graph_to_3_col(branch_currents, node_map)
-            
-            self.full_branch_currents = self.full_branch_currents + sparse.csr_matrix((branch_currents_array[:,2], (branch_currents_array[:,0], branch_currents_array[:,1])), shape=self.full_branch_currents.shape) 
+                CSIO.write_currents(self.options.output_file, branch_currents_array, node_currents_array, name)
+                
+            if remove:
+                self.rm_c_map(name)
+            elif accumulate:
+                full_branch_currents, full_node_currents, _bca, _np = self.current_maps[name]
+                full_node_currents[node_map] += node_currents            
+                full_branch_currents = full_branch_currents + sparse.csr_matrix((branch_currents_array[:,2], (branch_currents_array[:,0], branch_currents_array[:,1])), shape=full_branch_currents.shape)
+                self.current_maps[name] = (full_branch_currents, full_node_currents, branch_currents_array, node_map)
+            else:
+                self.current_maps[name] = (branch_currents, node_currents, branch_currents_array, node_map)
         else:
-            try:
-                current_map = self._create_current_maps(voltages, G, finitegrounds, node_map)   
-            except MemoryError:
-                CSBase.enable_low_memory(False)
-                current_map = self._create_current_maps(voltages, G, finitegrounds, node_map)                                                                                    
+            if voltages != None:
+                try:
+                    current_map = self._create_current_maps(voltages, G, finitegrounds, node_map)   
+                except MemoryError:
+                    CSBase.enable_low_memory(False)
+                    current_map = self._create_current_maps(voltages, G, finitegrounds, node_map)
+            else:
+                current_map = self.current_maps[name]                                                                                
     
             if self.options.set_focal_node_currents_to_zero==True:
                 # set source and target node currents to zero
@@ -796,46 +825,85 @@ class CSOutput:
                 focal_node_pair_map = np.where(node_map == local_dst+1, 0, focal_node_pair_map)                                                
                 current_map = np.multiply(focal_node_pair_map, current_map)
                 del focal_node_pair_map
-                
-            self.cum_current_map = self.cum_current_map + current_map
-             
-            if self.options.write_max_cur_maps:
-                self.max_current_map = np.maximum(self.max_current_map, current_map)
-                 
-            if not self.options.write_cum_cur_map_only:
-                CSIO.write_aaigrid('curmap', '_' + str(frompoint) + '_' + str(topoint), self._log_transform(current_map), self.options, self.state)
+            
+            if write:
+                fileadd = name if (name=='') else ('_'+name)
+                CSIO.write_aaigrid('curmap', fileadd, self._log_transform(current_map), self.options, self.state)
+            if remove:
+                self.rm_c_map(name)
+            elif accumulate:
+                self.current_maps[name] += current_map
+            else:
+                self.current_maps[name] = current_map
 
 
-
-    def write_voltage_map(self, voltages, node_map, frompoint, topoint, point_number, num_points):
-        if not self.options.write_volt_maps:
-            return
-        
-        if self.report_status==True:
-            logging.info('writing voltage map ' + str(point_number) + ' of ' + str(num_points) + '.')
-
+    def alloc_c_map(self, name):
+        """Allocate space to store current maps identified by name"""
         if self.is_network:
-            CSIO.write_voltages(self.options.output_file, voltages, node_map, str(frompoint) + '_' + str(topoint))
+            branch_currents = sparse.csr_matrix(self.g_shape)
+            node_currents = np.zeros((self.g_shape[0], 1), dtype='float64')
+            self.current_maps[name] = (branch_currents, node_currents, None, None)
         else:
-            voltage_map = self._create_voltage_map(node_map, voltages) 
-            CSIO.write_aaigrid('voltmap', '_' + str(frompoint) + '_' + str(topoint), voltage_map, self.options, self.state)
+            self.current_maps[name] = np.zeros((self.state.nrows, self.state.ncols), dtype='float64')
+
 
     def _log_transform(self, map_to_transform):
         if self.options.log_transform_maps:
             map_to_transform = np.where(map_to_transform > 0, np.log10(map_to_transform), self.state.nodata)
         return map_to_transform
 
-    def _network_module_alloc_current_maps(self):
-        self.full_branch_currents = sparse.csr_matrix(self.g_shape)
-        self.full_node_currents = np.zeros((self.g_shape[0], 1), dtype='float64')
-
+    def get_v_map(self, name, remove=False):
+        """Get voltage map identified by name. Remove it from storage if remove is True."""
+        ret = self.voltage_maps.get(name, None)
+        if remove:
+            self.rm_v_map(name)
+        return ret
+    
+    def rm_v_map(self, name):
+        """Delete voltage map allocated with name if present"""
+        if self.voltage_maps.has_key(name):
+            del self.voltage_maps[name]
         
-    def _pairwise_module_alloc_current_maps(self):
-        self.cum_current_map = self.max_current_map = []
-        if self.options.write_cur_maps == True:
-            self.cum_current_map = np.zeros((self.state.nrows, self.state.ncols), dtype='float64') 
-            if self.options.write_max_cur_maps == True:
-                self.max_current_map = self.cum_current_map
+    def write_v_map(self, name, remove=False, voltages=None, node_map=None):
+        """Write voltage map identified by name. Remove the map after that if remove is True.
+        If voltages and node_map are provided, create space for voltage map disregarding prior allocation.
+        """
+        if self.report_status==True:
+            logging.info('writing voltage map ' + name)
+        if self.is_network:
+            if voltages == None:
+                voltages, node_map = self.voltage_maps[name]
+            CSIO.write_voltages(self.options.output_file, voltages, node_map, name)
+        else:
+            fileadd = name if (name=='') else ('_'+name)
+            if voltages == None:
+                vm = self.voltage_maps[name]
+            else:
+                vm = self._create_voltage_map(node_map, voltages)
+            CSIO.write_aaigrid('voltmap', fileadd, vm, self.options, self.state)
+            
+        if remove:
+            self.rm_v_map(name)
+        elif voltages != None:
+            if self.is_network:
+                self.voltage_maps[name] = (voltages, node_map)
+            else:
+                self.voltage_maps[name] = vm
+
+    def accumulate_v_map(self, name, voltages, node_map):
+        """Create and accumulate voltage map into the space identified by name"""
+        if self.is_network:
+            self.voltage_maps[name] = (voltages, node_map)
+        else:
+            self.voltage_maps[name] +=  self._create_voltage_map(node_map, voltages)
+            
+    def alloc_v_map(self, name):
+        """Allocate space for a new voltage map with the given name"""
+        if self.is_network:
+            self.voltage_maps[name] = None
+        else:
+            self.voltage_maps[name] = np.zeros((self.state.nrows, self.state.ncols), dtype='float64')
+        
 
     @print_timing
     def _create_current_maps(self, voltages, G, finitegrounds, node_map=None):

@@ -4,7 +4,6 @@
 ##
 
 import time, logging
-#from numpy import *
 from scipy import sparse
 import numpy as np
 
@@ -47,7 +46,7 @@ class circuitscape(CSRaster):
     def compute_network(self): 
         """Solves arbitrary graphs instead of raster grids."""
         (g_graph, node_names) = self.read_graph(self.options.graph_file)
-        focal_nodes = self.readFocalNodes(self.options.focal_node_file)
+        focal_nodes = self.read_focal_nodes(self.options.focal_node_file)
         
         if self.options.use_included_pairs==True:
             self.state.included_pairs = CSIO.read_included_pairs(self.options.included_pairs_file)
@@ -55,10 +54,24 @@ class circuitscape(CSRaster):
         fp = CSFocalPoints(focal_nodes, self.state.included_pairs)
         g_habitat = CSHabitatGraph(g_graph=g_graph, node_names=node_names)
         cs = CSOutput(self.options, self.state, False, (g_habitat.num_nodes, g_habitat.num_nodes))
+        if self.options.write_cur_maps:
+            cs.alloc_c_map('')
         
-        #self.state.nrows = self.state.ncols = g_habitat.num_nodes
         (resistances, solver_failed) = self.single_ground_all_pair_resistances(g_habitat, fp, cs, True)
-        _resistances, resistances_3col = self.writeResistances(fp.point_ids, resistances)
+        _resistances, resistances_3col = self.write_resistances(fp.point_ids, resistances)
+        if self.options.write_cur_maps:
+            full_branch_currents, full_node_currents, _bca, _np = cs.get_c_map('')
+            full_branch_currents = CSOutput._convert_graph_to_3_col(full_branch_currents, node_names)
+            full_node_currents = CSOutput._append_names_to_node_currents(full_node_currents, node_names)
+
+            ind = np.lexsort((full_branch_currents[:, 1], full_branch_currents[:, 0]))
+            full_branch_currents = full_branch_currents[ind]
+
+            ind = np.lexsort((full_node_currents[:, 1], full_node_currents[:, 0]))
+            full_node_currents = full_node_currents[ind]
+
+            CSIO.write_currents(self.options.output_file, full_branch_currents, full_node_currents, '')
+            
         return resistances_3col, solver_failed
 
     
@@ -69,7 +82,7 @@ class circuitscape(CSRaster):
         try:
             zeros_in_resistance_graph = False           
             nodes = CSBase.deletecol(graph_list,2) 
-            nodeNames = np.unique(np.asarray(nodes, dtype='int32'))
+            node_names = np.unique(np.asarray(nodes, dtype='int32'))
             nodes[np.where(nodes>= 0)] = CSBase.relabel(nodes[np.where(nodes>= 0)], 0)
             node1 = nodes[:,0]
             node2 = nodes[:,1]
@@ -78,11 +91,11 @@ class circuitscape(CSRaster):
             ######################## Reclassification code
             if self.options.use_reclass_table == True:
                 try:
-                    reclassTable = CSIO.read_point_strengths(self.options.reclass_file)    
+                    reclass_table = CSIO.read_point_strengths(self.options.reclass_file)    
                 except:
                     raise RuntimeError('Error reading reclass table.  Please check file format.')
-                for i in range (0,reclassTable.shape[0]):
-                    data = np.where(data==reclassTable[i,0], reclassTable[i,1],data)
+                for i in range (0,reclass_table.shape[0]):
+                    data = np.where(data==reclass_table[i,0], reclass_table[i,1],data)
                 logging.debug('Reclassified habitat graph using %s'%(self.options.reclass_file,))
             ########################
             
@@ -92,7 +105,7 @@ class circuitscape(CSRaster):
             else:
                 conductances = data
                 
-            numnodes = nodeNames.shape[0]
+            numnodes = node_names.shape[0]
             G = sparse.csr_matrix((conductances, (node1, node2)), shape = (numnodes, numnodes))
 
             Gdense=G.todense()
@@ -104,10 +117,10 @@ class circuitscape(CSRaster):
         if zeros_in_resistance_graph == True:
             raise RuntimeError('Error: zero resistance values are not currently allowed in habitat network/graph input file.')
         
-        return g_graph, nodeNames
+        return g_graph, node_names
 
 
-    def readFocalNodes(self, filename):
+    def read_focal_nodes(self, filename):
         """Loads list of focal nodes for arbitrary graph."""  
         focal_nodes = CSIO.load_graph(filename)
         try:    
