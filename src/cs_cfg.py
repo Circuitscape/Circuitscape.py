@@ -2,7 +2,7 @@
 ## Circuitscape (C) 2013, Brad McRae and Viral B. Shah. 
 ##
 
-import ConfigParser, os, string, copy, ast
+import ConfigParser, os, copy, ast
 
 class CSConfig:
     """Represents a Circuitscape configuration object"""
@@ -12,8 +12,8 @@ class CSConfig:
             'version': 'unknown'
         },
         'Connection scheme for raster habitat data': {
-            'connect_four_neighbors_only': True, 
-            'connect_using_avg_resistances': True,
+            'connect_four_neighbors_only': 'not entered', 
+            'connect_using_avg_resistances': 'not entered',
         },
         'Short circuit regions (aka polygons)': {
             'use_polygons': False,
@@ -22,7 +22,7 @@ class CSConfig:
         'Options for advanced mode': {
             'source_file': '(Browse for a current source file)', 
             'ground_file': '(Browse for a ground point file)', 
-            'ground_file_is_resistances': True, 
+            'ground_file_is_resistances': 'not entered', 
             'use_unit_currents': False, 
             'use_direct_grounds': False,
             'remove_src_or_gnd': 'not entered' 
@@ -53,7 +53,7 @@ class CSConfig:
             'write_cur_maps': False
         }, 
         'Habitat raster or graph': {
-            'habitat_map_is_resistances': True, 
+            'habitat_map_is_resistances': 'not entered',
             'habitat_file': '(Browse for a habitat map file)'
         }, 
         'Circuitscape mode': {
@@ -63,8 +63,12 @@ class CSConfig:
         'Options for pairwise and one-to-all and all-to-one modes': {
             'use_included_pairs': False, 
             'included_pairs_file': 'None', 
-            'point_file_contains_polygons': False, 
+            'point_file_contains_polygons': 'not entered', 
             'point_file': '(Browse for file with locations of focal points or areas)'
+        },
+        'Options for reclassification of habitat data': {
+            'use_reclass_table': False,
+            'reclass_file': '(Browse for file with reclassification data)'
         }
     }
     
@@ -78,7 +82,9 @@ class CSConfig:
         'point_file':                       'Please choose a focal node file',
         'source_file':                      'Please enter a current source file',
         'ground_file':                      'Ground point file does not exist!',
-        'ground_file_is_resistances':       'Please choose a ground data type'            
+        'ground_file_is_resistances':       'Please choose a ground data type',
+        'reclass_file':                     'Please choose a file with reclassification data',
+        'polygon_file':                     'Please enter a short-circuit region file or uncheck this option'            
     }
 
     def __init__(self, cfgfile=None):
@@ -104,7 +110,7 @@ class CSConfig:
 
     def write(self, cfg_filename, is_filename_template=False):
         if is_filename_template:
-            out_base, out_extn = os.path.splitext(cfg_filename)
+            out_base, _out_extn = os.path.splitext(cfg_filename)
             cfg_filename = out_base + '.ini'
             out_dir = os.path.split(cfg_filename)[0]
             if not os.path.isdir(out_dir):
@@ -130,15 +136,19 @@ class CSConfig:
         checks = copy.copy(CSConfig.CHECKS_AND_MESSAGES)
         
         # remove checks that are not required
-        if self.options['scenario'] in ['pairwise', 'one-to-all']:
+        if self.options['scenario'] not in ['pairwise', 'one-to-all']:
             del checks['point_file']
-        elif self.options['scenario'] == 'advanced':
+            
+        if self.options['scenario'] != 'advanced':
             for key in ['source_file', 'ground_file', 'ground_file_is_resistances']:
                 del checks[key]
 
-        if self.options['use_polygons'] == True:
+        if self.options['use_polygons'] == False:
             del checks['polygon_file']
         
+        if self.options['use_reclass_table'] == False:
+            del checks['reclass_file']
+            
         # check if values have been entered for the options
         for name in checks.keys(): 
             if self.options[name] == defaults[name]:

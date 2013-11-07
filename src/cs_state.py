@@ -6,7 +6,6 @@ class CSState:
         self.g_map = None
         self.ground_map = None
         self.included_pairs = None
-        self.last_gui_yield_time = None
         self.mask = None
         self.ncols = None
         self.nodata = None
