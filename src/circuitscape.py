@@ -27,9 +27,6 @@ class circuitscape(CSRaster):
             self.options.focal_node_file = self.options.point_file
 
         self.state.start_time = time.time()
-        self.state.last_gui_yield_time = time.time()        
-        self.log('',1)
-        self.log('',2)
 
         #Test write privileges by writing config file to output directory
         self.options.write(self.options.output_file, True)

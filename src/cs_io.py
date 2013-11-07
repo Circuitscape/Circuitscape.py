@@ -586,3 +586,15 @@ class CSIO:
         filename = out_base + '_voltages_' + fileadd + '.txt'
         np.savetxt(filename, output_voltages)      
 
+    @staticmethod
+    def match_headers(t_file, match_files):
+        (ncols, nrows, xllcorner, yllcorner, cellsize, _nodata) = CSIO._read_header(t_file)
+        
+        for m_file in match_files:
+            (ncols1, nrows1, xllcorner1, yllcorner1, cellsize1, _nodata1) = CSIO._read_header(m_file)
+            if (ncols1 != ncols) or (nrows1 != nrows) or (abs(xllcorner1 - xllcorner) > cellsize/3) or (abs(yllcorner1 - yllcorner) > cellsize/3) or (cellsize1 != cellsize):
+                return False
+        return True
+                
+                
+                
