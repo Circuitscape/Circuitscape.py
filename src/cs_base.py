@@ -37,16 +37,9 @@ def print_timing(func):
         return res
     return wrapper
 
-wx_available = True
-try:
-    import wx
-except ImportError:
-    wx_available = False
-    wx = None
-
 class CSBase(object):    
     """Circuitscape base class, common across all circuitscape modules"""
-    def __init__(self, configFile, logger_func):
+    def __init__(self, configFile, gui_logger):
         gc.enable()
         np.seterr(invalid='ignore')
         np.seterr(divide='ignore')
@@ -55,20 +48,19 @@ class CSBase(object):
         self.state.amg_hierarchy = None
         self.options = CSConfig(configFile)
         
-        self.options.use_reclass_table = False
-        self.options.reclass_file = './reclass.txt'        
+        #self.options.low_memory_mode = True        
 
         print_timing_enabled(self.options.print_timings)
         #print_timing_enabled(True)
         
-        if logger_func == 'Screen':
+        if gui_logger == 'Screen':
             self.options.screenprint_log = True
-            logger_func = None
+            gui_logger = None
         else:
             self.options.screenprint_log = False
         #self.options.screenprint_log = True
         
-        self.logger = logger_func
+        self.gui_logger = gui_logger
         logging.basicConfig(format='%(asctime)s:%(levelname)s:%(message)s',
                             datefmt='%m/%d/%Y %I.%M.%S.%p',
                             level=logging.DEBUG)
@@ -78,24 +70,11 @@ class CSBase(object):
     # logging to UI should be handled with another logger or handler
     def log(self, text, col):
         """Prints updates to GUI or python window."""
-        if None == self.state.last_gui_yield_time:
-            self.state.last_gui_yield_time = time.time()
-        else: # Force update every 10 secs
-            (hours,mins,secs) = self.elapsed_time(self.state.last_gui_yield_time)
-            if (secs > 10) or (mins > 0) or (hours > 0):
-                self.state.last_gui_yield_time = time.time()
-                try:
-                    if wx_available: 
-                        wx.SafeYield(None, True)  
-                        wx.GetApp().Yield(True)
-                except:
-                    pass
-            
-        if self.logger or (self.options.screenprint_log == True and len(text) > 1):
+        if (self.gui_logger != None) or (self.options.screenprint_log == True and len(text) > 1):
             text = '%s%s'%(' '*len(inspect.stack()), str(text))
         
-            if self.logger:
-                self.logger(text, col)
+            if self.gui_logger:
+                self.gui_logger.log(text, col)
                 
             if self.options.screenprint_log == True and len(text) > 1:
                 if col == 1:
