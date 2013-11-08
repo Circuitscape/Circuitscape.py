@@ -15,7 +15,7 @@ from distutils.core import setup
 INCLUDES =[]
 PACKAGES = ['numpy', 'scipy', 'pyamg',"scipy.io.matlab.streams"]
 
-DATA_FILES = ['gapdt.py', 'cs_compute.py', 'cs_util.py']
+DATA_FILES = ['cs_run.py', 'circuitscape.py', 'cs_state.py', 'cs_base.py', 'cs_io.py', 'cs_cfg.py', 'cs_raster.py']
 OPTIONS = {'includes': PACKAGES}
 
 setup(

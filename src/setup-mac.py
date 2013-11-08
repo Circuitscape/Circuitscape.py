@@ -12,10 +12,11 @@ pytz.zoneinfo.UTC = pytz.UTC
 from setuptools import setup
 
 INCLUDES = []
-PACKAGES = ['wx', 'PythonCard', 'numpy', 'scipy', 'pyamg']
+PACKAGES = ['wx', 'wxversion', 'PythonCard', 'numpy', 'scipy', 'pyamg']
 
-DATA_FILES = ['cs_gui.rsrc.py', 'cs_verify.py', 'cs_util.py', 'gapdt.py', 'cs_compute.py', 'cs_logo.jpg', 'verify', 'verify/1', 'verify/2', 'verify/3', 'verify/4', 'verify/5']
-OPTIONS = {'packages': PACKAGES, 
+DATA_FILES = ['cs_gui.rsrc.py', 'verify.py', 'cs_logo.jpg', 
+              'verify', 'verify/1', 'verify/2', 'verify/3', 'verify/4', 'verify/5', 'verify/6', 'verify/7', 'verify/8']
+OPTIONS = {'includes': PACKAGES, 
            'argv_emulation' : True,
            'plist': { 'CFBundleIdentifier': 'Circuitscape',
                       'CFBundleGetInfoString': 'Circuitscape: Circuit theoretic landscape connectivity',
