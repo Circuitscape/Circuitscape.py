@@ -8,10 +8,15 @@
 import os, sys, traceback, logging, time
 
 import wxversion
-wxversion.select(['2.9', '2.8', '2.7'])
+try:
+    wxversion.select(['2.9', '2.8', '2.7'])
+except:
+    print("Required version of wx not found. Continuing still.")
 
 import wx
 from PythonCard import dialog, model 
+from PythonCard.components import button, checkbox, choice, image, staticline, statictext, textfield
+
 
 from circuitscape import circuitscape
 from cs_base import CSBase

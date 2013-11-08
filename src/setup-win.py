@@ -11,9 +11,10 @@ from distutils.core import setup
 
 #INCLUDES = []
 INCLUDES =[]
-PACKAGES = ['PythonCard', 'wx', 'numpy', 'scipy', 'pyamg',"scipy.io.matlab.streams"]
+PACKAGES = ['PythonCard', 'wx', 'wxversion', 'numpy', 'scipy', 'pyamg', "scipy.io.matlab.streams"]
 
-DATA_FILES = ['cs_gui.rsrc.py', 'cs_verify.py', 'gapdt.py', 'cs_compute.py', 'cs_util.py', 'cs_logo.jpg', 'cs_logo.ico']
+DATA_FILES = ['cs_gui.rsrc.py', 'verify.py', 'cs_logo.jpg', 'cs_logo.ico',
+              'verify', 'verify/1', 'verify/2', 'verify/3', 'verify/4', 'verify/5', 'verify/6', 'verify/7', 'verify/8']
 OPTIONS = {'includes': PACKAGES}
 
 #Now also compile cs_run.py.  compiling it first ensures that dependencies needed for cs_gui also included.
