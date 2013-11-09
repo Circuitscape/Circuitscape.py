@@ -10,6 +10,7 @@ pytz.zoneinfo = pytz.tzinfo
 pytz.zoneinfo.UTC = pytz.UTC
 
 from setuptools import setup
+from csversion import CIRCUITSCAPE_VER, CIRCUITSCAPE_AUTHOR, CIRCUITSCAPE_EMAIL
 
 INCLUDES = []
 PACKAGES = ['wx', 'wxversion', 'PythonCard', 'numpy', 'scipy', 'pyamg']
@@ -32,9 +33,9 @@ OPTIONS = {'includes': PACKAGES,
 #     setup_requires=['py2app'],
 #     data_files=DATA_FILES,
 #     options={'py2app': OPTIONS},
-#     version='3.5.7',
-#     author='Brad McRae and Viral B. Shah',
-#     author_email='mcrae@circuitscape.org'
+#     version=CIRCUITSCAPE_VER,
+#     author=CIRCUITSCAPE_AUTHOR,
+#     author_email=CIRCUITSCAPE_EMAIL
 # )
 
 setup(
@@ -42,7 +43,7 @@ setup(
     setup_requires=['py2app'],
     data_files=DATA_FILES,
     options={'py2app': OPTIONS},
-    version='3.5.8',
-    author='Brad McRae and Viral B. Shah',
-    author_email='mcrae@circuitscape.org'
+    version=CIRCUITSCAPE_VER,
+    author=CIRCUITSCAPE_AUTHOR,
+    author_email=CIRCUITSCAPE_EMAIL
     )
