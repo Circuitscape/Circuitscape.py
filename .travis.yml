@@ -6,6 +6,6 @@ notifications:
 virtualenv:
   system_site_packages: true
 before_install:
-  - sudo pip install numpy scipy pyamg
+  - sudo pip install numpy scipy pyamg --user
 script:
   - cd src && python verify.py 
