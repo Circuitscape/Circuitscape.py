@@ -1,10 +1,9 @@
 language: python
 python:
-  - "2.6"
   - "2.7"
 install:
   - sudo apt-get update -qq -y
   - sudo apt-get install -y python-numpy python-scipy
 script:
   - sudo easy_install pyamg
-  - python src/verify.py 
+  - cd src && python verify.py 
