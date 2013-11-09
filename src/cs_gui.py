@@ -11,7 +11,10 @@ import wxversion
 try:
     wxversion.select(['2.9', '2.8', '2.7'])
 except:
-    print("Required version of wx not found. Continuing still.")
+    try:
+        wxversion.select('2.8')
+    except:
+        wxversion.select('2.7')
 
 import wx
 from PythonCard import dialog, model 
