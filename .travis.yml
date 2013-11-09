@@ -4,6 +4,6 @@ python:
 notifications:
     email: false
 install:
-  - sudo pip install numpy scipy pyamg --user
+  - sudo pip install numpy scipy pyamg
 script:
   - cd src && python verify.py 
