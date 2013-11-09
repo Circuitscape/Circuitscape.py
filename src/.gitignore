@@ -1,3 +1,7 @@
-verify/output/*
-verify/stress/*.asc
+*~
 *.pyc
+verify/output/*.asc
+verify/output/*.ini
+verify/output/*.txt
+verify/output/*.out
+verify/stress/*.asc
