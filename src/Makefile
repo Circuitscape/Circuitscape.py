@@ -1,4 +1,4 @@
-VER=3.5.8
+VER=4.0.0-beta
 
 test:
 	python verify.py

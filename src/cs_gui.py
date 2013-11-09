@@ -20,12 +20,13 @@ import wx
 from PythonCard import dialog, model 
 from PythonCard.components import button, checkbox, choice, image, staticline, statictext, textfield
 
-
 from circuitscape import circuitscape
 from cs_base import CSBase
 from cs_cfg import CSConfig
 from cs_io import CSIO
 from verify import cs_verifyall
+
+from csversion import CIRCUITSCAPE_VER
 
 class cs_gui(model.Background):
     OPTIONS_SCENARIO            = ['not entered', 'pairwise', 'one-to-all', 'all-to-one', 'advanced']
@@ -43,7 +44,7 @@ class cs_gui(model.Background):
     def on_initialize(self, event):
         self.state = {}
         self.last_gui_yield_time = time.time()
-        self.state['version'] = '3.5.8'
+        self.state['version'] = CIRCUITSCAPE_VER
         
         #LOAD LAST self.options
         configFile = 'circuitscape.ini'

@@ -8,6 +8,7 @@ Usage:
 import os
 import py2exe
 from distutils.core import setup
+from csversion import CIRCUITSCAPE_VER, CIRCUITSCAPE_AUTHOR, CIRCUITSCAPE_EMAIL
 
 #INCLUDES = []
 INCLUDES =[]
@@ -22,17 +23,17 @@ setup(
     console=['cs_run.py'],
     data_files=DATA_FILES,
     options={'py2exe': OPTIONS},
-    version='3.5.8',
-    author='Brad H. McRae and Viral B. Shah',
-    author_email='mcrae@circuitscape.org'
+    version=CIRCUITSCAPE_VER,
+    author=CIRCUITSCAPE_AUTHOR,
+    author_email=CIRCUITSCAPE_EMAIL
 )
 setup(
     console=['cs_gui.py'],
     data_files=DATA_FILES,
     options={'py2exe': OPTIONS},
-    version='3.5.6',
-    author='Brad H. McRae and Viral B. Shah',
-    author_email='mcrae@circuitscape.org'
+    version=CIRCUITSCAPE_VER,
+    author=CIRCUITSCAPE_AUTHOR,
+    author_email=CIRCUITSCAPE_EMAIL
 )
 
 
