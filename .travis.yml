@@ -3,9 +3,7 @@ python:
   - "2.7"
 notifications:
     email: false
-virtualenv:
-  system_site_packages: true
 before_install:
-  - sudo pip install numpy scipy pyamg --user
+  - sudo pip install -r numpy scipy pyamg --user
 script:
   - cd src && python verify.py 
