@@ -3,8 +3,8 @@
 ## Circuitscape (C) 2008, Brad McRae and Viral B. Shah. 
 
 import sys
-from numpy import *
-from circuitscape import *
+import numpy as np
+from circuitscape import circuitscape
 
 nrows = int(sys.argv[1])
 ncols = int(sys.argv[2])
@@ -18,10 +18,10 @@ f.write('NODATA_value  ' + str(9999) + '\n')
 
 delimiter = ''
 fmt = ['%.6f ']*ncols
-format = delimiter.join(fmt)
-data = ones((nrows, ncols), dtype='float64')
+str_fmt = delimiter.join(fmt)
+data = np.ones((nrows, ncols), dtype='float64')
 for row in data:
-    f.write(format % tuple(row) + '\n')
+    f.write(str_fmt % tuple(row) + '\n')
 f.close()
     
 configFile = './verify/stress/stress.ini'
