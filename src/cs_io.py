@@ -34,7 +34,7 @@ class CSIO:
         if file_extension == '.npy': #numpy array will have an associated header file
             filename = file_base + '.hdr'
         
-        with open(filename, 'r') as f:
+        with gzip.open(filename, 'r') if (file_extension == '.gz') else open(filename, 'r') as f:
             try:
                 ncols = string.split(f.readline())[1]
             except ValueError:
@@ -329,7 +329,11 @@ class CSIO:
         
         File extension is used to determine whether format is ascii grid, numpy array, or text list.
         """
-        _base, extension = os.path.splitext(filename)
+        base, extension = os.path.splitext(filename)
+        
+        is_compressed = (extension == '.gz')
+        if is_compressed:
+            base, extension = os.path.splitext(base)
         
         if extension not in [".txt", ".asc", ".npy"]:
             raise RuntimeError('%s file must have a .txt, .asc or .npy extension'%(file_type,))
@@ -345,9 +349,9 @@ class CSIO:
                 values[i] = point_map[rows[i], cols[i]]
             points_rc = np.c_[values, rows, cols]
         else:
-            raise RuntimeError('Focal node file must have a .txt or .asc extension')
+            raise RuntimeError('Focal node file must have a .txt, .asc or .npy extension')
     
-        try:            
+        try:
             i = np.argsort(points_rc[:,0])
             points_rc = points_rc[i]
         except IndexError:
