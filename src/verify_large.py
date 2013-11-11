@@ -11,10 +11,10 @@ from circuitscape import circuitscape
 
 print 'Verifying code with Large Test Problems.'
 
-BIG_TESTS_ROOT = '.'
-BIG_TESTS_CFG = os.path.join(BIG_TESTS_ROOT, 'verify', 'config_files')
-BIG_TESTS_BASELINE = os.path.join(BIG_TESTS_ROOT, 'verify', 'baseline_results')
-BIG_TESTS_OUT = os.path.join(BIG_TESTS_ROOT, 'verify', 'output')
+BIG_TESTS_ROOT      = '.'
+BIG_TESTS_CFG       = os.path.join(BIG_TESTS_ROOT, 'verify', 'config_files')
+BIG_TESTS_BASELINE  = os.path.join(BIG_TESTS_ROOT, 'verify', 'baseline_results')
+BIG_TESTS_OUT       = os.path.join(BIG_TESTS_ROOT, 'verify', 'output')
 
 def approxEqual(a, b):
     m = a.shape[0]
@@ -31,6 +31,14 @@ def approxEqual(a, b):
                     return False
     return True
 
+def compare_results(ut, test_name, result_file, compressed):
+    result_name = test_name + '_' + result_file
+    if compressed:
+        result_name += '.gz'
+    computed    = CSIO._reader(os.path.join(BIG_TESTS_OUT,      result_name), 'float64') 
+    saved       = CSIO._reader(os.path.join(BIG_TESTS_BASELINE, result_name), 'float64')
+    ut.assertEquals(approxEqual(saved, computed), True) 
+
 def cs_verifyall():
     suite = unittest.TestLoader().loadTestsFromTestCase(cs_verify)
     testResult = unittest.TextTestRunner(verbosity=0).run(suite)
@@ -40,23 +48,14 @@ def cs_verifyall():
 def test_sg(ut, test_name):
     configFile = os.path.join(BIG_TESTS_CFG, test_name + '.ini')
     cs = circuitscape(configFile, None)
-    resistances_computed,_solver_failed = cs.compute()
+    resistances_computed, _solver_failed = cs.compute()
 
     resistances_saved = np.loadtxt(os.path.join(BIG_TESTS_BASELINE, test_name + '_resistances.txt'))
-
-    current_map_1_2_computed    = CSIO._reader(os.path.join(BIG_TESTS_OUT, test_name + '_curmap_1_2.asc'), 'float64') 
-    current_map_1_2_saved       = CSIO._reader(os.path.join(BIG_TESTS_BASELINE, test_name + '_curmap_1_2.asc.gz'), 'float64') 
-
-    cum_current_map_computed    = CSIO._reader(os.path.join(BIG_TESTS_OUT, test_name + '_curmap.asc'), 'float64') 
-    cum_current_map_saved       = CSIO._reader(os.path.join(BIG_TESTS_BASELINE, test_name + '_curmap.asc.gz'), 'float64') 
-
-    voltage_map_1_2_computed    = CSIO._reader(os.path.join(BIG_TESTS_OUT, test_name + '_voltmap_1_2.asc'), 'float64') 
-    voltage_map_1_2_saved       = CSIO._reader(os.path.join(BIG_TESTS_BASELINE, test_name + '_voltmap_1_2.asc.gz'), 'float64') 
-    
     ut.assertEquals (approxEqual(resistances_saved, resistances_computed), True)
-    ut.assertEquals (approxEqual(current_map_1_2_saved, current_map_1_2_computed), True)
-    ut.assertEquals (approxEqual(cum_current_map_saved, cum_current_map_computed), True)
-    ut.assertEquals (approxEqual(voltage_map_1_2_saved, voltage_map_1_2_computed), True)
+
+    compare_results(ut, test_name, 'curmap_1_2.asc', True)
+    compare_results(ut, test_name, 'curmap.asc', True)
+    compare_results(ut, test_name, 'voltmap_1_2.asc', True)
 
 def test_one_to_all(ut, test_name):
     configFile = os.path.join(BIG_TESTS_CFG, test_name + '.ini')
@@ -64,34 +63,19 @@ def test_one_to_all(ut, test_name):
     resistances_computed,_solver_failed = cs.compute()
 
     resistances_saved = np.loadtxt(os.path.join(BIG_TESTS_BASELINE, test_name + '_resistances.txt'))
-
-    current_map_1_computed      = CSIO._reader(os.path.join(BIG_TESTS_OUT, test_name + '_curmap_1.asc'), 'float64') 
-    current_map_1_saved         = CSIO._reader(os.path.join(BIG_TESTS_BASELINE, test_name + '_curmap_1.asc.gz'), 'float64') 
-
-    cum_current_map_computed    = CSIO._reader(os.path.join(BIG_TESTS_OUT, test_name + '_curmap.asc'), 'float64') 
-    cum_current_map_saved       = CSIO._reader(os.path.join(BIG_TESTS_BASELINE, test_name + '_curmap.asc.gz'), 'float64') 
-
-    voltage_map_1_computed      = CSIO._reader(os.path.join(BIG_TESTS_OUT, test_name + '_voltmap_1.asc'), 'float64') 
-    voltage_map_1_saved         = CSIO._reader(os.path.join(BIG_TESTS_BASELINE, test_name + '_voltmap_1.asc.gz'), 'float64') 
-    
     ut.assertEquals (approxEqual(resistances_saved, resistances_computed), True)
-    ut.assertEquals (approxEqual(current_map_1_saved, current_map_1_computed), True)
-    ut.assertEquals (approxEqual(cum_current_map_saved, cum_current_map_computed), True)
-    ut.assertEquals (approxEqual(voltage_map_1_saved, voltage_map_1_computed), True)
+
+    compare_results(ut, test_name, 'curmap_1.asc', True)
+    compare_results(ut, test_name, 'curmap.asc', True)
+    compare_results(ut, test_name, 'voltmap_1.asc', True)
         
 def test_mg(ut, test_name):
     configFile = os.path.join(BIG_TESTS_CFG, test_name + '.ini')
     cs = circuitscape(configFile, None)
     _voltages = cs.compute()
    
-    cum_current_map_computed    = CSIO._reader(os.path.join(BIG_TESTS_OUT, test_name + '_curmap.asc'), 'float64') 
-    cum_current_map_saved       = CSIO._reader(os.path.join(BIG_TESTS_BASELINE, test_name + '_curmap.asc.gz'), 'float64') 
-
-    voltage_map_computed        = CSIO._reader(os.path.join(BIG_TESTS_OUT, test_name + '_voltmap.asc'), 'float64') 
-    voltage_map_saved           = CSIO._reader(os.path.join(BIG_TESTS_BASELINE, test_name + '_voltmap.asc.gz'), 'float64') 
-    
-    ut.assertEquals (approxEqual(cum_current_map_saved, cum_current_map_computed), True)
-    ut.assertEquals (approxEqual(voltage_map_saved, voltage_map_computed), True)
+    compare_results(ut, test_name, 'curmap.asc', True)
+    compare_results(ut, test_name, 'voltmap.asc', True)
         
 class cs_verify(unittest.TestCase):
     def test_single_ground_all_pairs_resistances_1(self):

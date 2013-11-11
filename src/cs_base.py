@@ -40,7 +40,6 @@ def print_timing(func):
 class CSBase(object):    
     """Circuitscape base class, common across all circuitscape modules"""
     def __init__(self, configFile, gui_logger):
-        gc.enable()
         np.seterr(invalid='ignore')
         np.seterr(divide='ignore')
         
@@ -126,22 +125,21 @@ class CSBase(object):
             print'***Continuing in low memory mode***\n'
         return
 
-        
+    
+    @staticmethod
     @print_timing
-    def solve_linear_system(self, G, rhs): 
+    def solve_linear_system(G, rhs, solver_type, ml):
         """Solves system of equations."""  
         gc.collect()
         # Solve G*x = rhs
         x = []
-        if self.options.solver == 'cg+amg':
-            ml = self.state.amg_hierarchy
+        if solver_type == 'cg+amg':
             G.psolve = ml.psolve
             (x, flag) = cg(G, rhs, tol = 1e-6, maxiter = 100000)
             if flag !=  0 or np.linalg.norm(G*x-rhs) > 1e-3:
                 raise RuntimeError('CG did not converge. May need more iterations.') 
 
-        if self.options.solver == 'amg':
-            ml = self.state.amg_hierarchy
+        if solver_type == 'amg':
             x = ml.solve(rhs, tol = 1e-6);
 
         return x 
@@ -233,6 +231,7 @@ class CSBase(object):
 
 class CSFocalPoints:
     """Represents a set of focal points and associate logic to work with them"""
+    # FIXME: pass flag to indicate network or raster modes
     def __init__(self, points, included_pairs):
         self.included_pairs = included_pairs
         pdims = len(points.shape)
