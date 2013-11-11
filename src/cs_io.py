@@ -3,6 +3,7 @@
 ##
 
 import os, string, gzip, logging
+#import StringIO
 import numpy as np
 
 # gdal_available = True #GDAL disabled for now, but should work- BHM 01/04/12
@@ -127,6 +128,16 @@ class CSIO:
 #             dst_ds = None
             
         else:
+#             # alternative using numpy savetxt. no difference in performance, but commented out as it introduces dependency on numpy 1.7+
+#             hdr_str = StringIO.StringIO()
+#             hdr_str.write('ncols         ' + str(state.ncols) + '\n')
+#             hdr_str.write('nrows         ' + str(state.nrows) + '\n')
+#             hdr_str.write('xllcorner     ' + str(state.xllcorner) + '\n')
+#             hdr_str.write('yllcorner     ' + str(state.yllcorner) + '\n')
+#             hdr_str.write('cellsize      ' + str(state.cellsize) + '\n')
+#             hdr_str.write('NODATA_value  ' + str(state.nodata) + '\n')
+#             np.savetxt(file_name+'.gz' if compress else file_name, data, fmt='%.6f', delimiter=' ', newline='\n', header=hdr_str.getvalue(), comments='')
+#             hdr_str.close()
             f = gzip.open(file_name+'.gz', 'w') if compress else open(file_name, 'w')    
             f.write('ncols         ' + str(state.ncols) + '\n')
             f.write('nrows         ' + str(state.nrows) + '\n')
@@ -134,13 +145,14 @@ class CSIO:
             f.write('yllcorner     ' + str(state.yllcorner) + '\n')
             f.write('cellsize      ' + str(state.cellsize) + '\n')
             f.write('NODATA_value  ' + str(state.nodata) + '\n')
-            
+             
             delimiter = ''
             fmt = ['%.6f ']*state.ncols 
             fmt = delimiter.join(fmt)
+            fmt += '\n'
             for row in data:
-                f.write(fmt % tuple(row) + '\n')
-    
+                f.write(fmt % tuple(row))
+     
             f.close()
 
     @staticmethod
