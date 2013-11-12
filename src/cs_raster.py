@@ -81,8 +81,8 @@ class CSRaster(CSBase):
             if self.options.write_max_cur_maps:
                 cs.alloc_c_map('max')
         
-        fp = CSFocalPoints(points_rc, self.state.included_pairs)
-        fp = CSFocalPoints(fp.get_unique_coordinates(), self.state.included_pairs)
+        fp = CSFocalPoints(points_rc, self.state.included_pairs, False)
+        fp = CSFocalPoints(fp.get_unique_coordinates(), self.state.included_pairs, False)
         point_ids = fp.point_ids
         points_rc_unique = fp.points_rc
         included_pairs = self.state.included_pairs
@@ -235,7 +235,7 @@ class CSRaster(CSBase):
             if points_rc.shape[0] != (np.unique(np.asarray(points_rc[:,0]))).shape[0]:
                 raise RuntimeError('At least one focal node contains multiple cells.  If this is what you really want, then choose focal REGIONS in the pull-down menu') 
 
-            fp = CSFocalPoints(points_rc, self.state.included_pairs)
+            fp = CSFocalPoints(points_rc, self.state.included_pairs, False)
             g_habitat = CSHabitatGraph(g_map=g_map, poly_map=poly_map, connect_using_avg_resistances=self.options.connect_using_avg_resistances, connect_four_neighbors_only=self.options.connect_four_neighbors_only)
             
             try:
@@ -257,8 +257,8 @@ class CSRaster(CSBase):
             point_map = np.zeros((self.state.nrows, self.state.ncols), int)
             point_map[points_rc[:,1], points_rc[:,2]] = points_rc[:,0]
             
-            fp = CSFocalPoints(points_rc, self.state.included_pairs)
-            fp = CSFocalPoints(fp.get_unique_coordinates(), self.state.included_pairs)
+            fp = CSFocalPoints(points_rc, self.state.included_pairs, False)
+            fp = CSFocalPoints(fp.get_unique_coordinates(), self.state.included_pairs, False)
             point_ids = fp.point_ids
             
             numpoints = point_ids.size

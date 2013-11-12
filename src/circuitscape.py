@@ -1,6 +1,6 @@
 #!/usr/bin/python
 ##
-## Circuitscape (C) 2013, Brad McRae and Viral B. Shah. 
+## Circuitscape (C) 2013, Brad McRae, Viral B. Shah 
 ##
 
 import time, logging
@@ -48,7 +48,7 @@ class circuitscape(CSRaster):
         if self.options.use_included_pairs==True:
             self.state.included_pairs = CSIO.read_included_pairs(self.options.included_pairs_file)
         
-        fp = CSFocalPoints(focal_nodes, self.state.included_pairs)
+        fp = CSFocalPoints(focal_nodes, self.state.included_pairs, True)
         g_habitat = CSHabitatGraph(g_graph=g_graph, node_names=node_names)
         cs = CSOutput(self.options, self.state, False, (g_habitat.num_nodes, g_habitat.num_nodes))
         if self.options.write_cur_maps:

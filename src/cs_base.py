@@ -231,24 +231,21 @@ class CSBase(object):
 
 class CSFocalPoints:
     """Represents a set of focal points and associate logic to work with them"""
-    # FIXME: pass flag to indicate network or raster modes
-    def __init__(self, points, included_pairs):
+    def __init__(self, points, included_pairs, is_network):
         self.included_pairs = included_pairs
-        pdims = len(points.shape)
-        if pdims == 2:
-            # raster mode
-            self.is_network = False
-            self.points_rc = points
-            self._prune_included_pairs()
-            self.point_ids = self._get_point_ids()
-        elif pdims == 1:
+        self.is_network = is_network
+        if is_network:
             # network mode
             self.is_network = True
             self.points_rc = None
             self.point_ids = points
             self._prune_included_pairs()
         else:
-            raise RuntimeError('Focal points should either be coordinates or node names. Got an array with %d dimensions'%(pdims,))
+            # raster mode
+            self.is_network = False
+            self.points_rc = points
+            self._prune_included_pairs()
+            self.point_ids = self._get_point_ids()            
 
     
     def _prune_included_pairs(self):
@@ -338,7 +335,7 @@ class CSFocalPoints:
         for idx in range(0, ncoords):
             sub_coords[idx,:] = self.points_rc[idx_list[idx], :]
         
-        return CSFocalPoints(sub_coords, self.included_pairs)
+        return CSFocalPoints(sub_coords, self.included_pairs, self.is_network)
 
     @staticmethod
     def grid_to_graph(x, y, node_map):
