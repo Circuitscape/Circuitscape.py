@@ -8,11 +8,11 @@ import numpy as np
 
 # gdal_available = True #GDAL disabled for now, but should work- BHM 01/04/12
 # try:
-    # from osgeo import gdal_array, gdal
-    # from osgeo.gdalconst import *
-    # #print 'GDAL AVAILABLE'
+#     from osgeo import gdal_array, gdal
+#     from osgeo.gdalconst import *
+#     print 'GDAL AVAILABLE'
 # except ImportError:
-# gdal_available = False
+#     gdal_available = False
 
 # Disable GDAL as it is error-prone for some cases for now. VS - 4/5/09
 # below defines null packages for PyDev IDE to ignore missing imports
@@ -37,18 +37,13 @@ class CSIO:
         
         with gzip.open(filename, 'r') if (file_extension == '.gz') else open(filename, 'r') as f:
             try:
-                ncols = string.split(f.readline())[1]
+                ncols = int(string.split(f.readline())[1])
+                nrows = int(string.split(f.readline())[1])
+                xllcorner = float(string.split(f.readline())[1])
+                yllcorner = float(string.split(f.readline())[1])
+                cellsize = float(string.split(f.readline())[1])
             except ValueError:
                 raise  RuntimeError('Unable to read ASCII grid: "'  + filename + '". If file is a text list, please use .txt extension.')
-            ncols = int(ncols)
-            nrows = string.split(f.readline())[1]
-            nrows = int(nrows)
-            xllcorner = string.split(f.readline())[1]
-            xllcorner = float(xllcorner)
-            yllcorner = string.split(f.readline())[1]
-            yllcorner = float(yllcorner)
-            cellsize = string.split(f.readline())[1]
-            cellsize = float(cellsize)
            
             try:
                 [_ign, nodata] = string.split(f.readline())
@@ -57,7 +52,7 @@ class CSIO:
                 except ValueError:
                     nodata = float(nodata)
             except ValueError:
-                nodata=False
+                nodata = False
     
         # print 'header',ncols, nrows, xllcorner, yllcorner, cellsize, nodata 
         return ncols, nrows, xllcorner, yllcorner, cellsize, nodata 
@@ -124,8 +119,8 @@ class CSIO:
             dst_ds.GetRasterBand(1).WriteArray(data)
             fmt = 'AAIGrid'
             driver = gdal.GetDriverByName(fmt)
-#             dst_ds_new = driver.CreateCopy(file_name, dst_ds) #STILL GETTING LEADING SPACES.
-#             dst_ds = None
+            driver.CreateCopy(file_name, dst_ds) #STILL GETTING LEADING SPACES.
+            dst_ds = None
             
         else:
 #             # alternative using numpy savetxt. no difference in performance, but commented out as it introduces dependency on numpy 1.7+
