@@ -62,7 +62,6 @@ class ResourceLogger:
     
     @staticmethod
     def do_post(func_name):
-        gc.collect()
         t2 = time.time()
         ResourceLogger.print_res_spaces -=  2
         
@@ -95,7 +94,7 @@ class ResourceLogger:
             io_str = 'io(' + ' '.join(io_diffs) + ')'
             log_str = ' '.join([cpu_str, mem_str, io_str])
         else:
-            log_str = 'cpu(elapsed=%d)'%(t2-ResourceLogger.t1)
+            log_str = 'cpu(elapsed=%d)'%(t2-ResourceLogger.t1.pop())
         ResourceLogger.rlogger.info("%s%s %s"%(" "*ResourceLogger.print_res_spaces, func_name, log_str))
         
 try:
@@ -120,11 +119,11 @@ def print_rusage(func):
 class CSBase(object):    
     """Circuitscape base class, common across all circuitscape modules"""
     def __init__(self, configFile, gui_logger):
+        #gc.set_debug(gc.DEBUG_STATS | gc.DEBUG_UNCOLLECTABLE | gc.DEBUG_SAVEALL)
         np.seterr(invalid='ignore')
         np.seterr(divide='ignore')
         
         self.state = CSState()
-        self.state.amg_hierarchy = None
         self.options = CSConfig(configFile)
         
         if gui_logger == 'Screen':
@@ -141,7 +140,18 @@ class CSBase(object):
         
         ResourceLogger.init_rusage(self.options.print_timings, self.options.print_rusages)
 
+#     @staticmethod
+#     def do_gc(at=''):
+#         logging.debug("GC DEBUG: calling gc at " + at)
+#         c1 = len(gc.get_objects())
+#         gc.collect()
+#         c2 = len(gc.get_objects())
+#         logging.debug("GC DEBUG: collected " + str(c1-c2) + " objects")
     
+    def del_amg_hierarchy(self):
+        if self.state.amg_hierarchy != None:
+            self.state.amg_hierarchy = None
+            #CSBase.do_gc('del_amg_hierarchy')
 
     # TODO: should ultimately be replaced with the logging module.
     # logging to UI should be handled with another logger or handler
@@ -171,9 +181,8 @@ class CSBase(object):
 
         
     def enable_low_memory(self, restart):
-        """Runs circuitscape in low memory mode.  Not incredibly helpful it seems."""  
-        self.state.amg_hierarchy = None
-        gc.collect()
+        """Runs circuitscape in low memory mode.  Not incredibly helpful it seems."""
+        self.del_amg_hierarchy()  
         if self.options.low_memory_mode==True:
             if restart==False: #If this module has already been called
                 raise MemoryError
@@ -207,8 +216,8 @@ class CSBase(object):
     @staticmethod
     @print_rusage
     def solve_linear_system(G, rhs, solver_type, ml):
-        """Solves system of equations."""  
-        gc.collect()
+        """Solves system of equations."""
+        #CSBase.do_gc("solve_linear_system")
         # Solve G*x = rhs
         x = []
         if solver_type == 'cg+amg':
@@ -965,7 +974,7 @@ class CSOutput:
         """In raster mode, returns raster current map given node voltage vector, adjacency matrix, etc.
         In network mode returns node and branch currents given voltages in arbitrary graphs.
         """  
-        gc.collect()
+        #CSBase.do_gc("_create_current_maps")
         G =  G.tocoo()
         node_currents = CSOutput._get_node_currents(voltages, G, finitegrounds)
         

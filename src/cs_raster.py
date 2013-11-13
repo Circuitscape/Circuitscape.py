@@ -352,8 +352,7 @@ class CSRaster(CSBase):
             
             for (pt1_idx, pt2_idx) in fp.point_pair_idxs_in_component(c, g_habitat):
                 if pt2_idx == -1:
-                    self.state.amg_hierarchy = None
-                    gc.collect()
+                    self.del_amg_hierarchy()
                                     
                     #print voltmatrix
                     if (use_resistance_calc_shortcut==True and pt1_idx==anchorPoint): # This happens once per component. Anchorpoint is the first i in component
@@ -392,8 +391,7 @@ class CSRaster(CSBase):
                 G[local_dst, local_dst] = G_dst_dst
 
                 if options.low_memory_mode==True or options.point_file_contains_polygons==True:
-                    self.state.amg_hierarchy = None
-                    gc.collect()
+                    self.del_amg_hierarchy()
                         
                 resistances[pt2_idx, pt1_idx] = resistances[pt1_idx, pt2_idx] = voltages[local_src] - voltages[local_dst]
                 
@@ -423,8 +421,7 @@ class CSRaster(CSBase):
                     last_write_time = time.time()
                     CSIO.save_incomplete_resistances(options.output_file, resistances)# Save incomplete resistances
 
-        self.state.amg_hierarchy = None
-        gc.collect()
+        self.del_amg_hierarchy()
 
         # Finally, resistance to self is 0.
         if use_resistance_calc_shortcut==True: 
@@ -605,7 +602,7 @@ class CSRaster(CSBase):
         self.create_amg_hierarchy(Gsolve)
         voltages = CSBase.solve_linear_system(Gsolve, sources, self.options.solver, self.state.amg_hierarchy)
         del Gsolve
-        self.state.amg_hierarchy = None
+        self.del_amg_hierarchy()
 
         numinfgrounds = infgroundlist.shape[0]
         if numinfgrounds>0:
