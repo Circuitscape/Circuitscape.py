@@ -3,7 +3,7 @@
 ## Circuitscape (C) 2013, Brad McRae and Viral B. Shah. 
 
 import sys
-from circuitscape import *
+from circuitscape import circuitscape
 
 if len(sys.argv) == 1:
     print 'Error: Circuitscape configuration (.ini) file required.'

@@ -34,6 +34,7 @@ class CSConfig:
         'Calculation options': {
             'low_memory_mode': False, 
             'print_timings': False, 
+            'print_rusages': False, 
             'solver': 'cg+amg'
         }, 
         'Options for one-to-all and all-to-one modes': {
