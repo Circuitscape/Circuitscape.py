@@ -7,7 +7,7 @@ import time, logging
 from scipy import sparse
 import numpy as np
 
-from cs_base import print_timing, CSBase, CSFocalPoints, CSHabitatGraph, CSOutput
+from cs_base import print_rusage, CSBase, CSFocalPoints, CSHabitatGraph, CSOutput
 from cs_io import CSIO
 from cs_raster import CSRaster
 
@@ -16,7 +16,7 @@ class circuitscape(CSRaster):
     def __init__(self, configFile, logger_func):
         super(circuitscape, self).__init__(configFile, logger_func)
 
-    @print_timing
+    @print_rusage
     def compute(self):
         """Main function for Circuitscape."""  
         # Code below provides a back door to network mode, because not incorporated into GUI yet
@@ -39,7 +39,7 @@ class circuitscape(CSRaster):
         return self.compute_raster()
 
 
-    @print_timing
+    @print_rusage
     def compute_network(self): 
         """Solves arbitrary graphs instead of raster grids."""
         (g_graph, node_names) = self.read_graph(self.options.graph_file)
