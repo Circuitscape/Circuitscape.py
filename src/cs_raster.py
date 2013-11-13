@@ -7,7 +7,7 @@ import time, gc, logging
 import numpy as np
 from scipy import sparse
 
-from cs_base import CSBase, CSFocalPoints, CSHabitatGraph, CSOutput, print_timing
+from cs_base import CSBase, CSFocalPoints, CSHabitatGraph, CSOutput, print_rusage
 from cs_io import CSIO
 
 
@@ -15,7 +15,7 @@ class CSRaster(CSBase):
     def __init__(self, configFile, logger_func):
         super(CSRaster, self).__init__(configFile, logger_func)
 
-    @print_timing
+    @print_rusage
     def compute_raster(self):
         """Main function for Circuitscape."""  
         
@@ -70,7 +70,7 @@ class CSRaster(CSBase):
         return resistances
         
     
-    @print_timing
+    @print_rusage
     def one_to_all_module(self, g_map, poly_map, points_rc):
         """Overhead module for one-to-all AND all-to-one modes with raster data."""  
         last_write_time = time.time()
@@ -220,7 +220,7 @@ class CSRaster(CSBase):
         return poly_map_temp
 
 
-    @print_timing   
+    @print_rusage
     def pairwise_module(self, g_map, poly_map, points_rc):
         """Overhead module for pairwise mode with raster data."""  
         cs = CSOutput(self.options, self.state, False)
@@ -310,7 +310,7 @@ class CSRaster(CSBase):
         return resistances,solver_failed
 
 
-    @print_timing
+    @print_rusage
     def single_ground_all_pair_resistances(self, g_habitat, fp, cs, report_status):
         """Handles pairwise resistance/current/voltage calculations.  
         
@@ -436,7 +436,7 @@ class CSRaster(CSBase):
 
     
     @staticmethod
-    @print_timing
+    @print_rusage
     def single_ground_solver(G, src, dst, solver_type, ml):
         """Solver used for pairwise mode."""  
         n = G.shape[0]
@@ -450,7 +450,7 @@ class CSRaster(CSBase):
 
         return voltages
 
-    @print_timing
+    @print_rusage
     def advanced_module(self, g_habitat, cs, source_map, ground_map, source_id=None, component_with_points=None):
         solver_called = False
         solver_failed = False
@@ -577,8 +577,8 @@ class CSRaster(CSBase):
 
         return (sources, grounds, finitegrounds)
 
-        
-    @print_timing
+
+    @print_rusage
     def multiple_solver(self, G, sources, grounds, finitegrounds):
         """Solver used for advanced mode."""  
         if finitegrounds[0]==-9999:#Fixme: no need to do this, right?
@@ -615,8 +615,8 @@ class CSRaster(CSBase):
                 voltages = np.asmatrix(np.insert(voltages,node,0)).T
         return np.asarray(voltages).reshape(voltages.size)
             
-        
-    @print_timing
+
+    @print_rusage
     def create_voltage_map(self, node_map, voltages):
         """Creates raster map of voltages given node voltage vector."""
         voltage_map = np.zeros((self.state.nrows, self.state.ncols), dtype = 'float64')
@@ -717,8 +717,8 @@ class CSRaster(CSBase):
                 strengths_rc[point,0] = 1
         return strengths_rc        
 
-        
-    @print_timing
+
+    @print_rusage
     def load_maps(self):
         """Loads all raster maps into self.state."""  
         self.log('Reading maps', 1)
