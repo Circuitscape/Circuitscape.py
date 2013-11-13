@@ -2,7 +2,7 @@
 ## Circuitscape (C) 2013, Brad McRae and Viral B. Shah. 
 ##
 
-import sys, time, gc, traceback, logging, inspect
+import os, sys, time, gc, traceback, logging, inspect, resource
 import numpy as np
 from scipy.sparse.linalg import cg
 from scipy import sparse
@@ -13,44 +13,118 @@ from cs_cfg import CSConfig
 from cs_state import CSState
 from cs_io import CSIO
 
-print_timings_spaces = 0
-print_timings = False
+class ResourceLogger:
+    print_timings = False
+    print_rusages = False    
+    print_res_spaces = 0
+    psutil_available = True
 
-def print_timing_enabled(is_enabled):
-    """Enables or disables the print_timings decorator."""
-    global print_timings
-    print_timings = is_enabled
+    rlogger = None
+    proc = None
+    proc_has_io_counters = False
+    
+    t1 = []
+    mem1 = []
+    io1 = []
 
-def print_timing(func):
-    """Prints time elapsed for functions with print_timings decorator."""  
-    def wrapper(*arg):
-        if not print_timings:
-            return func(*arg)
-        global print_timings_spaces
-        print_timings_spaces +=  2
-        t1 = time.time()
-        res = func(*arg)
+    @staticmethod
+    def init_rusage(print_t=False, print_r=False):
+        ResourceLogger.print_timing_enabled(print_t)
+        ResourceLogger.print_rusage_enabled(print_r)
+        ResourceLogger.rlogger = logging.getLogger('circuitscape.profile')
+        if ResourceLogger.psutil_available and ResourceLogger.print_rusages:
+            ResourceLogger.proc = psutil.Process(os.getpid())
+            ResourceLogger.proc_has_io_counters = hasattr(ResourceLogger.proc, 'get_io_counters')
+
+    @staticmethod
+    def print_timing_enabled(is_enabled):
+        """Enables or disables the print_timings decorator."""
+        ResourceLogger.print_timings = is_enabled
+    
+    @staticmethod
+    def print_rusage_enabled(is_enabled):
+        """Enables or disables the print_timings decorator."""
+        ResourceLogger.print_rusages = is_enabled
+    
+    @staticmethod
+    def is_enabled():
+        return ResourceLogger.print_rusages or ResourceLogger.print_timings
+    
+    @staticmethod
+    def do_pre():
+        ResourceLogger.print_res_spaces +=  2
+        ResourceLogger.t1.append(time.time())
+        if ResourceLogger.print_rusages:
+            ResourceLogger.rusage1 = resource.getrusage(resource.RUSAGE_SELF)
+            if ResourceLogger.proc:
+                ResourceLogger.mem1.append(ResourceLogger.proc.get_ext_memory_info())
+                ResourceLogger.io1.append(ResourceLogger.proc.get_io_counters() if ResourceLogger.proc_has_io_counters else psutil.disk_io_counters())
+    
+    @staticmethod
+    def do_post(func_name):
         t2 = time.time()
-        print_timings_spaces -=  2
-        print("%10d sec: %s%s"%((t2-t1), " "*print_timings_spaces, func.func_name))
-        sys.stdout.flush()
+        ResourceLogger.print_res_spaces -=  2
+        
+        if ResourceLogger.print_rusages:
+            rusage = resource.getrusage(resource.RUSAGE_SELF)
+            utime = rusage.ru_utime - ResourceLogger.rusage1.ru_utime
+            stime = rusage.ru_stime - ResourceLogger.rusage1.ru_stime
+            cpu_str = 'cpu(user=%d, system=%d, elapsed=%d)'%(utime,stime, (t2-ResourceLogger.t1.pop()))
+            mem_diffs = []
+            io_diffs = []
+            if ResourceLogger.proc:
+                mem1 = ResourceLogger.mem1.pop()
+                io1 = ResourceLogger.io1.pop()
+                mem2 = ResourceLogger.proc.get_ext_memory_info()
+                io2 = ResourceLogger.proc.get_io_counters() if ResourceLogger.proc_has_io_counters else psutil.disk_io_counters()
+                for attr in ['rss', 'vms', 'shared', 'text', 'data']:
+                    if hasattr(mem1, attr):
+                        mem_diffs.append(attr+'='+str(getattr(mem2, attr) - getattr(mem1, attr)))
+                for attr in ['read_count', 'write_count', 'read_bytes', 'write_bytes']:
+                    if hasattr(io1, attr):
+                        io_diffs.append(attr+'='+str(getattr(io2, attr) - getattr(io1, attr)))
+            else:
+                mem_diffs.append('maxrss=' + str(rusage.ru_maxrss - ResourceLogger.rusage1.ru_maxrss))
+                mem_diffs.append('shared=' + str(rusage.ru_ixrss - ResourceLogger.rusage1.ru_ixrss))
+                mem_diffs.append('heap=' + str(rusage.ru_idrss - ResourceLogger.rusage1.ru_idrss))
+                mem_diffs.append('stack=' + str(rusage.ru_isrss - ResourceLogger.rusage1.ru_isrss))
+                io_diffs.append('read_count=' + str(rusage.ru_inblock - ResourceLogger.rusage1.ru_inblock))
+                io_diffs.append('write_count=' + str(rusage.ru_oublock - ResourceLogger.rusage1.ru_oublock))
+            mem_str = 'mem(' + ' '.join(mem_diffs) + ')'
+            io_str = 'io(' + ' '.join(io_diffs) + ')'
+            log_str = ' '.join([cpu_str, mem_str, io_str])
+        else:
+            log_str = 'cpu(elapsed=%d)'%(t2-ResourceLogger.t1.pop())
+        ResourceLogger.rlogger.info("%s%s %s"%(" "*ResourceLogger.print_res_spaces, func_name, log_str))
+        
+try:
+    import psutil
+except:
+    ResourceLogger.psutil_available = False
+
+
+def print_rusage(func):
+    """Prints CPU and memory usage for functions with print_resources decorator."""
+    def wrapper(*args):
+        if not ResourceLogger.is_enabled():
+            return func(*args)
+
+        ResourceLogger.do_pre()  
+        res = func(*args)
+        ResourceLogger.do_post(func.func_name)
         return res
     return wrapper
+
 
 class CSBase(object):    
     """Circuitscape base class, common across all circuitscape modules"""
     def __init__(self, configFile, gui_logger):
+        #gc.set_debug(gc.DEBUG_STATS | gc.DEBUG_UNCOLLECTABLE | gc.DEBUG_SAVEALL)
         np.seterr(invalid='ignore')
         np.seterr(divide='ignore')
         
         self.state = CSState()
-        self.state.amg_hierarchy = None
         self.options = CSConfig(configFile)
-        
-        #self.options.low_memory_mode = True        
-
-        print_timing_enabled(self.options.print_timings)
-        #print_timing_enabled(True)
         
         if gui_logger == 'Screen':
             self.options.screenprint_log = True
@@ -63,7 +137,21 @@ class CSBase(object):
         logging.basicConfig(format='%(asctime)s:%(levelname)s:%(message)s',
                             datefmt='%m/%d/%Y %I.%M.%S.%p',
                             level=logging.DEBUG)
+        
+        ResourceLogger.init_rusage(self.options.print_timings, self.options.print_rusages)
 
+#     @staticmethod
+#     def do_gc(at=''):
+#         logging.debug("GC DEBUG: calling gc at " + at)
+#         c1 = len(gc.get_objects())
+#         gc.collect()
+#         c2 = len(gc.get_objects())
+#         logging.debug("GC DEBUG: collected " + str(c1-c2) + " objects")
+    
+    def del_amg_hierarchy(self):
+        if self.state.amg_hierarchy != None:
+            self.state.amg_hierarchy = None
+            #CSBase.do_gc('del_amg_hierarchy')
 
     # TODO: should ultimately be replaced with the logging module.
     # logging to UI should be handled with another logger or handler
@@ -93,9 +181,8 @@ class CSBase(object):
 
         
     def enable_low_memory(self, restart):
-        """Runs circuitscape in low memory mode.  Not incredibly helpful it seems."""  
-        self.state.amg_hierarchy = None
-        gc.collect()
+        """Runs circuitscape in low memory mode.  Not incredibly helpful it seems."""
+        self.del_amg_hierarchy()  
         if self.options.low_memory_mode==True:
             if restart==False: #If this module has already been called
                 raise MemoryError
@@ -127,10 +214,10 @@ class CSBase(object):
 
     
     @staticmethod
-    @print_timing
+    @print_rusage
     def solve_linear_system(G, rhs, solver_type, ml):
-        """Solves system of equations."""  
-        gc.collect()
+        """Solves system of equations."""
+        #CSBase.do_gc("solve_linear_system")
         # Solve G*x = rhs
         x = []
         if solver_type == 'cg+amg':
@@ -146,7 +233,7 @@ class CSBase(object):
  
          
     @staticmethod
-    @print_timing
+    @print_rusage
     def laplacian(G): 
         """Returns Laplacian of graph."""  
         n = G.shape[0]
@@ -157,8 +244,8 @@ class CSBase(object):
 
         return G
 
-        
-    @print_timing
+    
+    @print_rusage
     def create_amg_hierarchy(self, G): 
         """Creates AMG hierarchy."""  
         if self.options.solver == 'amg' or self.options.solver == 'cg+amg':
@@ -525,9 +612,9 @@ class CSHabitatGraph:
         sub_components = np.unique(sub_component_map)
         return sub_components if (sub_components[0] != 0) else sub_components[1:]
 
-                  
+    
     @staticmethod
-    @print_timing
+    @print_rusage              
     def _construct_node_map(g_map, poly_map):
         """Creates a grid of node numbers corresponding to raster pixels with non-zero conductances."""  
         node_map = np.zeros(g_map.shape, dtype='int32')
@@ -553,8 +640,9 @@ class CSHabitatGraph:
 
         return node_map
 
+    
     @staticmethod
-    @print_timing
+    @print_rusage
     def _construct_component_map(g_map, node_map, connect_using_avg_resistances, connect_four_neighbors_only):
         """Assigns component numbers to grid corresponding to pixels with non-zero conductances.
         
@@ -574,7 +662,7 @@ class CSHabitatGraph:
         return (component_map, C)
     
     @staticmethod
-    @print_timing
+    @print_rusage
     def _construct_g_graph(g_map, node_map, connect_using_avg_resistances, connect_four_neighbors_only):
         """Construct sparse adjacency matrix given raster maps of conductances and nodes."""
         numnodes = node_map.max()
@@ -881,12 +969,12 @@ class CSOutput:
             self.voltage_maps[name] = np.zeros((self.state.nrows, self.state.ncols), dtype='float64')
         
 
-    @print_timing
+    @print_rusage
     def _create_current_maps(self, voltages, G, finitegrounds, node_map=None):
         """In raster mode, returns raster current map given node voltage vector, adjacency matrix, etc.
         In network mode returns node and branch currents given voltages in arbitrary graphs.
         """  
-        gc.collect()
+        #CSBase.do_gc("_create_current_maps")
         G =  G.tocoo()
         node_currents = CSOutput._get_node_currents(voltages, G, finitegrounds)
         
@@ -970,7 +1058,7 @@ class CSOutput:
         branch_currents = np.where(np.absolute(branch_currents/maxcur) < 1e-8, 0, branch_currents) #Delete very small branch currents to save memory
         return branch_currents
 
-    @print_timing
+    @print_rusage
     def _create_voltage_map(self, node_map, voltages):
         """Creates raster map of voltages given node voltage vector."""
         voltage_map = np.zeros((self.state.nrows, self.state.ncols), dtype = 'float64')
