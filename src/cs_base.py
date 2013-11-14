@@ -2,7 +2,7 @@
 ## Circuitscape (C) 2013, Brad McRae and Viral B. Shah. 
 ##
 
-import os, sys, time, gc, traceback, logging, inspect, resource
+import os, sys, time, gc, traceback, logging, inspect
 import numpy as np
 from scipy.sparse.linalg import cg
 from scipy import sparse
@@ -18,6 +18,7 @@ class ResourceLogger:
     print_rusages = False    
     print_res_spaces = 0
     psutil_available = True
+    resource_available = True
 
     rlogger = None
     proc = None
@@ -44,7 +45,7 @@ class ResourceLogger:
     @staticmethod
     def print_rusage_enabled(is_enabled):
         """Enables or disables the print_timings decorator."""
-        ResourceLogger.print_rusages = is_enabled
+        ResourceLogger.print_rusages = is_enabled and (ResourceLogger.psutil_available or ResourceLogger.resource_available)
     
     @staticmethod
     def is_enabled():
@@ -102,6 +103,10 @@ try:
 except:
     ResourceLogger.psutil_available = False
 
+try:
+    import resource
+except:
+    ResourceLogger.resource_available = False
 
 def print_rusage(func):
     """Prints CPU and memory usage for functions with print_resources decorator."""
