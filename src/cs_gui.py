@@ -9,10 +9,12 @@ import os, sys, traceback, logging, time
 
 import wxversion
 try:
-    wxversion.select(['2.9', '2.8', '2.7'])
+    #wxversion.select(['2.9', '2.8', '2.7'])
+    wxversion.select('2.8')
 except:
     try:
-        wxversion.select('2.8')
+        #wxversion.select('2.8')
+        wxversion.select('2.9')
     except:
         wxversion.select('2.7')
 
