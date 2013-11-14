@@ -6,7 +6,7 @@ import os, sys, time, gc, traceback, logging, inspect, resource
 import numpy as np
 from scipy.sparse.linalg import cg
 from scipy import sparse
-from pyamg import smoothed_aggregation_solver, ruge_stuben_solver
+from pyamg import smoothed_aggregation_solver
 from scipy.sparse.csgraph import connected_components
 
 from cs_cfg import CSConfig
@@ -253,8 +253,7 @@ class CSBase(object):
             # construct the MG hierarchy
             ml = []
             #  scipy.io.savemat('c:\\temp\\graph.mat',mdict={'d':G})
-            ml = smoothed_aggregation_solver(G, max_coarse=10000, symmetry='symmetric', coarse_solver='splu')
-            print ml
+            ml = smoothed_aggregation_solver(G)
             self.state.amg_hierarchy = ml
 
 
