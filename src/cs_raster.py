@@ -3,7 +3,8 @@
 ## Circuitscape (C) 2013, Brad McRae and Viral B. Shah. 
 ##
 
-import time, gc, logging
+import time, gc, logging, os, sys, pickle, traceback
+from multiprocessing.pool import ThreadPool
 import numpy as np
 from scipy import sparse
 
@@ -319,6 +320,11 @@ class CSRaster(CSBase):
         options = self.options
         last_write_time = time.time()
         numpoints = fp.num_points()
+        parallelize = options.parallelize
+
+        # TODO: revisit to see if restriction can be removed 
+        if options.low_memory_mode==True or options.point_file_contains_polygons==True:
+            parallelize = False
         
         if (options.point_file_contains_polygons == True) or  (options.write_cur_maps == True) or (options.write_volt_maps == True) or (options.use_included_pairs==True):
             use_resistance_calc_shortcut = False
@@ -326,7 +332,7 @@ class CSRaster(CSBase):
             use_resistance_calc_shortcut = True # We use this when there are no focal regions.  It saves time when we are also not creating maps
             shortcut_resistances = -1 * np.ones((numpoints, numpoints), dtype='float64') 
            
-        solver_failed_somewhere = False
+        solver_failed_somewhere = [False]
         
         CSRaster.logger.debug('Graph has ' + str(g_habitat.num_nodes) + ' nodes, ' + str(numpoints) + ' focal points and '+ str(g_habitat.num_components)+ ' components.')
         resistances = -1 * np.ones((numpoints, numpoints), dtype = 'float64')         #Inf creates trouble in python 2.5 on Windows. Use -1 instead.
@@ -347,21 +353,27 @@ class CSRaster(CSBase):
             
             if use_resistance_calc_shortcut:
                 voltmatrix = np.zeros((numpoints,numpoints), dtype='float64')     #For resistance calc shortcut
-            
-            anchorPoint = 0 #For resistance calc shortcut
-            
+
+            G_dst_dst = local_dst = None
             for (pt1_idx, pt2_idx) in fp.point_pair_idxs_in_component(c, g_habitat):
                 if pt2_idx == -1:
+                    if parallelize:
+                        self.state.worker_pool_wait()
+                        
                     self.del_amg_hierarchy()
-                                    
-                    #print voltmatrix
-                    if (use_resistance_calc_shortcut==True and pt1_idx==anchorPoint): # This happens once per component. Anchorpoint is the first i in component
-                        shortcut_resistances = CSRaster.get_shortcut_resistances(anchorPoint, voltmatrix, numpoints, resistances, shortcut_resistances)
-
+                    
+                    if (local_dst != None) and (G_dst_dst != None):
+                        G[local_dst, local_dst] = G_dst_dst
+                        local_dst = G_dst_dst = None
+                    
                     if (use_resistance_calc_shortcut==True):
+                        CSRaster.get_shortcut_resistances(pt1_idx, voltmatrix, numpoints, resistances, shortcut_resistances)
                         break #No need to continue, we've got what we need to calculate resistances
                     else:
                         continue
+
+                if parallelize:
+                    self.state.worker_pool_create(options.max_parallel, True)
 
                 if report_status==True:
                     num_points_solved += 1
@@ -371,55 +383,36 @@ class CSRaster(CSBase):
                         CSRaster.logger.info('solving focal pair ' + str(num_points_solved) + ' of '+ str(num_points_to_solve))
             
                 local_src = fp.get_graph_node_idx(pt2_idx, local_node_map)
-                local_dst = fp.get_graph_node_idx(pt1_idx, local_node_map)
-
-                # tan: parallelize begin
-                G_dst_dst = G[local_dst, local_dst]
-                G[local_dst, local_dst] = 0
+                if None == local_dst:
+                    local_dst = fp.get_graph_node_idx(pt1_idx, local_node_map)
+                    G_dst_dst = G[local_dst, local_dst]
+                    G[local_dst, local_dst] = 0
 
                 if self.state.amg_hierarchy == None:
                     self.create_amg_hierarchy(G)
 
-                try:
-                    voltages = CSRaster.single_ground_solver(G, local_src, local_dst, options.solver, self.state.amg_hierarchy)
-                    # tan: parallelize end
-                except:
-                    solver_failed_somewhere = True
-                    resistances[pt2_idx, pt1_idx] = resistances[pt1_idx, pt2_idx] = -777
-                    continue
+                if use_resistance_calc_shortcut:
+                    post_solve = self._post_single_ground_solve(G, fp, cs, resistances, numpoints, pt1_idx, pt2_idx, local_src, local_dst, local_node_map, solver_failed_somewhere, use_resistance_calc_shortcut, voltmatrix)
+                else:
+                    post_solve = self._post_single_ground_solve(G, fp, cs, resistances, numpoints, pt1_idx, pt2_idx, local_src, local_dst, local_node_map, solver_failed_somewhere)
                 
-                G[local_dst, local_dst] = G_dst_dst
+                if parallelize:
+                    self.state.worker_pool.apply_async(CSRaster.parallel_single_ground_solver, args=(G, local_src, local_dst, options.solver, self.state.amg_hierarchy), callback=post_solve)
+                    #post_solve(self.state.worker_pool.apply(CSRaster.parallel_single_ground_solver, args=(G, local_src, local_dst, options.solver, self.state.amg_hierarchy)))
+                else:
+                    try:
+                        voltages = CSRaster.single_ground_solver(G, local_src, local_dst, options.solver, self.state.amg_hierarchy)
+                    except:
+                        voltages = None
+                    post_solve(voltages)
 
                 if options.low_memory_mode==True or options.point_file_contains_polygons==True:
                     self.del_amg_hierarchy()
-                        
-                resistances[pt2_idx, pt1_idx] = resistances[pt1_idx, pt2_idx] = voltages[local_src] - voltages[local_dst]
-                
-                # Write maps to files
-                frompoint = int(fp.point_id(pt1_idx))
-                topoint = int(fp.point_id(pt2_idx))
-                        
-                if use_resistance_calc_shortcut:
-                    anchorPoint = pt1_idx #for use later in shortcult resistance calc
-                    voltmatrix = self.get_voltmatrix(pt1_idx, pt2_idx, numpoints, local_node_map, voltages, fp, resistances, voltmatrix)
-                else:
-                    cv_map_name = str(frompoint)+'_'+str(topoint)
-                    cs.write_v_map(cv_map_name, False, voltages, local_node_map)
-                    if options.write_cur_maps:
-                        finitegrounds = [-9999] #create dummy value for pairwise case
-                        if options.write_cum_cur_map_only:
-                            cs.store_c_map(cv_map_name, voltages, G, local_node_map, finitegrounds, local_src, local_dst)
-                        else:
-                            cs.write_c_map(cv_map_name, False, voltages, G, local_node_map, finitegrounds, local_src, local_dst)
-                        cs.accumulate_c_map_from('', cv_map_name)
-                        if options.write_max_cur_maps:
-                            cs.store_max_c_map('max', cv_map_name)
-                        cs.rm_c_map(cv_map_name)
-
-                (hours,mins,_secs) = CSBase.elapsed_time(last_write_time)
-                if mins > 2 or hours > 0: 
-                    last_write_time = time.time()
-                    CSIO.save_incomplete_resistances(options.output_file, resistances)# Save incomplete resistances
+    
+            (hours,mins,_secs) = CSBase.elapsed_time(last_write_time)
+            if mins > 2 or hours > 0: 
+                last_write_time = time.time()
+                CSIO.save_incomplete_resistances(options.output_file, resistances)# Save incomplete resistances    
 
         self.del_amg_hierarchy()
 
@@ -429,9 +422,83 @@ class CSRaster(CSBase):
         for i in range(0, numpoints):
             resistances[i, i] = 0
 
-        return resistances, solver_failed_somewhere
+        return resistances, solver_failed_somewhere[0]
 
+
+    def _post_single_ground_solve(self, G, fp, cs, resistances, numpoints, pt1_idx, pt2_idx, local_src, local_dst, local_node_map, solver_failed_somewhere, use_resistance_calc_shortcut=False, voltmatrix=None):
+        def _post_callback(voltages):
+            options = self.options
+            
+            if voltages == None:
+                solver_failed_somewhere[0] = True
+                resistances[pt2_idx, pt1_idx] = resistances[pt1_idx, pt2_idx] = -777
+                return
+            
+            resistances[pt2_idx, pt1_idx] = resistances[pt1_idx, pt2_idx] = voltages[local_src] - voltages[local_dst]
+            
+            # Write maps to files
+            frompoint = int(fp.point_id(pt1_idx))
+            topoint = int(fp.point_id(pt2_idx))
+                    
+            if use_resistance_calc_shortcut:
+                self.get_voltmatrix(pt1_idx, pt2_idx, numpoints, local_node_map, voltages, fp, resistances, voltmatrix)
+            else:
+                cv_map_name = str(frompoint)+'_'+str(topoint)
+                cs.write_v_map(cv_map_name, False, voltages, local_node_map)
+                if options.write_cur_maps:
+                    finitegrounds = [-9999] #create dummy value for pairwise case
+                    if options.write_cum_cur_map_only:
+                        cs.store_c_map(cv_map_name, voltages, G, local_node_map, finitegrounds, local_src, local_dst)
+                    else:
+                        cs.write_c_map(cv_map_name, False, voltages, G, local_node_map, finitegrounds, local_src, local_dst)
+                    cs.accumulate_c_map_from('', cv_map_name)
+                    if options.write_max_cur_maps:
+                        cs.store_max_c_map('max', cv_map_name)
+                    cs.rm_c_map(cv_map_name)
     
+        return _post_callback
+
+    @staticmethod
+    def parallel_single_ground_solver(G, src, dst, solver_type, ml):
+        read_fd, write_fd = os.pipe()
+        child_pid = os.fork()
+        if (0 == child_pid):
+            pid = str(os.getpid())
+            logging.disable(logging.CRITICAL) # disable logging in child to avoid python bug : http://bugs.python.org/issue6721
+            try:
+                os.close(read_fd)
+                write_file = os.fdopen(write_fd, 'w')
+                result = CSRaster.single_ground_solver(G, src, dst, solver_type, ml)
+            except Exception as e:
+                result = e
+            write_file.write(pickle.dumps(result))
+            write_file.close()
+            os._exit(os.EX_OK)
+        elif (child_pid > 0):
+            pid = str(child_pid)
+            try:
+                #CSRaster.logger.debug("parallel: waiting for " + pid)
+                os.close(write_fd)
+                read_file = os.fdopen(read_fd)
+                result = read_file.read()
+                voltages = pickle.loads(result)
+                #CSRaster.logger.debug("parallel: got results from " + pid)
+                if isinstance(voltages, Exception):
+                    CSRaster.logger.exception("parallel: got error from " + pid + ": " + str(voltages))
+                    voltages = None
+            except:
+                CSRaster.logger.exception("parallel: exception waiting for results from " + pid)
+                voltages = None
+            finally:
+                read_file.close()
+                #CSRaster.logger.debug("parallel: waiting for termination of " + pid)
+                os.waitpid(child_pid, 0)
+                #CSRaster.logger.debug("parallel: terminated " + pid)
+        else:
+            CSRaster.logger.error("parallel: unable to create new processes")
+            voltages = None
+        return voltages
+        
     @staticmethod
     @print_rusage
     def single_ground_solver(G, src, dst, solver_type, ml):
@@ -636,7 +703,6 @@ class CSRaster(CSBase):
             voltageAtPoint = 1-(voltageAtPoint/resistances[i, j])
             voltvector[point] = voltageAtPoint
         voltmatrix[:,j] = voltvector[:,0] 
-        return voltmatrix
 
 
     @staticmethod
@@ -657,7 +723,6 @@ class CSRaster(CSBase):
                         Vx = voltmatrix[pointx, point2]
                         R2x = 2*R12*Vx + R1x - R12
                         shortcut_resistances[point2, pointx] = shortcut_resistances[pointx, point2] = R2x
-        return shortcut_resistances                        
 
 
     def write_resistances(self, point_ids, resistances):
