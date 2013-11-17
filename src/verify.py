@@ -10,6 +10,11 @@ import numpy as np
 from cs_io import CSIO
 from circuitscape import circuitscape
 
+TESTS_ROOT      = '.'
+TESTS_CFG       = os.path.join(TESTS_ROOT, 'verify', 'config_files')
+TESTS_BASELINE  = os.path.join(TESTS_ROOT, 'verify', 'baseline_results')
+TESTS_OUT       = os.path.join(TESTS_ROOT, 'verify', 'output')
+
 def approxEqual(a, b):
     m = a.shape[0]
     n = a.shape[1]
@@ -21,6 +26,19 @@ def approxEqual(a, b):
                     return False
     return True
 
+def compare_results(ut, test_name, result_file, compressed):
+    result_name = test_name + '_' + result_file
+    if compressed:
+        result_name += '.gz'
+        
+    if result_file.endswith("asc"):
+        computed    = CSIO._reader(os.path.join(TESTS_OUT,      result_name), 'float64') 
+        saved       = CSIO._reader(os.path.join(TESTS_BASELINE, result_name), 'float64')
+    else:
+        computed    = np.loadtxt(os.path.join(TESTS_OUT,      result_name), 'float64')
+        saved       = np.loadtxt(os.path.join(TESTS_BASELINE, result_name), 'float64')
+    ut.assertEquals(approxEqual(saved, computed), True) 
+
 def cs_verifyall():
     suite = unittest.TestLoader().loadTestsFromTestCase(cs_verify)
     testResult = unittest.TextTestRunner(verbosity=0).run(suite)
@@ -29,118 +47,77 @@ def cs_verifyall():
 
 def test_sg(ut, test_name):
     #print test_name
-    configFile='.//verify//config_files//' + test_name + '.ini'
+    configFile = os.path.join(TESTS_CFG, test_name + '.ini')
     cs = circuitscape(configFile, None)
     resistances_computed, _solver_failed = cs.compute()
-    resistances_saved=np.loadtxt('.//verify//baseline_results//' + test_name + '_resistances.txt') 
     
-    ut.assertEquals (approxEqual(resistances_saved, resistances_computed), True)    
+    resistances_saved = np.loadtxt(os.path.join(TESTS_BASELINE, test_name + '_resistances.txt')) 
+    ut.assertEquals(approxEqual(resistances_saved, resistances_computed), True)    
 
-
-    if test_name!='sgVerify12': #This module tests the resistance shortcut which is only calculated when maps are not written.
-        current_map_1_2_computed=CSIO._reader('.//verify//output//' + test_name + '_curmap_1_2.asc', 'float64') 
-        current_map_1_2_saved=CSIO._reader('.//verify//baseline_results//' + test_name + '_curmap_1_2.asc', 'float64') 
-        cum_current_map_computed=CSIO._reader('.//verify//output//' + test_name + '_curmap.asc', 'float64') 
-        cum_current_map_saved=CSIO._reader('.//verify//baseline_results//' + test_name + '_curmap.asc', 'float64')     
-        voltage_map_1_2_computed=CSIO._reader('.//verify//output//' + test_name + '_voltmap_1_2.asc', 'float64') 
-        voltage_map_1_2_saved=CSIO._reader('.//verify//baseline_results//' + test_name + '_voltmap_1_2.asc', 'float64') 
+    if test_name != 'sgVerify12': #This module tests the resistance shortcut which is only calculated when maps are not written.
+        compare_results(ut, test_name, 'curmap_1_2.asc', False)
+        compare_results(ut, test_name, 'curmap.asc', False)
+        compare_results(ut, test_name, 'voltmap_1_2.asc', False)
             
-        ut.assertEquals (approxEqual(current_map_1_2_saved, current_map_1_2_computed), True)
-        ut.assertEquals (approxEqual(cum_current_map_saved, cum_current_map_computed), True)
-        ut.assertEquals (approxEqual(voltage_map_1_2_saved, voltage_map_1_2_computed), True)
-        if os.path.isfile('.//verify//output//' + test_name + '_curmap_max.asc'): 
-            max_current_map_computed=CSIO._reader('.//verify//output//' + test_name + '_curmap_max.asc', 'float64') 
-            max_current_map_saved=CSIO._reader('.//verify//baseline_results//' + test_name + '_curmap_max.asc', 'float64')             
-            ut.assertEquals (approxEqual(max_current_map_saved, max_current_map_computed), True)        
+        if os.path.isfile('.//verify//output//' + test_name + '_curmap_max.asc'):
+            compare_results(ut, test_name, 'curmap_max.asc', False) 
         
         
 def test_network_sg(ut, test_name):
     #print test_name
-    configFile='.//verify//config_files//' + test_name + '.ini'
+    configFile = os.path.join(TESTS_CFG, test_name + '.ini')
     cs = circuitscape(configFile, None)
 
     # These baseline outputs generated using rasters, with outputs written in graph format using 'write_baseline_results' option.
     resistances_computed, _solver_failed = cs.compute()
-    resistances_saved=np.loadtxt('.//verify//baseline_results//' + test_name + '_resistances_3columns.txt') 
-    cum_node_currents_saved=np.loadtxt('.//verify//baseline_results//' + test_name + '_node_currents.txt', 'float64') 
-    cum_node_currents_computed=np.loadtxt('.//verify//output//' + test_name + '_node_currents.txt', 'float64') 
-    branch_currents_0_1_computed=np.loadtxt('.//verify//output//' + test_name + '_branch_currents_0_1.txt', 'float64') 
-    branch_currents_0_1_saved=np.loadtxt('.//verify//baseline_results//' + test_name + '_branch_currents_0_1.txt', 'float64')
-    voltage_map_0_1_computed=np.loadtxt('.//verify//output//' + test_name + '_voltages_0_1.txt', 'float64') 
-    voltage_map_0_1_saved=np.loadtxt('.//verify//baseline_results//' + test_name + '_voltages_0_1.txt', 'float64') 
-
-    # Baseline cumulative branch currents generated using network code.
-    cum_branch_currents_computed=np.loadtxt('.//verify//output//' + test_name + '_branch_currents.txt', 'float64') 
-    cum_branch_currents_saved=np.loadtxt('.//verify//baseline_results//' + test_name + '_branch_currents.txt', 'float64')     
-
-    ut.assertEquals (approxEqual(resistances_saved, resistances_computed), True)        
-    ut.assertEquals (approxEqual(cum_node_currents_saved, cum_node_currents_computed), True)
-    ut.assertEquals (approxEqual(voltage_map_0_1_saved, voltage_map_0_1_computed), True)
-    if test_name != 'sgNetworkVerify2': #need to replace this test.  Rounding error creates non-zero branch currents on some platforms and not others.
-        ut.assertEquals (approxEqual(branch_currents_0_1_saved, branch_currents_0_1_computed), True)
     
-    ut.assertEquals (approxEqual(cum_branch_currents_saved, cum_branch_currents_computed), True)
+    resistances_saved = np.loadtxt(os.path.join(TESTS_BASELINE, test_name + '_resistances_3columns.txt'))
+    ut.assertEquals(approxEqual(resistances_saved, resistances_computed), True)
+    
+    compare_results(ut, test_name, 'node_currents.txt', False)
+    compare_results(ut, test_name, 'voltages_0_1.txt', False)
+    compare_results(ut, test_name, 'branch_currents.txt', False)
+
+    if test_name != 'sgNetworkVerify2': #need to replace this test.  Rounding error creates non-zero branch currents on some platforms and not others.
+        compare_results(ut, test_name, 'branch_currents_0_1.txt', False)
 
 
 def test_one_to_all(ut, test_name):
     #print test_name
-    configFile='.//verify//config_files//' + test_name + '.ini'
+    configFile = os.path.join(TESTS_CFG, test_name + '.ini')
     cs = circuitscape(configFile, None)
+
     resistances_computed, _solver_failed = cs.compute()
 
-    resistances_saved=np.loadtxt('.//verify//baseline_results//' + test_name + '_resistances.txt') 
+    resistances_saved = np.loadtxt(os.path.join(TESTS_BASELINE, test_name + '_resistances.txt'))
+    ut.assertEquals(approxEqual(resistances_saved, resistances_computed), True)
 
-    current_map_1_computed=CSIO._reader('.//verify//output//' + test_name + '_curmap_1.asc', 'float64') 
-    current_map_1_saved=CSIO._reader('.//verify//baseline_results//' + test_name + '_curmap_1.asc', 'float64') 
-
-    cum_current_map_computed=CSIO._reader('.//verify//output//' + test_name + '_curmap.asc', 'float64') 
-    cum_current_map_saved=CSIO._reader('.//verify//baseline_results//' + test_name + '_curmap.asc', 'float64') 
-
-    voltage_map_1_computed=CSIO._reader('.//verify//output//' + test_name + '_voltmap_1.asc', 'float64') 
-    voltage_map_1_saved=CSIO._reader('.//verify//baseline_results//' + test_name + '_voltmap_1.asc', 'float64') 
-    
-    ut.assertEquals (approxEqual(resistances_saved, resistances_computed), True)
-    ut.assertEquals (approxEqual(current_map_1_saved, current_map_1_computed), True)
-    ut.assertEquals (approxEqual(cum_current_map_saved, cum_current_map_computed), True)
-    ut.assertEquals (approxEqual(voltage_map_1_saved, voltage_map_1_computed), True)
-
+    compare_results(ut, test_name, 'curmap_1.asc', False)
+    compare_results(ut, test_name, 'curmap.asc', False)
+    compare_results(ut, test_name, 'voltmap_1.asc', False)
    
     
 def test_all_to_one(ut, test_name):
     #print test_name
-    configFile='.//verify//config_files//' + test_name + '.ini'
+    configFile = os.path.join(TESTS_CFG, test_name + '.ini')
     cs = circuitscape(configFile, None)
+    
     _resistances_computed, _solver_failed = cs.compute()
 
-    current_map_1_computed=CSIO._reader('.//verify//output//' + test_name + '_curmap_1.asc', 'float64') 
-    current_map_1_saved=CSIO._reader('.//verify//baseline_results//' + test_name + '_curmap_1.asc', 'float64') 
-
-    cum_current_map_computed=CSIO._reader('.//verify//output//' + test_name + '_curmap.asc', 'float64') 
-    cum_current_map_saved=CSIO._reader('.//verify//baseline_results//' + test_name + '_curmap.asc', 'float64') 
-
-    voltage_map_1_computed=CSIO._reader('.//verify//output//' + test_name + '_voltmap_1.asc', 'float64') 
-    voltage_map_1_saved=CSIO._reader('.//verify//baseline_results//' + test_name + '_voltmap_1.asc', 'float64') 
-    
-    ut.assertEquals (approxEqual(current_map_1_saved, current_map_1_computed), True)
-    ut.assertEquals (approxEqual(cum_current_map_saved, cum_current_map_computed), True)
-    ut.assertEquals (approxEqual(voltage_map_1_saved, voltage_map_1_computed), True)
-
+    compare_results(ut, test_name, 'curmap_1.asc', False)
+    compare_results(ut, test_name, 'curmap.asc', False)
+    compare_results(ut, test_name, 'voltmap_1.asc', False)
 
         
 def test_mg(ut, test_name):
     #print test_name
-    configFile='.//verify//config_files//' + test_name + '.ini'
+    configFile = os.path.join(TESTS_CFG, test_name + '.ini')
     cs = circuitscape(configFile, None)
-    _voltages = cs.compute()
-   
-    cum_current_map_computed=CSIO._reader('.//verify//output//' + test_name + '_curmap.asc', 'float64') 
-    cum_current_map_saved=CSIO._reader('.//verify//baseline_results//' + test_name + '_curmap.asc', 'float64') 
-
-    voltage_map_computed=CSIO._reader('.//verify//output//' + test_name + '_voltmap.asc', 'float64') 
-    voltage_map_saved=CSIO._reader('.//verify//baseline_results//' + test_name + '_voltmap.asc', 'float64') 
     
-    ut.assertEquals (approxEqual(cum_current_map_saved, cum_current_map_computed), True)
-    ut.assertEquals (approxEqual(voltage_map_saved, voltage_map_computed), True)
+    _voltages = cs.compute()
+
+    compare_results(ut, test_name, 'curmap.asc', False)
+    compare_results(ut, test_name, 'voltmap.asc', False)
 
 
 class cs_verify(unittest.TestCase):
@@ -196,10 +173,10 @@ class cs_verify(unittest.TestCase):
     def test_single_ground_all_pairs_resistances_12(self):
         test_sg(self, 'sgVerify12') 
         
-#     def test_single_ground_all_pairs_resistances_13(self):
-#         test_sg(self, 'sgVerify13')         
-    # TODO: correct the method name and result data 
     def test_single_ground_all_pairs_resistances_13(self):
+        test_sg(self, 'sgVerify13')         
+
+    def test_single_ground_all_pairs_resistances_14(self):
         # Tests nodata output and max current options
         test_sg(self, 'sgVerify14') 
          
