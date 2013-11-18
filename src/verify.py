@@ -32,8 +32,8 @@ def compare_results(ut, test_name, result_file, compressed):
         result_name += '.gz'
         
     if result_file.endswith("asc"):
-        computed    = CSIO._reader(os.path.join(TESTS_OUT,      result_name), 'float64') 
-        saved       = CSIO._reader(os.path.join(TESTS_BASELINE, result_name), 'float64')
+        computed    = CSIO._ascii_grid_reader(os.path.join(TESTS_OUT,      result_name), 'float64') 
+        saved       = CSIO._ascii_grid_reader(os.path.join(TESTS_BASELINE, result_name), 'float64')
     else:
         computed    = np.loadtxt(os.path.join(TESTS_OUT,      result_name), 'float64')
         saved       = np.loadtxt(os.path.join(TESTS_BASELINE, result_name), 'float64')

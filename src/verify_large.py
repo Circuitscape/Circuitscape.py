@@ -35,8 +35,8 @@ def compare_results(ut, test_name, result_file, compressed):
     result_name = test_name + '_' + result_file
     if compressed:
         result_name += '.gz'
-    computed    = CSIO._reader(os.path.join(BIG_TESTS_OUT,      result_name), 'float64') 
-    saved       = CSIO._reader(os.path.join(BIG_TESTS_BASELINE, result_name), 'float64')
+    computed    = CSIO._ascii_grid_reader(os.path.join(BIG_TESTS_OUT,      result_name), 'float64') 
+    saved       = CSIO._ascii_grid_reader(os.path.join(BIG_TESTS_BASELINE, result_name), 'float64')
     ut.assertEquals(approxEqual(saved, computed), True) 
 
 def cs_verifyall():
