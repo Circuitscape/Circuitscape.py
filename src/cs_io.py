@@ -5,6 +5,7 @@
 import os, string, gzip, logging
 #import StringIO
 import numpy as np
+from cs_profiler import print_rusage
 
 # gdal_available = True #GDAL disabled for now, but should work- BHM 01/04/12
 # try:
@@ -464,6 +465,7 @@ class CSIO:
         return included_pairs
 
     @staticmethod
+    @print_rusage
     def write_aaigrid(grid_type, fileadd, data, options, state):
         """Writes ASCII grid.  This is main raster output format for Circuitscape."""  
         if grid_type == 'voltmap':
@@ -570,6 +572,7 @@ class CSIO:
             pass 
     
     @staticmethod
+    @print_rusage
     def write_currents(outfile_template, branch_currents, node_currents, fileadd):
         """Writes currents from network operations.
         
@@ -586,8 +589,9 @@ class CSIO:
         np.savetxt(filename, node_currents)      
 
     @staticmethod
+    @print_rusage
     def write_voltages(outfile_template, voltages, node_names, fileadd):
-        """Saves voltage values from solving arbitrary graphs to disk."""  
+        """Saves voltage values from solving arbitrary graphs to disk."""
         output_voltages = np.zeros((len(voltages),2), dtype='float64')
         if node_names != None:
             output_voltages[:,0] = node_names[:]
