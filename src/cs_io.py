@@ -23,50 +23,105 @@ gdal_array = None
 class CSIO:
     gdal_available = False
     
+    FILE_TYPE_NPY = 1
+    FILE_TYPE_AAGRID = 2
+    FILE_TYPE_TXTLIST = 3
+    FILE_TYPE_INCL_PAIRS = 4
+    
+    FILE_HDR_GZIP = '\x1f\x8b\x08'
+    FILE_HDR_NPY = '\x93NUMPY'
+    FILE_HDR_AAGRID = 'ncols'
+    FILE_HDR_INCL_PAIRS = 'min'
+
+    MSG_RESAMPLE = '%s raster has different %s than habitat raster. Circuitscape will try to crudely resample the raster. We recommend using the "Export to Circuitscape" ArcGIS tool to create ASCII grids with compatible cell size and extent.'
+    MSG_NO_RESAMPLE = '%s raster must have same %s as habitat raster'
+    
+        
     @staticmethod
-    def _check_file_exixts(filename):
+    def _check_file_exists(filename):
         if not os.path.isfile(filename):
             raise RuntimeError('File "'  + filename + '" does not exist')
 
     @staticmethod
-    def _read_header(filename):
-        """Reads header for ASCII grids (standard input) or numpy arrays (used for faster read/write when calling Circuitscape from ArcGIS python code)."""
-        CSIO._check_file_exixts(filename)
-        file_base, file_extension = os.path.splitext(filename)
-        if file_extension == '.npy': #numpy array will have an associated header file
-            filename = file_base + '.hdr'
+    def _open_auto_uncompress(filename):
+        f = open(filename, 'r')
+        #is_compressed = False
+        try:
+            hdr = f.read(3)
+            if hdr.startswith(CSIO.FILE_HDR_GZIP):  # gzip header
+                f.close()
+                f = gzip.open(filename, 'r')
+                #is_compressed = True
+            else:
+                f.seek(0)
+        except:
+            f.close()
+            f = None
+        return f
+
+    @staticmethod
+    def _guess_file_type(f):
+        is_filename = isinstance(f, str)
+        if is_filename:
+            f = CSIO._open_auto_uncompress(f)
         
-        with gzip.open(filename, 'r') if (file_extension == '.gz') else open(filename, 'r') as f:
-            try:
-                ncols = int(string.split(f.readline())[1])
-                nrows = int(string.split(f.readline())[1])
-                xllcorner = float(string.split(f.readline())[1])
-                yllcorner = float(string.split(f.readline())[1])
-                cellsize = float(string.split(f.readline())[1])
-            except ValueError:
-                raise  RuntimeError('Unable to read ASCII grid: "'  + filename + '". If file is a text list, please use .txt extension.')
-           
-            try:
-                [_ign, nodata] = string.split(f.readline())
+        hdr = f.read(10)
+        
+        if is_filename:
+            f.close()
+        else:
+            f.seek(0)
+            
+        if hdr.startswith(CSIO.FILE_HDR_NPY):
+            filetype = CSIO.FILE_TYPE_NPY
+        elif hdr.startswith(CSIO.FILE_HDR_AAGRID):
+            filetype = CSIO.FILE_TYPE_AAGRID
+        elif hdr.startswith(CSIO.FILE_HDR_INCL_PAIRS):
+            filetype = CSIO.FILE_TYPE_INCL_PAIRS
+        else:
+            filetype = CSIO.FILE_TYPE_TXTLIST
+            
+        return filetype
+
+    @staticmethod
+    def _ascii_grid_read_header(filename):
+        """Reads header for ASCII grids (standard input) or numpy arrays (used for faster read/write when calling Circuitscape from ArcGIS python code)."""
+        CSIO._check_file_exists(filename)
+        
+        with CSIO._open_auto_uncompress(filename) as f:
+            file_type = CSIO._guess_file_type(f)
+            if file_type == CSIO.FILE_TYPE_NPY:
+                file_base, _file_extension = os.path.splitext(filename)
+                filename = file_base + '.hdr' # numpy array will have an associated header file
+                ncols, nrows, xllcorner, yllcorner, cellsize, nodata, _file_type = CSIO._ascii_grid_read_header(filename)
+            else:
                 try:
-                    nodata = int(nodata)
+                    ncols = int(string.split(f.readline())[1])
+                    nrows = int(string.split(f.readline())[1])
+                    xllcorner = float(string.split(f.readline())[1])
+                    yllcorner = float(string.split(f.readline())[1])
+                    cellsize = float(string.split(f.readline())[1])
                 except ValueError:
-                    nodata = float(nodata)
-            except ValueError:
-                nodata = False
+                    raise  RuntimeError('Unable to read ASCII grid: "'  + filename + '".')
+               
+                try:
+                    [_ign, nodata] = string.split(f.readline())
+                    try:
+                        nodata = int(nodata)
+                    except ValueError:
+                        nodata = float(nodata)
+                except ValueError:
+                    nodata = False
     
-        # print 'header',ncols, nrows, xllcorner, yllcorner, cellsize, nodata 
-        return ncols, nrows, xllcorner, yllcorner, cellsize, nodata 
+        return ncols, nrows, xllcorner, yllcorner, cellsize, nodata, file_type 
 
 
     @staticmethod
-    def _reader(filename, data_type):
+    def _ascii_grid_reader(filename, data_type):
         """Reads rasters saved as ASCII grids or numpy arrays into Circuitscape."""
-        CSIO._check_file_exixts(filename)
-        (ncols, nrows, _xllcorner, _yllcorner, _cellsize, nodata) = CSIO._read_header(filename)
+        (ncols, nrows, _xllcorner, _yllcorner, _cellsize, nodata, filetype) = CSIO._ascii_grid_read_header(filename)
     
-        _file_base, file_extension = os.path.splitext(filename)     
-        if file_extension == '.npy': 
+        if filetype == CSIO.FILE_TYPE_NPY: 
             pmap = np.load(filename, mmap_mode=None)
             pmap = pmap.astype('float64')
             
@@ -95,11 +150,9 @@ class CSIO:
 
 
     @staticmethod    
-    def _writer(file_name, data, state, compress):  
+    def _ascii_grid_writer(file_name, file_type, data, state, compress):
         """Writes rasters to ASCII grid or numpy formats."""     
-        _out_base, out_extn = os.path.splitext(file_name) 
-        
-        if out_extn == '.npy': # Data came in as numpy array, so write same.
+        if file_type == CSIO.FILE_TYPE_NPY:
             np.save(file_name, data)
             return
             
@@ -151,10 +204,29 @@ class CSIO:
      
             f.close()
 
+
+    @staticmethod
+    def _txt_list_reader(filename, data_type, habitat_size):
+        CSIO._check_file_exists(filename)
+        try:
+            points = np.loadtxt(filename)
+        except ValueError:
+            raise RuntimeError('File "'  + filename + '" appears to be a text list file, but is not in the correct format.')                
+        
+        pts_remapped = np.zeros(points.shape, dtype=data_type)
+        try:
+            pts_remapped[:,0] = points[:,0]
+            pts_remapped[:,1] = np.ceil(habitat_size.nrows - (points[:,2] - habitat_size.yllcorner) / habitat_size.cellsize) - 1
+            pts_remapped[:,2] = np.ceil((points[:,1] - habitat_size.xllcorner) / habitat_size.cellsize) - 1
+        except IndexError:
+            raise RuntimeError('Error extracting locations from text list file. Please check file format.')
+        return pts_remapped
+
+
     @staticmethod
     def load_graph(filename):
         """Returns data for arbitrary graph or focal node list from file."""
-        CSIO._check_file_exixts(filename)
+        CSIO._check_file_exists(filename)
         try:    
             graph_object = np.loadtxt(filename, dtype='Float64', comments='#') 
         except:
@@ -171,7 +243,7 @@ class CSIO:
         
         This code also used for reading file for reclassifying input data.
         """
-        CSIO._check_file_exixts(filename)
+        CSIO._check_file_exists(filename)
         try:
             point_strengths = np.loadtxt(filename)
         except ValueError:
@@ -179,23 +251,6 @@ class CSIO:
            
         i = np.argsort(point_strengths[:,0])
         return point_strengths[i]
-
-    @staticmethod
-    def _read_txt_list(filename, data_type, habitat_size):
-        CSIO._check_file_exixts(filename)
-        try:
-            points = np.loadtxt(filename)
-        except ValueError:
-            raise RuntimeError('File "'  + filename + '" is not in correct text list format. \n If it is an ASCII grid, please use .asc extension.')                
-        
-        pts_remapped = np.zeros(points.shape, dtype=data_type)
-        try:
-            pts_remapped[:,0] = points[:,0]
-            pts_remapped[:,1] = np.ceil(habitat_size.nrows - (points[:,2] - habitat_size.yllcorner) / habitat_size.cellsize) - 1
-            pts_remapped[:,2] = np.ceil((points[:,1] - habitat_size.xllcorner) / habitat_size.cellsize) - 1
-        except IndexError:
-            raise RuntimeError('Error extracting locations from .txt file. Please check file format.')
-        return pts_remapped
     
     @staticmethod
     def deleterow(A, delrow):
@@ -212,7 +267,7 @@ class CSIO:
 #         return
 
     @staticmethod            
-    def _resample_map(filename, reading_mask, resample_to, header, pmap):
+    def _resample_map(reading_mask, resample_to, header, pmap):
         """Code to crudely resample input raster if raster headers don't match (i.e. different extents or cell sizes used)."""  
         try:
             (_ncols, nrows, xllcorner, yllcorner, cellsize, _nodata) = header
@@ -286,45 +341,42 @@ class CSIO:
     @staticmethod
     def read_poly_map(filename, reading_mask, nodata_as, habitat_size, resample, file_type, data_type):
         """Reads raster maps for short-circuit regions (aka polygon poly_map), focal nodes, masks, current sources or grounds from disk."""  
-        (ncols, nrows, xllcorner, yllcorner, cellsize, nodata) = header = CSIO._read_header(filename)
+        (ncols, nrows, xllcorner, yllcorner, cellsize, nodata, _filetype) = header = CSIO._ascii_grid_read_header(filename)
         
-        msg_resample = '%s raster has different %s than habitat raster. Circuitscape will try to crudely resample the raster. We recommend using the "Export to Circuitscape" ArcGIS tool to create ASCII grids with compatible cell size and extent.'
-        msg_no_resample = '%s raster must have same %s as habitat raster'
-    
-        poly_map = CSIO._reader(filename, data_type)
+        poly_map = CSIO._ascii_grid_reader(filename, data_type)
         if nodata_as != None:
             poly_map = np.where(poly_map==nodata, nodata_as, poly_map)
     
         if cellsize != habitat_size.cellsize:
             if resample:
-                logging.warning(msg_resample % (file_type, "cell size",))
-                poly_map = CSIO._resample_map(filename, reading_mask, habitat_size, header, poly_map)
+                logging.warning(CSIO.MSG_RESAMPLE % (file_type, "cell size",))
+                poly_map = CSIO._resample_map(reading_mask, habitat_size, header, poly_map)
             else:
-                raise RuntimeError(msg_no_resample%(file_type, "cell_size"))            
+                raise RuntimeError(CSIO.MSG_NO_RESAMPLE % (file_type, "cell_size"))            
         elif ncols != habitat_size.ncols:
             if resample:
-                logging.warning(msg_resample % (file_type, "number of columns",))
-                poly_map = CSIO._resample_map(filename, reading_mask, habitat_size, header, poly_map)
+                logging.warning(CSIO.MSG_RESAMPLE % (file_type, "number of columns",))
+                poly_map = CSIO._resample_map(reading_mask, habitat_size, header, poly_map)
             else:
-                raise RuntimeError(msg_no_resample%(file_type, "number of columns"))            
+                raise RuntimeError(CSIO.MSG_NO_RESAMPLE % (file_type, "number of columns"))            
         elif nrows != habitat_size.nrows:
             if resample:
-                logging.warning(msg_resample % (file_type, "number of rows",))
-                poly_map = CSIO._resample_map(filename, reading_mask, habitat_size, header, poly_map)
+                logging.warning(CSIO.MSG_RESAMPLE % (file_type, "number of rows",))
+                poly_map = CSIO._resample_map(reading_mask, habitat_size, header, poly_map)
             else:
-                raise RuntimeError(msg_no_resample%(file_type, "number of rows"))            
+                raise RuntimeError(CSIO.MSG_NO_RESAMPLE % (file_type, "number of rows"))            
         elif xllcorner != habitat_size.xllcorner:
             if resample:
-                logging.warning(msg_resample % (file_type, "xllcorner",))
-                poly_map = CSIO._resample_map(filename, reading_mask, habitat_size, header, poly_map)
+                logging.warning(CSIO.MSG_RESAMPLE % (file_type, "xllcorner",))
+                poly_map = CSIO._resample_map(reading_mask, habitat_size, header, poly_map)
             else:
-                raise RuntimeError(msg_no_resample%(file_type, "xllcorner"))            
+                raise RuntimeError(CSIO.MSG_NO_RESAMPLE % (file_type, "xllcorner"))            
         elif yllcorner != habitat_size.yllcorner:
             if resample:
-                logging.warning(msg_resample % (file_type, "yllcorner",))
-                poly_map = CSIO._resample_map(filename, reading_mask, habitat_size, header, poly_map)
+                logging.warning(CSIO.MSG_RESAMPLE % (file_type, "yllcorner",))
+                poly_map = CSIO._resample_map(reading_mask, habitat_size, header, poly_map)
             else:
-                raise RuntimeError(msg_no_resample%(file_type, "yllcorner"))            
+                raise RuntimeError(CSIO.MSG_NO_RESAMPLE % (file_type, "yllcorner"))            
     
         if reading_mask==True:
             poly_map = np.where(poly_map < 0, 0, poly_map)        
@@ -337,18 +389,11 @@ class CSIO:
         
         File extension is used to determine whether format is ascii grid, numpy array, or text list.
         """
-        base, extension = os.path.splitext(filename)
+        filetype = CSIO._guess_file_type(filename)
         
-        is_compressed = (extension == '.gz')
-        if is_compressed:
-            base, extension = os.path.splitext(base)
-        
-        if extension not in [".txt", ".asc", ".npy"]:
-            raise RuntimeError('%s file must have a .txt, .asc or .npy extension'%(file_type,))
-        
-        if extension == ".txt":
-            points_rc = CSIO._read_txt_list(filename, 'int32', habitat_size)
-        elif extension == ".asc" or extension == ".npy": # We use Numpy format for quickly passing grids between ArcGIS and Circuitscape.
+        if filetype == CSIO.FILE_TYPE_TXTLIST:
+            points_rc = CSIO._txt_list_reader(filename, 'int32', habitat_size)
+        elif (filetype == CSIO.FILE_TYPE_AAGRID) or (filetype == CSIO.FILE_TYPE_NPY): # We use Numpy format for quickly passing grids between ArcGIS and Circuitscape.
             point_map = CSIO.read_poly_map(filename, False, 0, habitat_size, True, file_type, 'int32')
             (rows, cols) = np.where(point_map > 0)
     
@@ -357,7 +402,7 @@ class CSIO:
                 values[i] = point_map[rows[i], cols[i]]
             points_rc = np.c_[values, rows, cols]
         else:
-            raise RuntimeError('Focal node file must have a .txt, .asc or .npy extension')
+            raise RuntimeError('Focal node file must be in one of text list, ascii grid or numpy array format.')
     
         try:
             i = np.argsort(points_rc[:,0])
@@ -380,35 +425,34 @@ class CSIO:
     @staticmethod    
     def read_source_and_ground_maps(source_filename, ground_filename, habitat_size, options): 
         """Reads srouce and ground raster maps from disk."""
-        #print("reading source and ground maps:\n\t[%s]\n\t[%s]"%(source_filename,ground_filename))  
         #FIXME: reader does not currently handle infinite inputs for ground conductances.
-        extension = os.path.splitext(source_filename)[1]
-        if extension not in [".txt", ".asc"]:
-            raise RuntimeError('Current source files must have a .txt or .asc extension')
         
-        if extension == ".txt":  
-            #FIXME: probably want to roll code used for reading source, ground and point text files into single utility
-            sources_rc = CSIO._read_txt_list(source_filename, 'int32', habitat_size)
+        filetype = CSIO._guess_file_type(source_filename)
+
+        if filetype == CSIO.FILE_TYPE_TXTLIST:  
+            sources_rc = CSIO._txt_list_reader(source_filename, 'int32', habitat_size)
             source_map = np.zeros((habitat_size.nrows, habitat_size.ncols), dtype='float64')
             source_map[sources_rc[:,1], sources_rc[:,2]] = sources_rc[:,0]
-        elif extension=='.asc':
+        elif filetype == CSIO.FILE_TYPE_AAGRID:
             source_map = CSIO.read_poly_map(source_filename, False, 0, habitat_size, False, "Current source", 'float64')
             source_map = np.where(source_map==-9999, 0, source_map)
-    
+        else:
+            raise RuntimeError('Current source files must either be in text list or ascii grid format.')
+        
         if options.use_unit_currents == True:
             source_map = np.where(source_map, 1, source_map)
     
     
-        _base, extension = os.path.splitext(ground_filename)
-        if extension not in [".txt", ".asc"]:
-            raise RuntimeError('Ground files must have a .txt or .asc extension')
+        filetype = CSIO._guess_file_type(ground_filename)
         
-        if extension == ".txt":
-            grounds_rc = CSIO._read_txt_list(ground_filename, 'int32', habitat_size)
+        if filetype == CSIO.FILE_TYPE_TXTLIST:
+            grounds_rc = CSIO._txt_list_reader(ground_filename, 'int32', habitat_size)
             ground_map_raw = -9999 * np.ones((habitat_size.nrows, habitat_size.ncols), dtype = 'float64')
             ground_map_raw[grounds_rc[:,1], grounds_rc[:,2]] = grounds_rc[:,0]
-        elif extension=='.asc':
+        elif filetype == CSIO.FILE_TYPE_AAGRID:
             ground_map_raw = CSIO.read_poly_map(ground_filename, False, None, habitat_size, False, "Ground", 'float64')
+        else:
+            raise RuntimeError('Ground files must either be in text list or ascii grid format.')
     
         if options.ground_file_is_resistances==True:
             ground_map = 1 / ground_map_raw
@@ -431,6 +475,7 @@ class CSIO:
             raise RuntimeError('No valid grounds detected. Please check ground file') 
         return source_map, ground_map
 
+
     @staticmethod
     def read_included_pairs(filename):
         """Reads matrix denoting node pairs to include/exclude from calculations.
@@ -438,7 +483,7 @@ class CSIO:
         FIXME: matrices are an inconvenient way for users to specify pairs.  Using a 
         2- or 3-column format would be easier.
         """
-        CSIO._check_file_exixts(filename)
+        CSIO._check_file_exists(filename)
         
         try:
             with open(filename, 'r') as f:
@@ -464,6 +509,7 @@ class CSIO:
     
         return included_pairs
 
+
     @staticmethod
     @print_rusage
     def write_aaigrid(grid_type, fileadd, data, options, state):
@@ -481,15 +527,16 @@ class CSIO:
         else:
             return
     
+        file_type = CSIO._guess_file_type(options.habitat_file)        
         out_base = os.path.splitext(options.output_file)[0]
-        inp_extn = os.path.splitext(options.habitat_file)[1]
-        out_file = out_base + '_' + grid_type + fileadd + ('.npy' if (inp_extn == '.npy') else '.asc')
-        CSIO._writer(out_file, data, state, options.compress_grids)
+        out_file = out_base + '_' + grid_type + fileadd + ('.npy' if (file_type == CSIO.FILE_TYPE_NPY) else '.asc')
+        CSIO._ascii_grid_writer(out_file, file_type, data, state, options.compress_grids)
+
 
     @staticmethod
     def read_cell_map(habitat_map, is_resistances, reclass_file, state):
         """Reads resistance or conductance raster into memory, converts former to conductance format."""  
-        (ncols, nrows, xllcorner, yllcorner, cellsize, nodata) = CSIO._read_header(habitat_map)
+        (ncols, nrows, xllcorner, yllcorner, cellsize, nodata, _filetype) = CSIO._ascii_grid_read_header(habitat_map)
         state.ncols = ncols
         state.nrows = nrows
         state.xllcorner = xllcorner
@@ -497,7 +544,7 @@ class CSIO:
         state.cellsize = cellsize
         state.nodata = -9999 if (nodata == False) else nodata 
     
-        cell_map = CSIO._reader(habitat_map, 'float64')
+        cell_map = CSIO._ascii_grid_reader(habitat_map, 'float64')
     
         # Reclassification code
         if reclass_file != None:
@@ -519,6 +566,7 @@ class CSIO:
         else:
             g_map = np.where(cell_map == -9999, 0, cell_map)    
         state.g_map = np.where(g_map < 0, 0, g_map)    
+
 
     @staticmethod
     def save_incomplete_resistances(outfile_template, resistances):
@@ -603,10 +651,10 @@ class CSIO:
 
     @staticmethod
     def match_headers(t_file, match_files):
-        (ncols, nrows, xllcorner, yllcorner, cellsize, _nodata) = CSIO._read_header(t_file)
+        (ncols, nrows, xllcorner, yllcorner, cellsize, _nodata, _filetype) = CSIO._ascii_grid_read_header(t_file)
         
         for m_file in match_files:
-            (ncols1, nrows1, xllcorner1, yllcorner1, cellsize1, _nodata1) = CSIO._read_header(m_file)
+            (ncols1, nrows1, xllcorner1, yllcorner1, cellsize1, _nodata1, _filetype) = CSIO._ascii_grid_read_header(m_file)
             if (ncols1 != ncols) or (nrows1 != nrows) or (abs(xllcorner1 - xllcorner) > cellsize/3) or (abs(yllcorner1 - yllcorner) > cellsize/3) or (cellsize1 != cellsize):
                 return False
         return True
