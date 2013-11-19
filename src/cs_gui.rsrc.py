@@ -467,6 +467,31 @@
     'foregroundColor':(0, 0, 160, 255), 
     'text':'Logs', 
     },
+
+{'type':'StaticText', 
+    'name':'logLevelText', 
+    'position':(100, 438), 
+    'font':{'style': 'bold', 'faceName': u'Lucida Grande', 'family': 'sansSerif', 'size': 11}, 
+    'foregroundColor':(0, 0, 160, 255), 
+    'text':'Level', 
+    },
+
+{'type':'Choice', 
+    'name':'logLevelChoice', 
+    'position':(140, 432), 
+    'size':(100, -1), 
+    'font':{'faceName': u'Lucida Grande', 'family': 'sansSerif', 'size': 11}, 
+    'items':['DEBUG', 'INFO', 'WARN', 'ERROR'], 
+    'stringSelection':'DEBUG', 
+    },
+
+{'type':'CheckBox', 
+    'name':'logRusageBox', 
+    'position':(270, 435), 
+    'size':(170, 20), 
+    'font':{'faceName': u'Lucida Grande', 'family': 'sansSerif', 'size': 11}, 
+    'label':'Log resource information', 
+    },
                         
 {'type':'Button', 
     'name':'clearLogsButton', 
@@ -477,10 +502,10 @@
 
 {'type':'TextArea', 
     'name':'logMessages', 
-    'position':(14, 460), 
+    'position':(20, 460), 
     'size':(935, 150), 
     'font':{'faceName': u'Lucida Grande', 'family': 'default', 'size': 11},
-    'editable': 1 
+    'editable': 0 
     },
 
 ] # end components
