@@ -47,7 +47,16 @@ class GUILogger(logging.Handler):
     def emit(self, record):
         try:
             msg = self.format(record)
-            evt = wxLogEvent(message=msg, levelname=record.levelname)
+            msg = msg.strip('\r')
+            status_msg = None
+            if ('\n' not in msg): # dispay simple info messages in the status bar
+                plain_msg = logging._defaultFormatter.format(record)
+                if (record.levelname == 'INFO'):
+                    status_msg = (plain_msg, 1)
+                elif (record.levelname == 'DEBUG'):
+                    status_msg = (plain_msg, 2) 
+            
+            evt = wxLogEvent(message=msg, levelname=record.levelname, status_msg=status_msg)
             wx.PostEvent(self.dest, evt) # @UndefinedVariable
         
             (hours,mins,secs) = CSBase.elapsed_time(self.last_gui_yield_time)
@@ -94,14 +103,7 @@ class cs_gui(model.Background):
         self.components.calcButton.SetFocus()
         self.statusBar = self.CreateStatusBar()
         self.statusBar.SetFieldsCount(3)        
-        
-        if self.options.data_type == 'network':
-            self.enable_disable_network_widgets(True)        
-            statustext=str('V ' + self.state['version']+' BETA NETWORK MODE')            
-        else:
-            statustext=str('Version ' + self.state['version']+' Ready.')
-            self.enable_disable_network_widgets(False)            
-        self.statusBar.SetStatusText(statustext,0)
+        self.reset_status_bar()
         
         cs_gui.log_handler = GUILogger(self)
         cs_gui.logger = CSBase._create_logger("circuitscape_gui", getattr(logging, self.options.log_level.upper()), None, False, cs_gui.log_handler)
@@ -113,15 +115,8 @@ class cs_gui(model.Background):
         configFile='circuitscape.ini'
         self.options = self.LoadOptions(configFile)
         self.options.version = self.state['version']
+        self.reset_status_bar()
         ##Set all objects to reflect options
-        if self.options.data_type == 'network':
-            self.enable_disable_network_widgets(True)
-            statustext=str('V ' + self.state['version']+' BETA NETWORK MODE')
-        else:
-            statustext=str('Version ' + self.state['version']+' Ready.')
-            self.enable_disable_network_widgets(False)            
-        self.statusBar.SetStatusText(statustext,0)
-        
         self.setWidgets()
         self.components.calcButton.SetFocus()
 
@@ -133,13 +128,7 @@ class cs_gui(model.Background):
             configFile = result.paths[0]
             self.options = self.LoadOptions(configFile)
             self.options.version = self.state['version']
-            if self.options.data_type == 'network':
-                statustext=str('V ' + self.state['version']+' BETA NETWORK MODE')            
-                self.enable_disable_network_widgets(True)
-            else:
-                statustext=str('Version ' + self.state['version']+' Ready.')
-                self.enable_disable_network_widgets(False)                            
-            self.statusBar.SetStatusText(statustext,0)            
+            self.reset_status_bar()
             #Set all gui objects to reflect options    
             self.setWidgets()
             
@@ -165,13 +154,7 @@ class cs_gui(model.Background):
         else:
             dial = wx.MessageDialog(None, 'Errors were found.  Please see terminal or console for details.', 'Verification failed.', wx.OK)  # @UndefinedVariable
             dial.ShowModal()
-        if self.options.data_type == 'network':
-            statustext=str('V ' + self.state['version']+' BETA NETWORK MODE')
-            self.enable_disable_network_widgets(True)
-        else:
-            statustext=str('Version ' + self.state['version']+' Ready.')
-            self.enable_disable_network_widgets(False)            
-        self.statusBar.SetStatusText(statustext,0)
+        self.reset_status_bar()
 
     def _get_options_set_in_menu_bar(self):
         self.options.use_unit_currents              = self.menuBar.getChecked('menuOptionsUnitSrcs')
@@ -267,16 +250,8 @@ class cs_gui(model.Background):
             wx.EndBusyCursor()  # @UndefinedVariable
             
             self.components.calcButton.SetFocus()
-            
-            if self.options.data_type == 'network':
-                self.enable_disable_network_widgets(True)            
-                statustext=str('V ' + self.state['version']+' BETA NETWORK MODE')
-            else:
-                statustext=str('Version ' + self.state['version']+' Ready.')
-                self.enable_disable_network_widgets(False)            
-            self.statusBar.SetStatusText(statustext,0)
+            self.reset_status_bar()
 
-            self.statusBar.SetStatusText('',1)
             (hours,mins,secs) = CSBase.elapsed_time(startTime)
             if hours > 0:
                 self.statusBar.SetStatusText('Batch job took ' + str(hours) +' hours ' + str(mins) + ' minutes to complete.',2)
@@ -638,15 +613,8 @@ class cs_gui(model.Background):
                     self.memory_error_feedback()
                     return
                 except:
-                    self.unknown_exception()
-                    
-            if self.options.data_type == 'network':
-                statustext = str('V ' + self.state['version'] + ' BETA NETWORK MODE')
-            else:
-                statustext=str('Version ' + self.state['version']+' Ready.')
-            self.statusBar.SetStatusText(statustext,0)
-
-            self.statusBar.SetStatusText('', 1)
+                    self.unknown_exception()            
+            self.reset_status_bar()        
 
 
     def checkHeaders(self):
@@ -837,14 +805,28 @@ class cs_gui(model.Background):
             pass
         return options   
 
-
     def on_clearLogsButton_mouseClick(self, event):
         self.components.logMessages.clear()
-            
-    def onLogEvent(self,event):
-        msg = event.message.strip("\r")+"\n"
-        self.components.logMessages.appendText(msg)
+        self.reset_status_bar()
+
+    def onLogEvent(self, event):
+        self.components.logMessages.appendText(event.message + '\n')
+        if event.status_msg != None:
+            self.statusBar.SetStatusText(event.status_msg[0], event.status_msg[1])
+            if event.status_msg[1] == 1:
+                self.statusBar.SetStatusText('', 2)
         event.Skip()
+
+    def reset_status_bar(self):
+        if self.options.data_type == 'network':
+            self.enable_disable_network_widgets(True)        
+            statustext=str('V ' + self.state['version']+' BETA NETWORK MODE')            
+        else:
+            statustext=str('Version ' + self.state['version']+' Ready.')
+            self.enable_disable_network_widgets(False)            
+        self.statusBar.SetStatusText(statustext,0)
+        self.statusBar.SetStatusText('', 1)
+        self.statusBar.SetStatusText('', 2)
             
 if __name__ == '__main__':
     app = model.Application(cs_gui)
