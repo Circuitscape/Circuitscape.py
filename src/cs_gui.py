@@ -19,6 +19,7 @@ except:
         wxversion.select('2.7')
 
 import wx
+import wx.lib.newevent
 from PythonCard import dialog, model 
 from PythonCard.components import button, checkbox, choice, image, staticline, statictext, textfield
 
@@ -29,6 +30,36 @@ from cs_io import CSIO
 from verify import cs_verifyall
 
 from csversion import CIRCUITSCAPE_VER
+
+wxLogEvent, EVT_WX_LOG_EVENT = wx.lib.newevent.NewEvent()
+
+class GUILogger(logging.Handler):
+    def __init__(self, dest=None):
+        logging.Handler.__init__(self)
+        self.dest = dest
+        self.level = logging.DEBUG
+        self.last_gui_yield_time = time.time()
+
+    def flush(self):
+        pass
+
+    def emit(self, record):
+        try:
+            msg = self.format(record)
+            evt = wxLogEvent(message=msg, levelname=record.levelname)
+            wx.PostEvent(self.dest, evt) # @UndefinedVariable
+        
+            (hours,mins,secs) = CSBase.elapsed_time(self.last_gui_yield_time)
+            if (secs > 5) or (mins > 0) or (hours > 0):
+                self.last_gui_yield_time = time.time()
+                wx.SafeYield(None, True)  # @UndefinedVariable
+                wx.GetApp().Yield(True)  # @UndefinedVariable
+            
+        except (KeyboardInterrupt, SystemExit):
+            raise
+        except:
+            self.handleError(record)
+
 
 class cs_gui(model.Background):
     OPTIONS_SCENARIO            = ['not entered', 'pairwise', 'one-to-all', 'all-to-one', 'advanced']
@@ -43,9 +74,11 @@ class cs_gui(model.Background):
     COLOR_ENABLED = (0, 0, 160)
     COLOR_DISABLED = (180,180,180)
     
+    logger = None
+    log_handler = None
+    
     def on_initialize(self, event):
         self.state = {}
-        self.last_gui_yield_time = time.time()
         self.state['version'] = CIRCUITSCAPE_VER
         
         #LOAD LAST self.options
@@ -66,7 +99,10 @@ class cs_gui(model.Background):
             statustext=str('Version ' + self.state['version']+' Ready.')
             self.enable_disable_network_widgets(False)            
         self.statusBar.SetStatusText(statustext,0)
-
+        
+        cs_gui.log_handler = GUILogger(self)
+        cs_gui.logger = CSBase._create_logger("csgui", logging.DEBUG, None, False, cs_gui.log_handler)
+        self.Bind(EVT_WX_LOG_EVENT, self.onLogEvent)    
 
            
     ##MENU ITEMS
@@ -104,11 +140,10 @@ class cs_gui(model.Background):
             #Set all gui objects to reflect options    
             self.setWidgets()
             
-            print '\n\n'
             self.components.calcButton.SetFocus()
 
     def on_menuFileVerifyCode_select(self, event):
-        print 'Verifying code (this will take a minute or two)'
+        cs_gui.logger.info('Verifying code (this will take a minute or two)')
         self.statusBar.SetStatusText('Verifying code (this will take a minute or two)',0)
         self.statusBar.SetStatusText('',1)
 
@@ -184,7 +219,7 @@ class cs_gui(model.Background):
         result = dialog.fileDialog(self, 'Select any number of Circuitscape Options Files within one directory', '', '', wildcard ) 
         if result.accepted==True:
             wx.BeginBusyCursor()  # @UndefinedVariable
-            logging.debug('Running Circuitscape in batch mode')
+            cs_gui.logger.debug('Running Circuitscape in batch mode')
             startTime = time.time()
             startTimeHMS = time.strftime('%H:%M:%S')
             self.statusBar.SetStatusText('Batch start ' + str(startTimeHMS), 0)
@@ -193,7 +228,7 @@ class cs_gui(model.Background):
             for selection in result.paths:
                 job += 1
                 _configDir, configFile = os.path.split(selection)
-                logging.debug('Processing ' + configFile)
+                cs_gui.logger.debug('Processing ' + configFile)
                 self.statusBar.SetStatusText('Batch start ' + str(startTimeHMS) + '. Running job ' + str(job) +'/' + str(numjobs), 0)
                 
                 try:
@@ -214,7 +249,7 @@ class cs_gui(model.Background):
                     self.statusBar.SetStatusText('',1)
                     self.statusBar.SetStatusText('',2)
                     result, _solver_failed = cs.compute()
-                    logging.debug('Finished processing ' + configFile)
+                    cs_gui.logger.debug('Finished processing ' + configFile)
                 except RuntimeError as error:
                     message = str(error)
                     dial = wx.MessageDialog(None, message, 'Error', wx.OK | wx.ICON_ERROR)  # @UndefinedVariable
@@ -225,7 +260,7 @@ class cs_gui(model.Background):
                 except:
                     self.unknown_exception()
                     
-            logging.debug('Done with batch operations.')
+            cs_gui.logger.debug('Done with batch operations.')
             wx.EndBusyCursor()  # @UndefinedVariable
             
             self.components.calcButton.SetFocus()
@@ -406,7 +441,9 @@ class cs_gui(model.Background):
     def on_outBrowse_mouseClick(self, event):
         wildcard = "OUT Files (*.out)|*.out|All Files (*.*)|*.*"
         result = dialog.saveFileDialog(self, 'Choose a Base Output File Name', '', '', wildcard)
-        if result.accepted == True:                
+        if result.accepted == True:
+            print "result=" + str(result)
+            print "result.paths=" + str(result.paths)
             file_name = result.paths[0]
             self.components.outFile.text = file_name
             self.options.output_file = file_name
@@ -439,7 +476,7 @@ class cs_gui(model.Background):
         self.options.ground_file = self.components.gndFile.text
 
             
-##CALCULATE    
+##CALCULATE
     def on_calcButton_mouseClick(self, event):
         self.components.habitatFile.SetFocus() #Need to force loseFocus on text boxes to make sure they are updated.
         self.components.outFile.SetFocus()
@@ -465,11 +502,11 @@ class cs_gui(model.Background):
             dial.ShowModal()
             return  
                             
-        logging.debug('Calling Circuitscape...')
+        cs_gui.logger.debug('Calling Circuitscape...')
         startTime = time.strftime('%H:%M:%S')
         self.statusBar.SetStatusText('Job started ' + str(startTime), 0)
         try:
-            cs = circuitscape('circuitscape.ini', self)
+            cs = circuitscape('circuitscape.ini', cs_gui.log_handler)
         except RuntimeError as error:
             message = str(error)
             dial = wx.MessageDialog(None, message, 'Error', wx.OK | wx.ICON_ERROR)  # @UndefinedVariable
@@ -490,7 +527,7 @@ class cs_gui(model.Background):
             return
 
         if self.options.data_type == 'network':        
-            logging.debug('Running in Network (Graph) Mode')                
+            cs_gui.logger.debug('Running in Network (Graph) Mode')                
                                 
         if self.options.scenario == 'pairwise':
             try:
@@ -503,11 +540,11 @@ class cs_gui(model.Background):
                 self.components.calcButton.SetFocus()
 
                 if solver_failed == True:
-                    print '\nPairwise resistances (-1 indicates disconnected focal node pair, -777 indicates failed solve):'
+                    cs_gui.logger.info('Pairwise resistances (-1 indicates disconnected focal node pair, -777 indicates failed solve):')
                 else:
-                    print '\nPairwise resistances (-1 indicates disconnected node pair):'
-                print resistances
-                print '\nDone.\n'
+                    cs_gui.logger.info('Pairwise resistances (-1 indicates disconnected node pair):')
+                cs_gui.logger.info(str(resistances))
+                cs_gui.logger.info('Done.')
                 
                 if solver_failed == True:
                     message = 'At least one solve failed.  Failure is coded as -777 in output resistance matrix.'
@@ -539,7 +576,7 @@ class cs_gui(model.Background):
                     dial = wx.MessageDialog(None, message, 'Error', wx.OK | wx.ICON_EXCLAMATION)  # @UndefinedVariable
                     dial.ShowModal()
                 
-                print '\nDone.\n'
+                cs_gui.logger.info('Done.')
             except RuntimeError as error:
                 message = str(error)
                 dial = wx.MessageDialog(None, message, 'Error', wx.OK | wx.ICON_ERROR)  # @UndefinedVariable
@@ -564,15 +601,15 @@ class cs_gui(model.Background):
                     
                     if self.options.scenario == 'all-to-one':
                         if solver_failed == True:
-                            print '\nResult for each focal node \n(0 indicates successful calculation, -1 indicates disconnected node, -777 indicates failed solve):\n'
+                            cs_gui.logger.info('Result for each focal node (0 indicates successful calculation, -1 indicates disconnected node, -777 indicates failed solve):')
                         else:
-                            print '\nResult for each focal node \n(0 indicates successful calculation, -1 indicates disconnected node):\n'
+                            cs_gui.logger.info('Result for each focal node (0 indicates successful calculation, -1 indicates disconnected node):')
                     elif solver_failed == True:
-                        print '\nResistances (-1 indicates disconnected node, -777 indicates failed solve):\n'
+                        cs_gui.logger.info('Resistances (-1 indicates disconnected node, -777 indicates failed solve):')
                     else:
-                        print '\nResistances (-1 indicates disconnected node):\n'
-                    print resistances
-                    print '\nDone.\n'
+                        cs_gui.logger.info('Resistances (-1 indicates disconnected node):')
+                    cs_gui.logger.info(str(resistances))
+                    cs_gui.logger.info('Done.')
                     
                     if solver_failed == True:
                         message = 'At least one solve failed.  Failure is coded as -777 in output node/resistance list.'
@@ -635,7 +672,7 @@ class cs_gui(model.Background):
             e_type = value = tb = None # clean up
  
     def memory_error_feedback(self):
-        logging.error('Circuitscape ran out of memory. Please see user guide for information about memory requirements.')
+        cs_gui.logger.error('Circuitscape ran out of memory. Please see user guide for information about memory requirements.')
         message='Circuitscape ran out of memory. \nPlease see user guide for information about memory requirements.'
         dial = wx.MessageDialog(None, message, 'Error', wx.OK | wx.ICON_ERROR)  # @UndefinedVariable
         dial.ShowModal()
@@ -775,17 +812,16 @@ class cs_gui(model.Background):
         except:
             pass
         return options   
-    
-    def log(self, text, col):
-        self.statusBar.SetStatusText(text, col)
-        
-        (hours,mins,secs) = CSBase.elapsed_time(self.last_gui_yield_time)
-        if (secs > 10) or (mins > 0) or (hours > 0):
-            self.last_gui_yield_time = time.time()
-            wx.SafeYield(None, True)  # @UndefinedVariable
-            wx.GetApp().Yield(True)  # @UndefinedVariable
 
-    
+
+    def on_clearLogsButton_mouseClick(self, event):
+        self.components.logMessages.clear()
+            
+    def onLogEvent(self,event):
+        msg = event.message.strip("\r")+"\n"
+        self.components.logMessages.appendText(msg)
+        event.Skip()
+            
 if __name__ == '__main__':
     app = model.Application(cs_gui)
     app.MainLoop()

@@ -4,7 +4,7 @@
     {'type':'Background',
           'name':'bgMin',
           'title':u'Circuitscape',
-          'size':(972, 502),
+          'size':(972, 652),
           'backgroundColor':(230, 230, 230),
 
         'menubar': {'type':'MenuBar',
@@ -451,6 +451,36 @@
     'size':(127, -1), 
     'font':{'style': 'bold', 'faceName': u'Lucida Grande', 'family': 'sansSerif', 'size': 13}, 
     'label':'RUN', 
+    },
+
+{'type':'StaticLine', 
+    'name':'StaticLine1', 
+    'position':(14, 430), 
+    'size':(935, -1), 
+    'layout':'horizontal', 
+    },
+
+{'type':'StaticText', 
+    'name':'logWindowLabel', 
+    'position':(14, 435), 
+    'font':{'style': 'bold', 'faceName': u'Lucida Grande', 'family': 'sansSerif', 'size': 13}, 
+    'foregroundColor':(0, 0, 160, 255), 
+    'text':'Logs', 
+    },
+                        
+{'type':'Button', 
+    'name':'clearLogsButton', 
+    'position':(860, 430), 
+    'font':{'faceName': u'Lucida Grande', 'family': 'default', 'size': 11}, 
+    'label':'Clear', 
+    },
+
+{'type':'TextArea', 
+    'name':'logMessages', 
+    'position':(14, 460), 
+    'size':(935, 150), 
+    'font':{'faceName': u'Lucida Grande', 'family': 'default', 'size': 11},
+    'editable': 1 
     },
 
 ] # end components

@@ -32,7 +32,7 @@ class CSConfig:
             'use_mask': False
         }, 
         'Calculation options': {
-            'low_memory_mode': False, 
+            'low_memory_mode': False,
             'print_timings': False, 
             'print_rusages': False, 
             'solver': 'cg+amg'
@@ -70,6 +70,12 @@ class CSConfig:
         'Options for reclassification of habitat data': {
             'use_reclass_table': False,
             'reclass_file': '(Browse for file with reclassification data)'
+        },
+        'Logging Options': {
+            'profiler_log_file': None,      # file to log timing and rusage profiling results 
+            'log_file': None,               # file to log regular log messages
+            'log_level': 'DEBUG',           # one of FATAL, ERROR, WARN, INFO, DEBUG
+            'screenprint_log': False        # whether to print logs to console (stdout)
         }
     }
     
