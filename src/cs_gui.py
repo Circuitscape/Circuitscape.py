@@ -6,6 +6,7 @@
 
 
 import os, sys, traceback, logging, time
+import numpy as np
 
 import wxversion
 try:
@@ -70,6 +71,7 @@ class cs_gui(model.Background):
     OPTIONS_CONNECT_FOUR_NEIGHBORS_ONLY     = ['not entered', True, False]
     OPTIONS_POINT_FILE_CONTAINS_POLYGONS    = ['not entered', False, True]
     OPTIONS_GROUND_FILE_IS_RESISTANCES      = ['not entered', True, False]
+    OPTIONS_LOG_LEVEL                       = ['DEBUG', 'INFO', 'WARN', 'ERROR']
     
     COLOR_ENABLED = (0, 0, 160)
     COLOR_DISABLED = (180,180,180)
@@ -85,6 +87,7 @@ class cs_gui(model.Background):
         configFile = 'circuitscape.ini'
         self.options = self.LoadOptions(configFile) 
         self.options.version = self.state['version']
+        self.options.log_level = 'DEBUG'
         
         ##Set all objects to reflect options
         self.setWidgets()
@@ -101,7 +104,7 @@ class cs_gui(model.Background):
         self.statusBar.SetStatusText(statustext,0)
         
         cs_gui.log_handler = GUILogger(self)
-        cs_gui.logger = CSBase._create_logger("csgui", logging.DEBUG, None, False, cs_gui.log_handler)
+        cs_gui.logger = CSBase._create_logger("circuitscape_gui", getattr(logging, self.options.log_level.upper()), None, False, cs_gui.log_handler)
         self.Bind(EVT_WX_LOG_EVENT, self.onLogEvent)    
 
            
@@ -386,7 +389,12 @@ class cs_gui(model.Background):
         gnd_resistance = event.GetSelection()
         self.options.ground_file_is_resistances = cs_gui.OPTIONS_GROUND_FILE_IS_RESISTANCES[gnd_resistance]
 
-             
+    def on_logLevelChoice_select(self, event):
+        log_lvl = event.GetSelection()
+        self.options.log_level = cs_gui.OPTIONS_LOG_LEVEL[log_lvl]
+        cs_gui.logger.setLevel(getattr(logging, self.options.log_level.upper()))
+        cs_gui.log_handler.setLevel(getattr(logging, self.options.log_level.upper()))
+
 ##CHECK BOXES
 
     def on_loadPolygonBox_mouseClick(self, event):   
@@ -399,6 +407,8 @@ class cs_gui(model.Background):
     def on_voltMapBox_mouseClick(self, event):   
         self.options.write_volt_maps = event.GetSelection() 
 
+    def on_logRusageBox_mouseClick(self, event):
+        self.options.print_rusages = event.GetSelection()
     
 ##BROWSE BUTTONS
     def on_habitatBrowse_mouseClick(self, event):
@@ -442,8 +452,6 @@ class cs_gui(model.Background):
         wildcard = "OUT Files (*.out)|*.out|All Files (*.*)|*.*"
         result = dialog.saveFileDialog(self, 'Choose a Base Output File Name', '', '', wildcard)
         if result.accepted == True:
-            print "result=" + str(result)
-            print "result.paths=" + str(result.paths)
             file_name = result.paths[0]
             self.components.outFile.text = file_name
             self.options.output_file = file_name
@@ -482,6 +490,13 @@ class cs_gui(model.Background):
         self.components.outFile.SetFocus()
         self.components.calcButton.SetFocus()
         
+        out_base, _out_ext = os.path.splitext(self.options.output_file)
+        if self.options.log_file == None:
+            self.options.log_file = out_base + '.log'
+
+        if (self.options.profiler_log_file == None) and (self.options.print_timings or self.options.print_rusages):
+            self.options.profiler_log_file = out_base + '_rusages.log'
+            
         #Check to see if all inputs are chosen
         (all_options_entered, message) = self.options.check()
         
@@ -540,10 +555,10 @@ class cs_gui(model.Background):
                 self.components.calcButton.SetFocus()
 
                 if solver_failed == True:
-                    cs_gui.logger.info('Pairwise resistances (-1 indicates disconnected focal node pair, -777 indicates failed solve):')
+                    msg = 'Pairwise resistances (-1 indicates disconnected focal node pair, -777 indicates failed solve):'
                 else:
-                    cs_gui.logger.info('Pairwise resistances (-1 indicates disconnected node pair):')
-                cs_gui.logger.info(str(resistances))
+                    msg = 'Pairwise resistances (-1 indicates disconnected node pair):'
+                cs_gui.logger.info(msg + "\n" + np.array_str(resistances, 300))
                 cs_gui.logger.info('Done.')
                 
                 if solver_failed == True:
@@ -601,14 +616,14 @@ class cs_gui(model.Background):
                     
                     if self.options.scenario == 'all-to-one':
                         if solver_failed == True:
-                            cs_gui.logger.info('Result for each focal node (0 indicates successful calculation, -1 indicates disconnected node, -777 indicates failed solve):')
+                            msg = 'Result for each focal node (0 indicates successful calculation, -1 indicates disconnected node, -777 indicates failed solve):'
                         else:
-                            cs_gui.logger.info('Result for each focal node (0 indicates successful calculation, -1 indicates disconnected node):')
+                            msg = 'Result for each focal node (0 indicates successful calculation, -1 indicates disconnected node):'
                     elif solver_failed == True:
-                        cs_gui.logger.info('Resistances (-1 indicates disconnected node, -777 indicates failed solve):')
+                        msg = 'Resistances (-1 indicates disconnected node, -777 indicates failed solve):'
                     else:
-                        cs_gui.logger.info('Resistances (-1 indicates disconnected node):')
-                    cs_gui.logger.info(str(resistances))
+                        msg = 'Resistances (-1 indicates disconnected node):'
+                    cs_gui.logger.info(msg + '\n' + np.array_str(resistances, 300))
                     cs_gui.logger.info('Done.')
                     
                     if solver_failed == True:
@@ -719,10 +734,19 @@ class cs_gui(model.Background):
             
         idx = cs_gui.OPTIONS_CONNECT_USING_AVG_RESISTANCES.index(self.options.connect_using_avg_resistances)
         self.components.connCalcChoice.SetSelection(idx)
-            
+        
+        idx = cs_gui.OPTIONS_LOG_LEVEL.index(self.options.log_level)
+        self.components.logLevelChoice.SetSelection(idx)
+        if cs_gui.logger != None:
+            cs_gui.logger.setLevel(getattr(logging, self.options.log_level.upper()))
+
+        if cs_gui.log_handler != None:
+            cs_gui.log_handler.setLevel(getattr(logging, self.options.log_level.upper()))
+
         self.components.loadPolygonBox.checked  = self.options.use_polygons
         self.components.curMapBox.checked       = self.options.write_cur_maps
         self.components.voltMapBox.checked      = self.options.write_volt_maps
+        self.components.logRusageBox.checked    = self.options.print_rusages
 
         self.menuBar.setChecked('menuOptionsUnitSrcs',          self.options.use_unit_currents)
         self.menuBar.setChecked('menuOptionsCumMap',            self.options.write_cum_cur_map_only)

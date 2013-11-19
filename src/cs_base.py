@@ -55,25 +55,30 @@ class CSBase(object):
             logger.addHandler(handler)
             
         return logger
-        
+
+    @staticmethod
+    def _close_handlers(logger):
+        all_handlers = list(logger.handlers)
+        for handler in all_handlers:
+            logger.removeHandler(handler)
+            handler.flush()
+            handler.close()
+            
     def _setup_loggers(self, ext_log_handler):
         if None != CSBase.logger:  # logger has already been setup
-            return
+            CSBase._close_handlers(CSBase.logger)
+            CSBase._close_handlers(ResourceLogger.rlogger)
         
         if ext_log_handler == 'Screen':
             self.options.screenprint_log = True
             ext_log_handler = None
-        #else:
-        #    self.options.screenprint_log = False
-        #self.options.screenprint_log = True
-        #self.ext_log_handler = ext_log_handler
 
         log_lvl = getattr(logging, self.options.log_level.upper())
         
         CSIO.logger = CSState.logger = CSBase.logger = CSBase._create_logger('circuitscape', log_lvl, self.options.log_file, self.options.screenprint_log, ext_log_handler)
 
         if self.options.profiler_log_file != self.options.log_file:
-            res_logger = CSBase._create_logger('circuitscape.profile', logging.DEBUG, self.options.profiler_log_file, False, ext_log_handler)
+            res_logger = CSBase._create_logger('circuitscape_profile', logging.DEBUG, self.options.profiler_log_file, self.options.screenprint_log, ext_log_handler)
         else:
             res_logger = CSBase.logger
 
