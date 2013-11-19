@@ -16,10 +16,11 @@ class ResourceLogger:
     io1 = []
 
     @staticmethod
-    def init_rusage(print_t=False, print_r=False):
+    def init_rusage(print_t=False, print_r=False, logger=None):
         ResourceLogger.print_timing_enabled(print_t)
         ResourceLogger.print_rusage_enabled(print_r)
-        ResourceLogger.rlogger = logging.getLogger('circuitscape.profile')
+        ResourceLogger.rlogger = logger
+        
         if ResourceLogger.psutil_available and ResourceLogger.print_rusages:
             ResourceLogger.proc = psutil.Process(os.getpid())
             ResourceLogger.proc_has_io_counters = hasattr(ResourceLogger.proc, 'get_io_counters')

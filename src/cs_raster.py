@@ -12,8 +12,8 @@ from cs_io import CSIO
 
 
 class CSRaster(CSBase):
-    def __init__(self, configFile, logger_func):
-        super(CSRaster, self).__init__(configFile, logger_func)
+    def __init__(self, configFile, ext_log_handler):
+        super(CSRaster, self).__init__(configFile, ext_log_handler)
 
     @print_rusage
     def compute_raster(self):
@@ -22,7 +22,7 @@ class CSRaster(CSBase):
         self.load_maps()
         if self.options.screenprint_log == True:        
             num_nodes = (np.where(self.state.g_map > 0, 1, 0)).sum()         
-            logging.debug('Resistance/conductance map has %d nodes' % (num_nodes,))
+            CSRaster.logger.debug('Resistance/conductance map has %d nodes' % (num_nodes,))
 
         if self.options.scenario == 'pairwise':
             resistances, solver_failed = self.pairwise_module(self.state.g_map, self.state.poly_map, self.state.points_rc)
@@ -37,7 +37,7 @@ class CSRaster(CSBase):
             voltages, _current_map, solver_failed = self.advanced_module(g_habitat, cs, self.state.source_map, self.state.ground_map)
             self.log_complete_job()
             if solver_failed == True:
-                logging.error('Solver failed')
+                CSRaster.logger.error('Solver failed')
             return voltages, solver_failed
         
         else:
@@ -163,7 +163,7 @@ class CSRaster(CSBase):
                         if self.options.write_max_cur_maps:    
                             cs.store_max_c_map_values('max', current_map)
                 else:
-                    logging.warning('Solver failed for at least one focal node.  \nFocal nodes with failed solves will be marked with value of -777 \nin output resistance list.\n')
+                    CSRaster.logger.warning('Solver failed for at least one focal node.  \nFocal nodes with failed solves will be marked with value of -777 \nin output resistance list.\n')
     
                 resistance_vector[pt_idx,0] = src
                 resistance_vector[pt_idx,1] = resistance
@@ -246,7 +246,7 @@ class CSRaster(CSBase):
                 (resistances, solver_failed) = self.single_ground_all_pair_resistances(g_habitat, fp, cs, True)
                 
             if solver_failed == True:
-                logging.warning('Solver failed for at least one focal node pair. ' 
+                CSRaster.logger.warning('Solver failed for at least one focal node pair. ' 
                 '\nThis can happen when input resistances differ by more than' 
                 '\n~6 orders of magnitude. Pairs with failed solves will be '
                 '\nmarked with value of -777 in output resistance matrix.\n')
@@ -292,7 +292,7 @@ class CSRaster(CSBase):
 
                 del poly_map_temp
                 if solver_failed == True:
-                    logging.warning('Solver failed for at least one focal node pair.  \nPairs with failed solves will be marked with value of -777 \nin output resistance matrix.\n')
+                    CSRaster.logger.warning('Solver failed for at least one focal node pair.  \nPairs with failed solves will be marked with value of -777 \nin output resistance matrix.\n')
 
                 resistances[pt2_idx, pt1_idx] = resistances[pt1_idx, pt2_idx] = pairwise_resistance[0,1]
 

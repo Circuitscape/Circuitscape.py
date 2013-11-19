@@ -15,37 +15,77 @@ from cs_io import CSIO
 from cs_profiler import ResourceLogger, print_rusage
 
 
-class CSBase(object):    
+class CSBase(object):
+    logger = None
+    
     """Circuitscape base class, common across all circuitscape modules"""
-    def __init__(self, configFile, gui_logger):
+    def __init__(self, configFile, ext_log_handler):
         #gc.set_debug(gc.DEBUG_STATS | gc.DEBUG_UNCOLLECTABLE | gc.DEBUG_SAVEALL)
         np.seterr(invalid='ignore')
         np.seterr(divide='ignore')
         
         self.state = CSState()
         self.options = CSConfig(configFile)
-        
-        if gui_logger == 'Screen':
-            self.options.screenprint_log = True
-            gui_logger = None
-        else:
-            self.options.screenprint_log = False
-        #self.options.screenprint_log = True
-        
-        self.gui_logger = gui_logger
-        logging.basicConfig(format='%(asctime)s:%(levelname)s:%(message)s',
-                            datefmt='%m/%d/%Y %I.%M.%S.%p',
-                            level=logging.DEBUG)
-        
-        ResourceLogger.init_rusage(self.options.print_timings, self.options.print_rusages)
+        self._setup_loggers(ext_log_handler)
 
+
+    @staticmethod
+    def _create_logger(logger_name, log_lvl, log_file, screenprint_log, ext_log_handler):
+        logger = logging.getLogger(logger_name)
+        logger.setLevel(log_lvl)
+        
+        formatter = logging.Formatter('%(asctime)s:%(levelname)s:%(message)s', '%m/%d/%Y %I.%M.%S.%p')
+        handlers = []
+        
+        if ext_log_handler:
+            handlers.append(ext_log_handler)
+            
+        if log_file:
+            handlers.append(logging.FileHandler(log_file))
+
+        if screenprint_log:
+            handlers.append(logging.StreamHandler())
+        
+        if len(handlers) == 0:  # if no loggers configured, disable logging
+            handlers.append(logging.NullHandler())
+        
+        for handler in handlers:
+            handler.setLevel(log_lvl)
+            handler.setFormatter(formatter)
+            logger.addHandler(handler)
+            
+        return logger
+        
+    def _setup_loggers(self, ext_log_handler):
+        if None != CSBase.logger:  # logger has already been setup
+            return
+        
+        if ext_log_handler == 'Screen':
+            self.options.screenprint_log = True
+            ext_log_handler = None
+        #else:
+        #    self.options.screenprint_log = False
+        #self.options.screenprint_log = True
+        #self.ext_log_handler = ext_log_handler
+
+        log_lvl = getattr(logging, self.options.log_level.upper())
+        
+        CSIO.logger = CSState.logger = CSBase.logger = CSBase._create_logger('circuitscape', log_lvl, self.options.log_file, self.options.screenprint_log, ext_log_handler)
+
+        if self.options.profiler_log_file != self.options.log_file:
+            res_logger = CSBase._create_logger('circuitscape.profile', logging.DEBUG, self.options.profiler_log_file, False, ext_log_handler)
+        else:
+            res_logger = CSBase.logger
+
+        ResourceLogger.init_rusage(self.options.print_timings, self.options.print_rusages, res_logger)
+        
 #     @staticmethod
 #     def do_gc(at=''):
-#         logging.debug("GC DEBUG: calling gc at " + at)
+#         CSBase.logger.debug("GC DEBUG: calling gc at " + at)
 #         c1 = len(gc.get_objects())
 #         gc.collect()
 #         c2 = len(gc.get_objects())
-#         logging.debug("GC DEBUG: collected " + str(c1-c2) + " objects")
+#         CSBase.logger.debug("GC DEBUG: collected " + str(c1-c2) + " objects")
     
     def del_amg_hierarchy(self):
         if self.state.amg_hierarchy != None:
@@ -56,18 +96,20 @@ class CSBase(object):
     # logging to UI should be handled with another logger or handler
     def log(self, text, col):
         """Prints updates to GUI or python window."""
-        if (self.gui_logger != None) or (self.options.screenprint_log == True and len(text) > 1):
-            text = '%s%s'%(' '*len(inspect.stack()), str(text))
-        
-            if self.gui_logger:
-                self.gui_logger.log(text, col)
-                
-            if self.options.screenprint_log == True and len(text) > 1:
-                if col == 1:
-                    logging.info(text)
-                else:
-                    logging.debug(text)
-                sys.stdout.flush()
+        text = '%s%s'%(' '*len(inspect.stack()), str(text))
+        CSBase.logger.info(text)
+#         if (self.ext_logger != None) or (self.options.screenprint_log == True and len(text) > 1):
+#             text = '%s%s'%(' '*len(inspect.stack()), str(text))
+#         
+#             if self.ext_logger:
+#                 self.ext_logger.log(text, col)
+#                 
+#             if self.options.screenprint_log == True and len(text) > 1:
+#                 if col == 1:
+#                     CSBase.logger.info(text)
+#                 else:
+#                     CSBase.logger.debug(text)
+#                 sys.stdout.flush()
     
         
     def log_complete_job(self):
@@ -124,8 +166,7 @@ class CSBase(object):
             (x, flag) = cg(G, rhs, tol = 1e-6, maxiter = 100000)
             if flag !=  0 or np.linalg.norm(G*x-rhs) > 1e-3:
                 raise RuntimeError('CG did not converge. May need more iterations.') 
-
-        if solver_type == 'amg':
+        elif solver_type == 'amg':
             x = ml.solve(rhs, tol = 1e-6);
 
         return x 
@@ -274,7 +315,7 @@ class CSFocalPoints:
                 num_connection_rows = num_connection_rows-1
 
         #if _drop_flag==True:
-        #    logging.info('\nNOTE: Code to exclude pairwise calculations is activated and some entries did not match with focal node file. Some focal nodes may have been dropped.')      
+        #    CSBase.logger.info('\nNOTE: Code to exclude pairwise calculations is activated and some entries did not match with focal node file. Some focal nodes may have been dropped.')      
 
 
     def _get_point_ids(self):
@@ -831,7 +872,7 @@ class CSOutput:
         If voltages and node_map are provided, create space for voltage map disregarding prior allocation.
         """
         if self.report_status==True:
-            logging.info('writing voltage map ' + name)
+            CSBase.logger.info('writing voltage map ' + name)
         if self.is_network:
             if voltages == None:
                 voltages, node_map = self.voltage_maps[name]

@@ -3,7 +3,7 @@
 ## Circuitscape (C) 2013, Brad McRae, Viral B. Shah 
 ##
 
-import time, logging
+import time
 from scipy import sparse
 import numpy as np
 
@@ -13,8 +13,8 @@ from cs_raster import CSRaster
 
 
 class circuitscape(CSRaster):
-    def __init__(self, configFile, logger_func):
-        super(circuitscape, self).__init__(configFile, logger_func)
+    def __init__(self, configFile, ext_log_handler):
+        super(circuitscape, self).__init__(configFile, ext_log_handler)
 
     @print_rusage
     def compute(self):
@@ -93,7 +93,7 @@ class circuitscape(CSRaster):
                     raise RuntimeError('Error reading reclass table.  Please check file format.')
                 for i in range (0,reclass_table.shape[0]):
                     data = np.where(data==reclass_table[i,0], reclass_table[i,1],data)
-                logging.debug('Reclassified habitat graph using %s'%(self.options.reclass_file,))
+                circuitscape.logger.debug('Reclassified habitat graph using %s'%(self.options.reclass_file,))
             ########################
             
             if self.options.habitat_map_is_resistances == True:
