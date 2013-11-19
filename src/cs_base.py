@@ -2,7 +2,7 @@
 ## Circuitscape (C) 2013, Brad McRae and Viral B. Shah. 
 ##
 
-import os, sys, time, gc, traceback, logging, inspect
+import sys, time, gc, traceback, logging
 import numpy as np
 from scipy.sparse.linalg import cg
 from scipy import sparse
@@ -96,34 +96,14 @@ class CSBase(object):
         if self.state.amg_hierarchy != None:
             self.state.amg_hierarchy = None
             #CSBase.do_gc('del_amg_hierarchy')
-
-    # TODO: should ultimately be replaced with the logging module.
-    # logging to UI should be handled with another logger or handler
-    def log(self, text, col):
-        """Prints updates to GUI or python window."""
-        text = '%s%s'%(' '*len(inspect.stack()), str(text))
-        CSBase.logger.info(text)
-#         if (self.ext_logger != None) or (self.options.screenprint_log == True and len(text) > 1):
-#             text = '%s%s'%(' '*len(inspect.stack()), str(text))
-#         
-#             if self.ext_logger:
-#                 self.ext_logger.log(text, col)
-#                 
-#             if self.options.screenprint_log == True and len(text) > 1:
-#                 if col == 1:
-#                     CSBase.logger.info(text)
-#                 else:
-#                     CSBase.logger.debug(text)
-#                 sys.stdout.flush()
-    
         
     def log_complete_job(self):
         """Writes total time elapsed at end of run."""
         (hours,mins,secs) = self.elapsed_time(self.state.start_time)
         if hours>0:
-            self.log('Job took ' + str(hours) +' hours ' + str(mins) + ' minutes to complete.',2)
+            CSBase.logger.debug('Job took ' + str(hours) +' hours ' + str(mins) + ' minutes to complete.')
         else:
-            self.log('Job took ' + str(mins) +' minutes ' + str(secs) + ' seconds to complete.',2)
+            CSBase.logger.debug('Job took ' + str(mins) +' minutes ' + str(secs) + ' seconds to complete.')
 
         
     def enable_low_memory(self, restart):
