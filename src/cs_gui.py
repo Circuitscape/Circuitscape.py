@@ -517,8 +517,8 @@ class cs_gui(model.Background):
             return
 
         if self.options.data_type == 'network':        
-            cs_gui.logger.debug('Running in Network (Graph) Mode')                
-                                
+            cs_gui.logger.debug('Running in Network (Graph) Mode')
+                            
         if self.options.scenario == 'pairwise':
             try:
                 wx.BeginBusyCursor()  # @UndefinedVariable
@@ -555,7 +555,7 @@ class cs_gui(model.Background):
             try:
                 wx.BeginBusyCursor()  # @UndefinedVariable
                 self.statusBar.SetStatusText('',1)
-                self.statusBar.SetStatusText('',2)                
+                self.statusBar.SetStatusText('',2) 
                 _voltages, solver_failed = cs.compute()
                 wx.EndBusyCursor()  # @UndefinedVariable
                 
@@ -579,41 +579,41 @@ class cs_gui(model.Background):
                 self.unknown_exception()
                 return
 
-            else:
-                try:
-                    wx.BeginBusyCursor()  # @UndefinedVariable
-                    self.statusBar.SetStatusText('',1)
-                    self.statusBar.SetStatusText('',2)                                    
-                    resistances, solver_failed = cs.compute()
-                    wx.EndBusyCursor()  # @UndefinedVariable
-                    
-                    self.components.calcButton.SetFocus()
-                    
-                    if self.options.scenario == 'all-to-one':
-                        if solver_failed == True:
-                            msg = 'Result for each focal node (0 indicates successful calculation, -1 indicates disconnected node, -777 indicates failed solve):'
-                        else:
-                            msg = 'Result for each focal node (0 indicates successful calculation, -1 indicates disconnected node):'
-                    elif solver_failed == True:
-                        msg = 'Resistances (-1 indicates disconnected node, -777 indicates failed solve):'
-                    else:
-                        msg = 'Resistances (-1 indicates disconnected node):'
-                    cs_gui.logger.info(msg + '\n' + np.array_str(resistances, 300))
-                    cs_gui.logger.info('Done.')
-                    
+        else:
+            try:
+                wx.BeginBusyCursor()  # @UndefinedVariable
+                self.statusBar.SetStatusText('',1)
+                self.statusBar.SetStatusText('',2)                                    
+                resistances, solver_failed = cs.compute()
+                wx.EndBusyCursor()  # @UndefinedVariable
+                
+                self.components.calcButton.SetFocus()
+                
+                if self.options.scenario == 'all-to-one':
                     if solver_failed == True:
-                        message = 'At least one solve failed.  Failure is coded as -777 in output node/resistance list.'
-                        dial = wx.MessageDialog(None, message, 'Error', wx.OK | wx.ICON_EXCLAMATION)  # @UndefinedVariable
-                        dial.ShowModal()
-                except RuntimeError as error:
-                    message = str(error)
-                    dial = wx.MessageDialog(None, message, 'Error', wx.OK | wx.ICON_ERROR)  # @UndefinedVariable
+                        msg = 'Result for each focal node (0 indicates successful calculation, -1 indicates disconnected node, -777 indicates failed solve):'
+                    else:
+                        msg = 'Result for each focal node (0 indicates successful calculation, -1 indicates disconnected node):'
+                elif solver_failed == True:
+                    msg = 'Resistances (-1 indicates disconnected node, -777 indicates failed solve):'
+                else:
+                    msg = 'Resistances (-1 indicates disconnected node):'
+                cs_gui.logger.info(msg + '\n' + np.array_str(resistances, 300))
+                cs_gui.logger.info('Done.')
+                
+                if solver_failed == True:
+                    message = 'At least one solve failed.  Failure is coded as -777 in output node/resistance list.'
+                    dial = wx.MessageDialog(None, message, 'Error', wx.OK | wx.ICON_EXCLAMATION)  # @UndefinedVariable
                     dial.ShowModal()
-                except MemoryError:
-                    self.memory_error_feedback()
-                    return
-                except:
-                    self.unknown_exception()            
+            except RuntimeError as error:
+                message = str(error)
+                dial = wx.MessageDialog(None, message, 'Error', wx.OK | wx.ICON_ERROR)  # @UndefinedVariable
+                dial.ShowModal()
+            except MemoryError:
+                self.memory_error_feedback()
+                return
+            except:
+                self.unknown_exception()            
             self.reset_status_bar()        
 
 
