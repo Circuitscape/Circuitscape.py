@@ -1,5 +1,6 @@
 *~
 *.pyc
+*.log
 verify/output/*.asc
 verify/output/*.ini
 verify/output/*.txt
