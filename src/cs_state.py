@@ -1,5 +1,7 @@
 
 class CSState:
+    logger = None
+    
     def __init__(self):
         self.amg_hierarchy = None
         self.cellsize = None

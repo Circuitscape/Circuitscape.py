@@ -6,6 +6,7 @@
 
 
 import os, sys, traceback, logging, time
+import numpy as np
 
 import wxversion
 try:
@@ -19,6 +20,7 @@ except:
         wxversion.select('2.7')
 
 import wx
+import wx.lib.newevent
 from PythonCard import dialog, model 
 from PythonCard.components import button, checkbox, choice, image, staticline, statictext, textfield
 
@@ -30,6 +32,45 @@ from verify import cs_verifyall
 
 from csversion import CIRCUITSCAPE_VER
 
+wxLogEvent, EVT_WX_LOG_EVENT = wx.lib.newevent.NewEvent()
+
+class GUILogger(logging.Handler):
+    def __init__(self, dest=None):
+        logging.Handler.__init__(self)
+        self.dest = dest
+        self.level = logging.DEBUG
+        self.last_gui_yield_time = time.time()
+
+    def flush(self):
+        pass
+
+    def emit(self, record):
+        try:
+            msg = self.format(record)
+            msg = msg.strip('\r')
+            status_msg = None
+            if ('\n' not in msg): # dispay simple info messages in the status bar
+                plain_msg = logging._defaultFormatter.format(record)
+                if (record.levelname == 'INFO'):
+                    status_msg = (plain_msg, 1)
+                elif (record.levelname == 'DEBUG'):
+                    status_msg = (plain_msg, 2) 
+            
+            evt = wxLogEvent(message=msg, levelname=record.levelname, status_msg=status_msg)
+            wx.PostEvent(self.dest, evt) # @UndefinedVariable
+        
+            (hours,mins,secs) = CSBase.elapsed_time(self.last_gui_yield_time)
+            if (secs > 5) or (mins > 0) or (hours > 0):
+                self.last_gui_yield_time = time.time()
+                wx.SafeYield(None, True)  # @UndefinedVariable
+                wx.GetApp().Yield(True)  # @UndefinedVariable
+            
+        except (KeyboardInterrupt, SystemExit):
+            raise
+        except:
+            self.handleError(record)
+
+
 class cs_gui(model.Background):
     OPTIONS_SCENARIO            = ['not entered', 'pairwise', 'one-to-all', 'all-to-one', 'advanced']
     SCENARIO_PAIRWISE_ADVANCED  = [    (0,0),        (1,0),       (1,0),        (1,0),       (0,1)  ]
@@ -39,34 +80,34 @@ class cs_gui(model.Background):
     OPTIONS_CONNECT_FOUR_NEIGHBORS_ONLY     = ['not entered', True, False]
     OPTIONS_POINT_FILE_CONTAINS_POLYGONS    = ['not entered', False, True]
     OPTIONS_GROUND_FILE_IS_RESISTANCES      = ['not entered', True, False]
+    OPTIONS_LOG_LEVEL                       = ['DEBUG', 'INFO', 'WARN', 'ERROR']
     
     COLOR_ENABLED = (0, 0, 160)
     COLOR_DISABLED = (180,180,180)
     
+    logger = None
+    log_handler = None
+    
     def on_initialize(self, event):
         self.state = {}
-        self.last_gui_yield_time = time.time()
         self.state['version'] = CIRCUITSCAPE_VER
         
         #LOAD LAST self.options
         configFile = 'circuitscape.ini'
         self.options = self.LoadOptions(configFile) 
         self.options.version = self.state['version']
+        self.options.log_level = 'DEBUG'
         
         ##Set all objects to reflect options
         self.setWidgets()
         self.components.calcButton.SetFocus()
         self.statusBar = self.CreateStatusBar()
         self.statusBar.SetFieldsCount(3)        
+        self.reset_status_bar()
         
-        if self.options.data_type == 'network':
-            self.enable_disable_network_widgets(True)        
-            statustext=str('V ' + self.state['version']+' BETA NETWORK MODE')            
-        else:
-            statustext=str('Version ' + self.state['version']+' Ready.')
-            self.enable_disable_network_widgets(False)            
-        self.statusBar.SetStatusText(statustext,0)
-
+        cs_gui.log_handler = GUILogger(self)
+        cs_gui.logger = CSBase._create_logger("circuitscape_gui", getattr(logging, self.options.log_level.upper()), None, False, cs_gui.log_handler)
+        self.Bind(EVT_WX_LOG_EVENT, self.onLogEvent)    
 
            
     ##MENU ITEMS
@@ -74,15 +115,8 @@ class cs_gui(model.Background):
         configFile='circuitscape.ini'
         self.options = self.LoadOptions(configFile)
         self.options.version = self.state['version']
+        self.reset_status_bar()
         ##Set all objects to reflect options
-        if self.options.data_type == 'network':
-            self.enable_disable_network_widgets(True)
-            statustext=str('V ' + self.state['version']+' BETA NETWORK MODE')
-        else:
-            statustext=str('Version ' + self.state['version']+' Ready.')
-            self.enable_disable_network_widgets(False)            
-        self.statusBar.SetStatusText(statustext,0)
-        
         self.setWidgets()
         self.components.calcButton.SetFocus()
 
@@ -94,21 +128,14 @@ class cs_gui(model.Background):
             configFile = result.paths[0]
             self.options = self.LoadOptions(configFile)
             self.options.version = self.state['version']
-            if self.options.data_type == 'network':
-                statustext=str('V ' + self.state['version']+' BETA NETWORK MODE')            
-                self.enable_disable_network_widgets(True)
-            else:
-                statustext=str('Version ' + self.state['version']+' Ready.')
-                self.enable_disable_network_widgets(False)                            
-            self.statusBar.SetStatusText(statustext,0)            
+            self.reset_status_bar()
             #Set all gui objects to reflect options    
             self.setWidgets()
             
-            print '\n\n'
             self.components.calcButton.SetFocus()
 
     def on_menuFileVerifyCode_select(self, event):
-        print 'Verifying code (this will take a minute or two)'
+        cs_gui.logger.info('Verifying code (this will take a minute or two)')
         self.statusBar.SetStatusText('Verifying code (this will take a minute or two)',0)
         self.statusBar.SetStatusText('',1)
 
@@ -127,13 +154,7 @@ class cs_gui(model.Background):
         else:
             dial = wx.MessageDialog(None, 'Errors were found.  Please see terminal or console for details.', 'Verification failed.', wx.OK)  # @UndefinedVariable
             dial.ShowModal()
-        if self.options.data_type == 'network':
-            statustext=str('V ' + self.state['version']+' BETA NETWORK MODE')
-            self.enable_disable_network_widgets(True)
-        else:
-            statustext=str('Version ' + self.state['version']+' Ready.')
-            self.enable_disable_network_widgets(False)            
-        self.statusBar.SetStatusText(statustext,0)
+        self.reset_status_bar()
 
     def _get_options_set_in_menu_bar(self):
         self.options.use_unit_currents              = self.menuBar.getChecked('menuOptionsUnitSrcs')
@@ -184,7 +205,7 @@ class cs_gui(model.Background):
         result = dialog.fileDialog(self, 'Select any number of Circuitscape Options Files within one directory', '', '', wildcard ) 
         if result.accepted==True:
             wx.BeginBusyCursor()  # @UndefinedVariable
-            logging.debug('Running Circuitscape in batch mode')
+            cs_gui.logger.debug('Running Circuitscape in batch mode')
             startTime = time.time()
             startTimeHMS = time.strftime('%H:%M:%S')
             self.statusBar.SetStatusText('Batch start ' + str(startTimeHMS), 0)
@@ -193,7 +214,7 @@ class cs_gui(model.Background):
             for selection in result.paths:
                 job += 1
                 _configDir, configFile = os.path.split(selection)
-                logging.debug('Processing ' + configFile)
+                cs_gui.logger.debug('Processing ' + configFile)
                 self.statusBar.SetStatusText('Batch start ' + str(startTimeHMS) + '. Running job ' + str(job) +'/' + str(numjobs), 0)
                 
                 try:
@@ -214,7 +235,7 @@ class cs_gui(model.Background):
                     self.statusBar.SetStatusText('',1)
                     self.statusBar.SetStatusText('',2)
                     result, _solver_failed = cs.compute()
-                    logging.debug('Finished processing ' + configFile)
+                    cs_gui.logger.debug('Finished processing ' + configFile)
                 except RuntimeError as error:
                     message = str(error)
                     dial = wx.MessageDialog(None, message, 'Error', wx.OK | wx.ICON_ERROR)  # @UndefinedVariable
@@ -225,20 +246,12 @@ class cs_gui(model.Background):
                 except:
                     self.unknown_exception()
                     
-            logging.debug('Done with batch operations.')
+            cs_gui.logger.debug('Done with batch operations.')
             wx.EndBusyCursor()  # @UndefinedVariable
             
             self.components.calcButton.SetFocus()
-            
-            if self.options.data_type == 'network':
-                self.enable_disable_network_widgets(True)            
-                statustext=str('V ' + self.state['version']+' BETA NETWORK MODE')
-            else:
-                statustext=str('Version ' + self.state['version']+' Ready.')
-                self.enable_disable_network_widgets(False)            
-            self.statusBar.SetStatusText(statustext,0)
+            self.reset_status_bar()
 
-            self.statusBar.SetStatusText('',1)
             (hours,mins,secs) = CSBase.elapsed_time(startTime)
             if hours > 0:
                 self.statusBar.SetStatusText('Batch job took ' + str(hours) +' hours ' + str(mins) + ' minutes to complete.',2)
@@ -351,7 +364,12 @@ class cs_gui(model.Background):
         gnd_resistance = event.GetSelection()
         self.options.ground_file_is_resistances = cs_gui.OPTIONS_GROUND_FILE_IS_RESISTANCES[gnd_resistance]
 
-             
+    def on_logLevelChoice_select(self, event):
+        log_lvl = event.GetSelection()
+        self.options.log_level = cs_gui.OPTIONS_LOG_LEVEL[log_lvl]
+        cs_gui.logger.setLevel(getattr(logging, self.options.log_level.upper()))
+        cs_gui.log_handler.setLevel(getattr(logging, self.options.log_level.upper()))
+
 ##CHECK BOXES
 
     def on_loadPolygonBox_mouseClick(self, event):   
@@ -364,6 +382,8 @@ class cs_gui(model.Background):
     def on_voltMapBox_mouseClick(self, event):   
         self.options.write_volt_maps = event.GetSelection() 
 
+    def on_logRusageBox_mouseClick(self, event):
+        self.options.print_rusages = event.GetSelection()
     
 ##BROWSE BUTTONS
     def on_habitatBrowse_mouseClick(self, event):
@@ -406,7 +426,7 @@ class cs_gui(model.Background):
     def on_outBrowse_mouseClick(self, event):
         wildcard = "OUT Files (*.out)|*.out|All Files (*.*)|*.*"
         result = dialog.saveFileDialog(self, 'Choose a Base Output File Name', '', '', wildcard)
-        if result.accepted == True:                
+        if result.accepted == True:
             file_name = result.paths[0]
             self.components.outFile.text = file_name
             self.options.output_file = file_name
@@ -439,12 +459,19 @@ class cs_gui(model.Background):
         self.options.ground_file = self.components.gndFile.text
 
             
-##CALCULATE    
+##CALCULATE
     def on_calcButton_mouseClick(self, event):
         self.components.habitatFile.SetFocus() #Need to force loseFocus on text boxes to make sure they are updated.
         self.components.outFile.SetFocus()
         self.components.calcButton.SetFocus()
         
+        out_base, _out_ext = os.path.splitext(self.options.output_file)
+        if self.options.log_file == None:
+            self.options.log_file = out_base + '.log'
+
+        if (self.options.profiler_log_file == None) and (self.options.print_timings or self.options.print_rusages):
+            self.options.profiler_log_file = out_base + '_rusages.log'
+            
         #Check to see if all inputs are chosen
         (all_options_entered, message) = self.options.check()
         
@@ -465,11 +492,11 @@ class cs_gui(model.Background):
             dial.ShowModal()
             return  
                             
-        logging.debug('Calling Circuitscape...')
+        cs_gui.logger.debug('Calling Circuitscape...')
         startTime = time.strftime('%H:%M:%S')
         self.statusBar.SetStatusText('Job started ' + str(startTime), 0)
         try:
-            cs = circuitscape('circuitscape.ini', self)
+            cs = circuitscape('circuitscape.ini', cs_gui.log_handler)
         except RuntimeError as error:
             message = str(error)
             dial = wx.MessageDialog(None, message, 'Error', wx.OK | wx.ICON_ERROR)  # @UndefinedVariable
@@ -490,8 +517,8 @@ class cs_gui(model.Background):
             return
 
         if self.options.data_type == 'network':        
-            logging.debug('Running in Network (Graph) Mode')                
-                                
+            cs_gui.logger.debug('Running in Network (Graph) Mode')
+                            
         if self.options.scenario == 'pairwise':
             try:
                 wx.BeginBusyCursor()  # @UndefinedVariable
@@ -503,11 +530,11 @@ class cs_gui(model.Background):
                 self.components.calcButton.SetFocus()
 
                 if solver_failed == True:
-                    print '\nPairwise resistances (-1 indicates disconnected focal node pair, -777 indicates failed solve):'
+                    msg = 'Pairwise resistances (-1 indicates disconnected focal node pair, -777 indicates failed solve):'
                 else:
-                    print '\nPairwise resistances (-1 indicates disconnected node pair):'
-                print resistances
-                print '\nDone.\n'
+                    msg = 'Pairwise resistances (-1 indicates disconnected node pair):'
+                cs_gui.logger.info(msg + "\n" + np.array_str(resistances, 300))
+                cs_gui.logger.info('Done.')
                 
                 if solver_failed == True:
                     message = 'At least one solve failed.  Failure is coded as -777 in output resistance matrix.'
@@ -528,7 +555,7 @@ class cs_gui(model.Background):
             try:
                 wx.BeginBusyCursor()  # @UndefinedVariable
                 self.statusBar.SetStatusText('',1)
-                self.statusBar.SetStatusText('',2)                
+                self.statusBar.SetStatusText('',2) 
                 _voltages, solver_failed = cs.compute()
                 wx.EndBusyCursor()  # @UndefinedVariable
                 
@@ -539,7 +566,7 @@ class cs_gui(model.Background):
                     dial = wx.MessageDialog(None, message, 'Error', wx.OK | wx.ICON_EXCLAMATION)  # @UndefinedVariable
                     dial.ShowModal()
                 
-                print '\nDone.\n'
+                cs_gui.logger.info('Done.')
             except RuntimeError as error:
                 message = str(error)
                 dial = wx.MessageDialog(None, message, 'Error', wx.OK | wx.ICON_ERROR)  # @UndefinedVariable
@@ -552,49 +579,42 @@ class cs_gui(model.Background):
                 self.unknown_exception()
                 return
 
-            else:
-                try:
-                    wx.BeginBusyCursor()  # @UndefinedVariable
-                    self.statusBar.SetStatusText('',1)
-                    self.statusBar.SetStatusText('',2)                                    
-                    resistances, solver_failed = cs.compute()
-                    wx.EndBusyCursor()  # @UndefinedVariable
-                    
-                    self.components.calcButton.SetFocus()
-                    
-                    if self.options.scenario == 'all-to-one':
-                        if solver_failed == True:
-                            print '\nResult for each focal node \n(0 indicates successful calculation, -1 indicates disconnected node, -777 indicates failed solve):\n'
-                        else:
-                            print '\nResult for each focal node \n(0 indicates successful calculation, -1 indicates disconnected node):\n'
-                    elif solver_failed == True:
-                        print '\nResistances (-1 indicates disconnected node, -777 indicates failed solve):\n'
-                    else:
-                        print '\nResistances (-1 indicates disconnected node):\n'
-                    print resistances
-                    print '\nDone.\n'
-                    
+        else:
+            try:
+                wx.BeginBusyCursor()  # @UndefinedVariable
+                self.statusBar.SetStatusText('',1)
+                self.statusBar.SetStatusText('',2)                                    
+                resistances, solver_failed = cs.compute()
+                wx.EndBusyCursor()  # @UndefinedVariable
+                
+                self.components.calcButton.SetFocus()
+                
+                if self.options.scenario == 'all-to-one':
                     if solver_failed == True:
-                        message = 'At least one solve failed.  Failure is coded as -777 in output node/resistance list.'
-                        dial = wx.MessageDialog(None, message, 'Error', wx.OK | wx.ICON_EXCLAMATION)  # @UndefinedVariable
-                        dial.ShowModal()
-                except RuntimeError as error:
-                    message = str(error)
-                    dial = wx.MessageDialog(None, message, 'Error', wx.OK | wx.ICON_ERROR)  # @UndefinedVariable
+                        msg = 'Result for each focal node (0 indicates successful calculation, -1 indicates disconnected node, -777 indicates failed solve):'
+                    else:
+                        msg = 'Result for each focal node (0 indicates successful calculation, -1 indicates disconnected node):'
+                elif solver_failed == True:
+                    msg = 'Resistances (-1 indicates disconnected node, -777 indicates failed solve):'
+                else:
+                    msg = 'Resistances (-1 indicates disconnected node):'
+                cs_gui.logger.info(msg + '\n' + np.array_str(resistances, 300))
+                cs_gui.logger.info('Done.')
+                
+                if solver_failed == True:
+                    message = 'At least one solve failed.  Failure is coded as -777 in output node/resistance list.'
+                    dial = wx.MessageDialog(None, message, 'Error', wx.OK | wx.ICON_EXCLAMATION)  # @UndefinedVariable
                     dial.ShowModal()
-                except MemoryError:
-                    self.memory_error_feedback()
-                    return
-                except:
-                    self.unknown_exception()
-                    
-            if self.options.data_type == 'network':
-                statustext = str('V ' + self.state['version'] + ' BETA NETWORK MODE')
-            else:
-                statustext=str('Version ' + self.state['version']+' Ready.')
-            self.statusBar.SetStatusText(statustext,0)
-
-            self.statusBar.SetStatusText('', 1)
+            except RuntimeError as error:
+                message = str(error)
+                dial = wx.MessageDialog(None, message, 'Error', wx.OK | wx.ICON_ERROR)  # @UndefinedVariable
+                dial.ShowModal()
+            except MemoryError:
+                self.memory_error_feedback()
+                return
+            except:
+                self.unknown_exception()            
+            self.reset_status_bar()        
 
 
     def checkHeaders(self):
@@ -635,7 +655,7 @@ class cs_gui(model.Background):
             e_type = value = tb = None # clean up
  
     def memory_error_feedback(self):
-        logging.error('Circuitscape ran out of memory. Please see user guide for information about memory requirements.')
+        cs_gui.logger.error('Circuitscape ran out of memory. Please see user guide for information about memory requirements.')
         message='Circuitscape ran out of memory. \nPlease see user guide for information about memory requirements.'
         dial = wx.MessageDialog(None, message, 'Error', wx.OK | wx.ICON_ERROR)  # @UndefinedVariable
         dial.ShowModal()
@@ -682,10 +702,19 @@ class cs_gui(model.Background):
             
         idx = cs_gui.OPTIONS_CONNECT_USING_AVG_RESISTANCES.index(self.options.connect_using_avg_resistances)
         self.components.connCalcChoice.SetSelection(idx)
-            
+        
+        idx = cs_gui.OPTIONS_LOG_LEVEL.index(self.options.log_level)
+        self.components.logLevelChoice.SetSelection(idx)
+        if cs_gui.logger != None:
+            cs_gui.logger.setLevel(getattr(logging, self.options.log_level.upper()))
+
+        if cs_gui.log_handler != None:
+            cs_gui.log_handler.setLevel(getattr(logging, self.options.log_level.upper()))
+
         self.components.loadPolygonBox.checked  = self.options.use_polygons
         self.components.curMapBox.checked       = self.options.write_cur_maps
         self.components.voltMapBox.checked      = self.options.write_volt_maps
+        self.components.logRusageBox.checked    = self.options.print_rusages
 
         self.menuBar.setChecked('menuOptionsUnitSrcs',          self.options.use_unit_currents)
         self.menuBar.setChecked('menuOptionsCumMap',            self.options.write_cum_cur_map_only)
@@ -775,17 +804,30 @@ class cs_gui(model.Background):
         except:
             pass
         return options   
-    
-    def log(self, text, col):
-        self.statusBar.SetStatusText(text, col)
-        
-        (hours,mins,secs) = CSBase.elapsed_time(self.last_gui_yield_time)
-        if (secs > 10) or (mins > 0) or (hours > 0):
-            self.last_gui_yield_time = time.time()
-            wx.SafeYield(None, True)  # @UndefinedVariable
-            wx.GetApp().Yield(True)  # @UndefinedVariable
 
-    
+    def on_clearLogsButton_mouseClick(self, event):
+        self.components.logMessages.clear()
+        self.reset_status_bar()
+
+    def onLogEvent(self, event):
+        self.components.logMessages.appendText(event.message + '\n')
+        if event.status_msg != None:
+            self.statusBar.SetStatusText(event.status_msg[0], event.status_msg[1])
+            if event.status_msg[1] == 1:
+                self.statusBar.SetStatusText('', 2)
+        event.Skip()
+
+    def reset_status_bar(self):
+        if self.options.data_type == 'network':
+            self.enable_disable_network_widgets(True)        
+            statustext=str('V ' + self.state['version']+' BETA NETWORK MODE')            
+        else:
+            statustext=str('Version ' + self.state['version']+' Ready.')
+            self.enable_disable_network_widgets(False)            
+        self.statusBar.SetStatusText(statustext,0)
+        self.statusBar.SetStatusText('', 1)
+        self.statusBar.SetStatusText('', 2)
+            
 if __name__ == '__main__':
     app = model.Application(cs_gui)
     app.MainLoop()

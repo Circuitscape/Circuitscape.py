@@ -2,7 +2,7 @@
 ## Circuitscape (C) 2013, Brad McRae and Viral B. Shah. 
 ##
 
-import os, string, gzip, logging
+import os, string, gzip
 #import StringIO
 import numpy as np
 from cs_profiler import print_rusage
@@ -36,6 +36,7 @@ class CSIO:
     MSG_RESAMPLE = '%s raster has different %s than habitat raster. Circuitscape will try to crudely resample the raster. We recommend using the "Export to Circuitscape" ArcGIS tool to create ASCII grids with compatible cell size and extent.'
     MSG_NO_RESAMPLE = '%s raster must have same %s as habitat raster'
     
+    logger = None
         
     @staticmethod
     def _check_file_exists(filename):
@@ -349,31 +350,31 @@ class CSIO:
     
         if cellsize != habitat_size.cellsize:
             if resample:
-                logging.warning(CSIO.MSG_RESAMPLE % (file_type, "cell size",))
+                CSIO.logger.warning(CSIO.MSG_RESAMPLE % (file_type, "cell size",))
                 poly_map = CSIO._resample_map(reading_mask, habitat_size, header, poly_map)
             else:
                 raise RuntimeError(CSIO.MSG_NO_RESAMPLE % (file_type, "cell_size"))            
         elif ncols != habitat_size.ncols:
             if resample:
-                logging.warning(CSIO.MSG_RESAMPLE % (file_type, "number of columns",))
+                CSIO.logger.warning(CSIO.MSG_RESAMPLE % (file_type, "number of columns",))
                 poly_map = CSIO._resample_map(reading_mask, habitat_size, header, poly_map)
             else:
                 raise RuntimeError(CSIO.MSG_NO_RESAMPLE % (file_type, "number of columns"))            
         elif nrows != habitat_size.nrows:
             if resample:
-                logging.warning(CSIO.MSG_RESAMPLE % (file_type, "number of rows",))
+                CSIO.logger.warning(CSIO.MSG_RESAMPLE % (file_type, "number of rows",))
                 poly_map = CSIO._resample_map(reading_mask, habitat_size, header, poly_map)
             else:
                 raise RuntimeError(CSIO.MSG_NO_RESAMPLE % (file_type, "number of rows"))            
         elif xllcorner != habitat_size.xllcorner:
             if resample:
-                logging.warning(CSIO.MSG_RESAMPLE % (file_type, "xllcorner",))
+                CSIO.logger.warning(CSIO.MSG_RESAMPLE % (file_type, "xllcorner",))
                 poly_map = CSIO._resample_map(reading_mask, habitat_size, header, poly_map)
             else:
                 raise RuntimeError(CSIO.MSG_NO_RESAMPLE % (file_type, "xllcorner"))            
         elif yllcorner != habitat_size.yllcorner:
             if resample:
-                logging.warning(CSIO.MSG_RESAMPLE % (file_type, "yllcorner",))
+                CSIO.logger.warning(CSIO.MSG_RESAMPLE % (file_type, "yllcorner",))
                 poly_map = CSIO._resample_map(reading_mask, habitat_size, header, poly_map)
             else:
                 raise RuntimeError(CSIO.MSG_NO_RESAMPLE % (file_type, "yllcorner"))            
@@ -554,7 +555,7 @@ class CSIO:
                 raise RuntimeError('Error reading reclass table')
             for i in range (0, reclass_table.shape[0]):
                 cell_map = np.where(cell_map==reclass_table[i,0], reclass_table[i,1], cell_map)
-            logging.info('Reclassified habitat map using %s'%(reclass_file,))
+            CSIO.logger.info('Reclassified habitat map using %s'%(reclass_file,))
         
         if is_resistances == True:
             zeros_in_resistance_map = (np.where(cell_map==0, 1, 0)).sum() > 0
