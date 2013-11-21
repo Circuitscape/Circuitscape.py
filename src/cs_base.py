@@ -2,7 +2,7 @@
 ## Circuitscape (C) 2013, Brad McRae and Viral B. Shah. 
 ##
 
-import sys, time, gc, traceback, logging
+import sys, time, traceback, logging
 import numpy as np
 from scipy.sparse.linalg import cg
 from scipy import sparse
@@ -12,7 +12,7 @@ from scipy.sparse.csgraph import connected_components
 from cs_cfg import CSConfig
 from cs_state import CSState
 from cs_io import CSIO
-from cs_profiler import ResourceLogger, print_rusage
+from cs_profiler import ResourceLogger, print_rusage, gc_before, gc_after, GCPreempt
 
 
 class CSBase(object):
@@ -23,11 +23,13 @@ class CSBase(object):
         #gc.set_debug(gc.DEBUG_STATS | gc.DEBUG_UNCOLLECTABLE | gc.DEBUG_SAVEALL)
         np.seterr(invalid='ignore')
         np.seterr(divide='ignore')
-        
+
         self.state = CSState()
         self.options = CSConfig(configFile)
         self._setup_loggers(ext_log_handler)
-        
+
+        GCPreempt.enabled = self.options.preemptive_memory_release 
+
         if self.options.parallelize: 
             if sys.platform.startswith('win'):
                 self.options.parallelize = False
@@ -88,19 +90,12 @@ class CSBase(object):
             res_logger = CSBase.logger
 
         ResourceLogger.init_rusage(self.options.print_timings, self.options.print_rusages, res_logger)
+
         
-#     @staticmethod
-#     def do_gc(at=''):
-#         CSBase.logger.debug("GC DEBUG: calling gc at " + at)
-#         c1 = len(gc.get_objects())
-#         gc.collect()
-#         c2 = len(gc.get_objects())
-#         CSBase.logger.debug("GC DEBUG: collected " + str(c1-c2) + " objects")
-    
+    @gc_after
     def del_amg_hierarchy(self):
         if self.state.amg_hierarchy != None:
             self.state.amg_hierarchy = None
-            #CSBase.do_gc('del_amg_hierarchy')
         
     def log_complete_job(self):
         """Writes total time elapsed at end of run."""
@@ -118,6 +113,7 @@ class CSBase(object):
             if restart==False: #If this module has already been called
                 raise MemoryError
         self.options.low_memory_mode = True
+        self.options.preemptive_memory_release = True
         print'\n**************\nMemory error reported.'        
 
         ex_type, value, tb = sys.exc_info()
@@ -145,10 +141,10 @@ class CSBase(object):
 
     
     @staticmethod
+    @gc_before
     @print_rusage
     def solve_linear_system(G, rhs, solver_type, ml):
         """Solves system of equations."""
-        #CSBase.do_gc("solve_linear_system")
         # Solve G*x = rhs
         x = []
         if solver_type == 'cg+amg':
@@ -898,12 +894,12 @@ class CSOutput:
             self.voltage_maps[name] = np.zeros((self.state.nrows, self.state.ncols), dtype='float64')
         
 
+    @gc_before
     @print_rusage
     def _create_current_maps(self, voltages, G, finitegrounds, node_map=None):
         """In raster mode, returns raster current map given node voltage vector, adjacency matrix, etc.
         In network mode returns node and branch currents given voltages in arbitrary graphs.
         """  
-        #CSBase.do_gc("_create_current_maps")
         G =  G.tocoo()
         node_currents = CSOutput._get_node_currents(voltages, G, finitegrounds)
         
