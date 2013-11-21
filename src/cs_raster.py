@@ -3,12 +3,12 @@
 ## Circuitscape (C) 2013, Brad McRae and Viral B. Shah. 
 ##
 
-import time, gc, logging, os, sys, pickle, traceback
-from multiprocessing.pool import ThreadPool
+import time, logging, os, pickle
 import numpy as np
 from scipy import sparse
 
-from cs_base import CSBase, CSFocalPoints, CSHabitatGraph, CSOutput, print_rusage
+from cs_base import CSBase, CSFocalPoints, CSHabitatGraph, CSOutput
+from cs_profiler import print_rusage, gc_after
 from cs_io import CSIO
 
 
@@ -780,6 +780,7 @@ class CSRaster(CSBase):
         return strengths_rc        
 
 
+    @gc_after
     @print_rusage
     def load_maps(self):
         """Loads all raster maps into self.state."""  

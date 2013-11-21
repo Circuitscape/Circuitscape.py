@@ -32,6 +32,7 @@ class CSConfig:
             'use_mask': False
         }, 
         'Calculation options': {
+            'preemptive_memory_release': False,
             'low_memory_mode': False,
             'parallelize': False,          # can parallelize if True. It may be overridden internally to False based on os support and suitability of the problem.
             'max_parallel': 0,            # passing 0 results in using all available cpus
