@@ -5,7 +5,7 @@
 ##
 
 
-import os, sys, traceback, logging, time
+import os, sys, traceback, logging, time, multiprocessing
 import numpy as np
 
 import wxversion
@@ -458,6 +458,13 @@ class cs_gui(model.Background):
     def on_gndFile_loseFocus(self,event):
         self.options.ground_file = self.components.gndFile.text
 
+    def on_parallelSpin_textUpdate(self, event):
+        if self.components.parallelSpin.value > 1:
+            self.options.max_parallel = self.components.parallelSpin.value
+            self.options.parallelize = True
+        else:
+            self.options.max_parallel = 1
+            self.options.parallelize = False
             
 ##CALCULATE
     def on_calcButton_mouseClick(self, event):
@@ -711,6 +718,22 @@ class cs_gui(model.Background):
         if cs_gui.log_handler != None:
             cs_gui.log_handler.setLevel(getattr(logging, self.options.log_level.upper()))
 
+        self.components.parallelSpin.value = self.components.parallelSpin.max = 1
+        if sys.platform.startswith('win'):
+            self.options.parallelize = False
+        else:
+            self.components.parallelSpin.max = n_cpus = multiprocessing.cpu_count()
+            
+            if self.options.max_parallel == 1:
+                self.options.parallelize = False
+                
+            if self.options.parallelize:
+                if self.options.max_parallel == 0:
+                    self.options.max_parallel = n_cpus
+                else:
+                    self.options.max_parallel = min(self.options.max_parallel, n_cpus)
+                self.components.parallelSpin.value = self.options.max_parallel
+            
         self.components.loadPolygonBox.checked  = self.options.use_polygons
         self.components.curMapBox.checked       = self.options.write_cur_maps
         self.components.voltMapBox.checked      = self.options.write_volt_maps
@@ -747,7 +770,9 @@ class cs_gui(model.Background):
         self.components.loadPolygonBox.enabled = setting                                
         
                 
-    def enable_disable_widgets(self, pairwiseEnabled, advancedEnabled):     
+    def enable_disable_widgets(self, pairwiseEnabled, advancedEnabled):
+        is_pairwise_scenario = (self.options.scenario == 'pairwise')
+        
         self.components.currentSrcFile.enabled      = advancedEnabled
         self.components.currentSrcBrowse.enabled    = advancedEnabled
         self.components.gndFile.enabled             = advancedEnabled
@@ -761,39 +786,29 @@ class cs_gui(model.Background):
         self.components.gndResistanceChoice.enabled     = advancedEnabled
         self.components.focalNodeChoice.enabled         = pairwiseEnabled
         
-        self.components.polygonBrowse.enabled = True
+        self.components.polygonBrowse.enabled           = True
         self.components.srcTargetFile.enabled           = pairwiseEnabled
         self.components.srcTargetBrowse.enabled         = pairwiseEnabled
         
-        self.menuBar.setEnabled('menuOptionsCumMap',    pairwiseEnabled)    
-        self.menuBar.setEnabled('menuOptionsMaxMap',    pairwiseEnabled)
-            
-        if self.options.scenario == 'pairwise':
-            self.menuBar.setEnabled('menuOptionsLowMemory', pairwiseEnabled)
-        else:
-            self.menuBar.setEnabled('menuOptionsLowMemory', False)
-
+        self.menuBar.setEnabled('menuOptionsCumMap',        pairwiseEnabled)    
+        self.menuBar.setEnabled('menuOptionsMaxMap',        pairwiseEnabled)
+        self.menuBar.setEnabled('menuOptionsLowMemory',     pairwiseEnabled and is_pairwise_scenario)
         self.menuBar.setEnabled('menuOptionsIncludePairs',  pairwiseEnabled) 
-        self.menuBar.setEnabled('menuOptionsVarSrc',        pairwiseEnabled)
-        
-        if self.options.scenario == 'pairwise':
-            self.menuBar.setEnabled('menuOptionsVarSrc', False)
+        self.menuBar.setEnabled('menuOptionsVarSrc',        pairwiseEnabled and not is_pairwise_scenario)
 
-        if pairwiseEnabled == True:
-            self.components.pairwiseOptionsTitle.foregroundColor    = \
-            self.components.srcTargetFileText.foregroundColor       = cs_gui.COLOR_ENABLED        
-        else:
-            self.components.pairwiseOptionsTitle.foregroundColor    = \
-            self.components.srcTargetFileText.foregroundColor       = cs_gui.COLOR_DISABLED
+        self.components.parallelSpin.enabled = is_pairwise_scenario
+
+        foreColor = cs_gui.COLOR_ENABLED if pairwiseEnabled else cs_gui.COLOR_DISABLED
+        self.components.pairwiseOptionsTitle.foregroundColor    = \
+            self.components.srcTargetFileText.foregroundColor       = foreColor
+        
+        foreColor = cs_gui.COLOR_ENABLED if is_pairwise_scenario else cs_gui.COLOR_DISABLED
+        self.components.parallelizeText.foregroundColor = foreColor
                     
-        if advancedEnabled == True:
-            self.components.gndFileText.foregroundColor             = \
+        foreColor = cs_gui.COLOR_ENABLED if advancedEnabled else cs_gui.COLOR_DISABLED
+        self.components.gndFileText.foregroundColor             = \
             self.components.advancedOptionsTitle.foregroundColor    = \
-            self.components.srcFileText.foregroundColor             = cs_gui.COLOR_ENABLED
-        else:                     
-            self.components.gndFileText.foregroundColor             = \
-            self.components.advancedOptionsTitle.foregroundColor    = \
-            self.components.srcFileText.foregroundColor             = cs_gui.COLOR_DISABLED
+            self.components.srcFileText.foregroundColor             = foreColor
 
 
     def LoadOptions(self, config_file):
