@@ -27,6 +27,11 @@ class CSBase(object):
         self.state = CSState()
         self.options = CSConfig(configFile)
         self._setup_loggers(ext_log_handler)
+        
+        if self.options.parallelize: 
+            if sys.platform.startswith('win'):
+                self.options.parallelize = False
+                CSBase.logger.warn("No support for parallelization on Windows. Option disabled.")
 
 
     @staticmethod
@@ -76,11 +81,6 @@ class CSBase(object):
         log_lvl = getattr(logging, self.options.log_level.upper())
         
         CSIO.logger = CSState.logger = CSBase.logger = CSBase._create_logger('circuitscape', log_lvl, self.options.log_file, self.options.screenprint_log, ext_log_handler)
-        
-        if self.options.parallelize: 
-            if sys.platform.startswith('win'):
-                self.options.parallelize = False
-                CSBase.logger.warn("No support for parallelization on Windows. Option disabled.")
 
         if self.options.profiler_log_file != self.options.log_file:
             res_logger = CSBase._create_logger('circuitscape_profile', logging.DEBUG, self.options.profiler_log_file, self.options.screenprint_log, ext_log_handler)

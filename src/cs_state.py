@@ -1,5 +1,5 @@
 from multiprocessing.pool import ThreadPool
-import logging
+import multiprocessing
 
 class CSState:
     logger = None
@@ -30,7 +30,8 @@ class CSState:
                 return
             else:
                 raise RuntimeError("Existing worker pool not closed")
-        #logging.debug("creating worker pool")
+        #CSState.logger.debug("creating worker pool")
+        max_workers = min(multiprocessing.cpu_count(), max_workers)
         self.worker_pool = ThreadPool(max_workers if (max_workers > 0) else None)
     
     def worker_pool_wait(self):
@@ -38,4 +39,4 @@ class CSState:
             self.worker_pool.close()
             self.worker_pool.join()
             self.worker_pool = None
-            #logging.debug("closing worker pool")
+            #CSState.logger.debug("closing worker pool")
