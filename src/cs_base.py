@@ -27,6 +27,11 @@ class CSBase(object):
         self.state = CSState()
         self.options = CSConfig(configFile)
         self._setup_loggers(ext_log_handler)
+        
+        if self.options.parallelize: 
+            if sys.platform.startswith('win'):
+                self.options.parallelize = False
+                CSBase.logger.warn("No support for parallelization on Windows. Option disabled.")
 
 
     @staticmethod
