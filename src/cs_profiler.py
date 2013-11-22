@@ -196,3 +196,42 @@ def gc_after(func):
     wrapper.__name__ = 'gc_after_' + func.func_name
     return wrapper
 
+
+
+class LowMemRetry:
+    callback = None
+    max_retry = 1
+    retry_count = 0
+    can_retry = True
+    
+    def __enter__(self):
+        LowMemRetry.can_retry = True
+        return self
+    
+    def __exit__(self, etype, value, traceback):
+        if isinstance(value, MemoryError):
+            LowMemRetry.is_memory_error = True
+            LowMemRetry.retry_count += 1
+            if (None != LowMemRetry.callback):
+                LowMemRetry.callback(etype, value, traceback)
+
+            if LowMemRetry.retry():
+                return True
+        LowMemRetry.can_retry = False
+        return False
+
+    @staticmethod
+    def retry():
+        if LowMemRetry.can_retry:
+            return (LowMemRetry.retry_count <= LowMemRetry.max_retry)
+        LowMemRetry.can_retry = True
+        return False
+
+def lowmem_retry(func):
+    """On encountering MemoryError, retry if possible"""
+    def wrapper(*args):
+        while LowMemRetry.retry():
+            with LowMemRetry():        
+                return func(*args)
+    wrapper.__name__ = 'lowmem_retry_' + func.func_name
+    return wrapper

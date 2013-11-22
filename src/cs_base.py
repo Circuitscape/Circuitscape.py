@@ -2,7 +2,7 @@
 ## Circuitscape (C) 2013, Brad McRae and Viral B. Shah. 
 ##
 
-import sys, time, traceback, logging
+import sys, time, logging
 import numpy as np
 from scipy.sparse.linalg import cg
 from scipy import sparse
@@ -12,7 +12,7 @@ from scipy.sparse.csgraph import connected_components
 from cs_cfg import CSConfig
 from cs_state import CSState
 from cs_io import CSIO
-from cs_profiler import ResourceLogger, print_rusage, gc_before, gc_after, GCPreempt
+from cs_profiler import ResourceLogger, print_rusage, gc_before, gc_after, GCPreempt, LowMemRetry
 
 
 class CSBase(object):
@@ -29,6 +29,8 @@ class CSBase(object):
         self._setup_loggers(ext_log_handler)
 
         GCPreempt.enabled = self.options.preemptive_memory_release 
+        LowMemRetry.callback = self._on_low_memory()
+        LowMemRetry.max_retry = 0 if self.options.low_memory_mode else 1
 
         if self.options.parallelize: 
             if sys.platform.startswith('win'):
@@ -105,39 +107,18 @@ class CSBase(object):
         else:
             CSBase.logger.debug('Job took ' + str(mins) +' minutes ' + str(secs) + ' seconds to complete.')
 
-        
-    def enable_low_memory(self, restart):
-        """Runs circuitscape in low memory mode.  Not incredibly helpful it seems."""
-        self.del_amg_hierarchy()  
-        if self.options.low_memory_mode==True:
-            if restart==False: #If this module has already been called
-                raise MemoryError
-        self.options.low_memory_mode = True
-        self.options.preemptive_memory_release = True
-        print'\n**************\nMemory error reported.'        
-
-        ex_type, value, tb = sys.exc_info()
-        info = traceback.extract_tb(tb)
-        print'Full traceback:'
-        print info
-        print'***************'
-        filename, lineno, function, _text = info[-1] # last line only
-        print"\n %s:%d: %s: %s (in %s)" %\
-              (filename, lineno, ex_type.__name__, str(value), function)
-
-        ex_type = value = tb = None # clean up
-        print'\nWARNING: CIRCUITSCAPE IS RUNNING LOW ON MEMORY.'
-        if restart==True:
-            print'Restarting in low memory mode, which will take somewhat longer to complete.'
-        else:
-            print'Switching to low memory mode, which will take somewhat longer to complete.'            
-        print'CLOSING OTHER PROGRAMS CAN HELP FREE MEMORY RESOURCES.'
-        print'Please see the user guide for more information on memory requirements.\n'               
-        if restart==True:
-            print'***Restarting in low memory mode***\n'
-        else:
-            print'***Continuing in low memory mode***\n'
-        return
+    def _on_low_memory(self):
+        """Runs circuitscape in low memory mode. Not incredibly helpful it seems."""
+        cs = self
+        @staticmethod
+        def _set_low_memory_mode(etype, ex, traceback):
+            cs.del_amg_hierarchy()
+            CSBase.logger.exception("Circuitscape is running low on memory. Closing other programs can help free memory resources.")
+            if not cs.options.low_memory_mode:
+                CSBase.logger.warning("Switching to low memory mode, which will take somewhat longer to complete.")
+                cs.options.low_memory_mode = True
+                cs.options.preemptive_memory_release = True
+        return _set_low_memory_mode
 
     
     @staticmethod
@@ -800,11 +781,9 @@ class CSOutput:
                 self.current_maps[name] = (branch_currents, node_currents, branch_currents_array, node_map)
         else:
             if voltages != None:
-                try:
-                    current_map = self._create_current_maps(voltages, G, finitegrounds, node_map)   
-                except MemoryError:
-                    CSBase.enable_low_memory(False)
-                    current_map = self._create_current_maps(voltages, G, finitegrounds, node_map)
+                while LowMemRetry.retry():
+                    with LowMemRetry():
+                        current_map = self._create_current_maps(voltages, G, finitegrounds, node_map)   
             else:
                 current_map = self.current_maps[name]                                                                                
     
