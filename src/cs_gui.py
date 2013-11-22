@@ -165,6 +165,7 @@ class cs_gui(model.Background):
         self.options.log_transform_maps             = self.menuBar.getChecked('menuOptionsLogCurMap')
         self.options.compress_grids                 = self.menuBar.getChecked('menuOptionsCompressGrids')
         self.options.print_timings                  = self.menuBar.getChecked('menuOptionsPrintTimings')
+        self.options.preemptive_memory_release      = self.menuBar.getChecked('menuOptionsPreemptGC')
         self.options.use_mask                       = self.menuBar.getChecked('menuOptionsMask')
         self.options.use_variable_source_strengths  = self.menuBar.getChecked('menuOptionsVarSrc')
         self.options.use_included_pairs             = self.menuBar.getChecked('menuOptionsIncludePairs')
@@ -283,6 +284,9 @@ class cs_gui(model.Background):
 
     def on_menuOptionsPrintTimings_select(self, event):
         self.menuBar.setChecked('menuOptionsPrintTimings', self.menuBar.getChecked('menuOptionsPrintTimings'))
+
+    def on_menuOptionsPreemptGC_select(self, event):
+        self.menuBar.setChecked('menuOptionsPreemptGC', self.menuBar.getChecked('menuOptionsPreemptGC'))
 
     def on_menuOptionsRmvGnd_select(self, event):
         self.menuBar.setChecked('menuOptionsRmvGnd', self.menuBar.getChecked('menuOptionsRmvGnd'))
@@ -747,6 +751,7 @@ class cs_gui(model.Background):
         self.menuBar.setChecked('menuOptionsLogCurMap',         self.options.log_transform_maps)
         self.menuBar.setChecked('menuOptionsCompressGrids',     self.options.compress_grids)
         self.menuBar.setChecked('menuOptionsPrintTimings',      self.options.print_timings)
+        self.menuBar.setChecked('menuOptionsPreemptGC',         self.options.preemptive_memory_release)
         self.menuBar.setChecked('menuOptionsUnitSrcs',          self.options.use_unit_currents)
         self.menuBar.setChecked('menuOptionsDirectGnds',        self.options.use_direct_grounds)
         self.menuBar.setChecked('menuOptionsMask',              self.options.use_mask)
