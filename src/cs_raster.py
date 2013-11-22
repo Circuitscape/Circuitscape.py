@@ -8,7 +8,7 @@ import numpy as np
 from scipy import sparse
 
 from cs_base import CSBase, CSFocalPoints, CSHabitatGraph, CSOutput
-from cs_profiler import print_rusage, gc_after
+from cs_profiler import print_rusage, gc_after, LowMemRetry
 from cs_io import CSIO
 
 
@@ -239,13 +239,10 @@ class CSRaster(CSBase):
             fp = CSFocalPoints(points_rc, self.state.included_pairs, False)
             g_habitat = CSHabitatGraph(g_map=g_map, poly_map=poly_map, connect_using_avg_resistances=self.options.connect_using_avg_resistances, connect_four_neighbors_only=self.options.connect_four_neighbors_only)
             
-            try:
-                (resistances, solver_failed) = self.single_ground_all_pair_resistances(g_habitat, fp, cs, True)
-            except MemoryError: #Give it a try, but starting again never seems to helps even from GUI.
-                self.enable_low_memory(True) #This doesn't seem to really clear out memory or truly restart.
-                #Note: This does not go through when it should.
-                (resistances, solver_failed) = self.single_ground_all_pair_resistances(g_habitat, fp, cs, True)
-                
+            while LowMemRetry.retry():
+                with LowMemRetry():
+                    (resistances, solver_failed) = self.single_ground_all_pair_resistances(g_habitat, fp, cs, True)
+                    
             if solver_failed == True:
                 CSRaster.logger.warning('Solver failed for at least one focal node pair. ' 
                 '\nThis can happen when input resistances differ by more than' 

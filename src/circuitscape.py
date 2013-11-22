@@ -10,7 +10,7 @@ import numpy as np
 from cs_base import print_rusage, CSBase, CSFocalPoints, CSHabitatGraph, CSOutput
 from cs_io import CSIO
 from cs_raster import CSRaster
-
+from cs_profiler import gc_after
 
 class circuitscape(CSRaster):
     def __init__(self, configFile, ext_log_handler):
@@ -71,7 +71,7 @@ class circuitscape(CSRaster):
             
         return resistances_3col, solver_failed
 
-    
+    @gc_after
     def read_graph(self, filename):
         """Reads arbitrary graph from disk. Returns sparse adjacency matrix and node names ."""
         graph_list = CSIO.load_graph(filename)
