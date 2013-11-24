@@ -7,22 +7,7 @@ import os, string, gzip
 import numpy as np
 from cs_profiler import print_rusage
 
-# gdal_available = True #GDAL disabled for now, but should work- BHM 01/04/12
-# try:
-#     from osgeo import gdal_array, gdal
-#     from osgeo.gdalconst import *
-#     print 'GDAL AVAILABLE'
-# except ImportError:
-#     gdal_available = False
-
-# Disable GDAL as it is error-prone for some cases for now. VS - 4/5/09
-# below defines null packages for PyDev IDE to ignore missing imports
-gdal = None
-gdal_array = None
-
 class CSIO:
-    gdal_available = False
-    
     FILE_TYPE_NPY = 1
     FILE_TYPE_AAGRID = 2
     FILE_TYPE_TXTLIST = 3
@@ -125,11 +110,6 @@ class CSIO:
         if filetype == CSIO.FILE_TYPE_NPY: 
             pmap = np.load(filename, mmap_mode=None)
             pmap = pmap.astype('float64')
-            
-        elif CSIO.gdal_available == True:
-            pmap = np.float64(gdal_array.LoadFile(filename))  
-            if nodata != False:    
-                pmap = np.where(pmap==nodata, -9999, pmap)
         else:
             if nodata == False:
                 pmap = np.loadtxt(filename, skiprows=5, dtype=data_type)
@@ -155,39 +135,8 @@ class CSIO:
         """Writes rasters to ASCII grid or numpy formats."""     
         if file_type == CSIO.FILE_TYPE_NPY:
             np.save(file_name, data)
-            return
-            
-        if CSIO.gdal_available == True:
-            fmt = "MEM"
-            driver = gdal.GetDriverByName(fmt)
-            dst_ds = driver.Create(file_name, len(data[0]), len(data), 1, gdal.GDT_Float32)
-    
-            ull = state.yllcorner +  state.cellsize * len(data)
-            dst_ds.SetGeoTransform([state.xllcorner,  # left x
-                                 state.cellsize,   # w-e pixel resolution
-                                 0,                   # rotation
-                                 ull,                 # upper left corner y
-                                 0,                   # rotation
-                                 state.cellsize])   # n-s pixel resolution
-                                 
-       
-            dst_ds.GetRasterBand(1).WriteArray(data)
-            fmt = 'AAIGrid'
-            driver = gdal.GetDriverByName(fmt)
-            driver.CreateCopy(file_name, dst_ds) #STILL GETTING LEADING SPACES.
-            dst_ds = None
-            
+            return            
         else:
-#             # alternative using numpy savetxt. no difference in performance, but commented out as it introduces dependency on numpy 1.7+
-#             hdr_str = StringIO.StringIO()
-#             hdr_str.write('ncols         ' + str(state.ncols) + '\n')
-#             hdr_str.write('nrows         ' + str(state.nrows) + '\n')
-#             hdr_str.write('xllcorner     ' + str(state.xllcorner) + '\n')
-#             hdr_str.write('yllcorner     ' + str(state.yllcorner) + '\n')
-#             hdr_str.write('cellsize      ' + str(state.cellsize) + '\n')
-#             hdr_str.write('NODATA_value  ' + str(state.nodata) + '\n')
-#             np.savetxt(file_name+'.gz' if compress else file_name, data, fmt='%.6f', delimiter=' ', newline='\n', header=hdr_str.getvalue(), comments='')
-#             hdr_str.close()
             f = gzip.open(file_name+'.gz', 'w') if compress else open(file_name, 'w')    
             f.write('ncols         ' + str(state.ncols) + '\n')
             f.write('nrows         ' + str(state.nrows) + '\n')
