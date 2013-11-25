@@ -1,12 +1,10 @@
+#!/usr/bin/python
 ##
-## Circuitscape (C) 2008, Brad McRae and Viral B. Shah. 
-##
-## $Id: cs_large_verify.py 545 2009-05-05 23:43:31Z mcrae $
-##
+## Circuitscape (C) 2013, Brad McRae, Viral B. Shah. and Tanmay Mohapatra
 
 import unittest, os
 import numpy as np
-from cs_io import CSIO
+from circuitscape.cs_io import CSIO
 from circuitscape import circuitscape
 
 print 'Verifying code with Large Test Problems.'

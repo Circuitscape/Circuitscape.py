@@ -1,19 +1,15 @@
-## !/usr/bin/python
+#!/usr/bin/python
 ##
-## Circuitscape (C) 2013, Brad McRae and Viral B. Shah. 
-##
+## Circuitscape (C) 2013, Brad McRae, Viral B. Shah. and Tanmay Mohapatra
 
-import os
-
-import unittest
+import os, unittest
 import numpy as np
-from cs_io import CSIO
-from circuitscape import circuitscape
+from circuitscape import circuitscape, CSIO
 
-TESTS_ROOT      = '.'
-TESTS_CFG       = os.path.join(TESTS_ROOT, 'verify', 'config_files')
-TESTS_BASELINE  = os.path.join(TESTS_ROOT, 'verify', 'baseline_results')
-TESTS_OUT       = os.path.join(TESTS_ROOT, 'verify', 'output')
+TESTS_ROOT      = 'circuitscape'
+TESTS_CFG       = os.path.join(TESTS_ROOT,  'verify', 'config_files')
+TESTS_BASELINE  = os.path.join(TESTS_ROOT,  'verify', 'baseline_results')
+TESTS_OUT       = os.path.join(TESTS_ROOT,  'verify', 'output')
 
 def approxEqual(a, b):
     m = a.shape[0]
@@ -39,16 +35,32 @@ def compare_results(ut, test_name, result_file, compressed):
         saved       = np.loadtxt(os.path.join(TESTS_BASELINE, result_name), 'float64')
     ut.assertEquals(approxEqual(saved, computed), True) 
 
-def cs_verifyall():
-    suite = unittest.TestLoader().loadTestsFromTestCase(cs_verify)
-    testResult = unittest.TextTestRunner(verbosity=0).run(suite)
-    return testResult
-    unittest.main()
-
-def test_sg(ut, test_name):
+def load_config(test_name):
     #print test_name
     configFile = os.path.join(TESTS_CFG, test_name + '.ini')
     cs = circuitscape(configFile, None)
+    _out_dir, out_file = os.path.split(cs.options.output_file)
+    cs.options.output_file = os.path.join(TESTS_OUT, out_file)
+    return cs
+
+def set_paths(root_path=None, out_path=None):
+    global TESTS_OUT, TESTS_ROOT, TESTS_CFG, TESTS_BASELINE
+    TESTS_OUT = out_path
+    TESTS_ROOT = root_path if root_path else 'circuitscape'
+    
+    TESTS_CFG       = os.path.join(TESTS_ROOT,  'verify', 'config_files')
+    TESTS_BASELINE  = os.path.join(TESTS_ROOT,  'verify', 'baseline_results')
+    if None == TESTS_OUT:
+        TESTS_OUT   = os.path.join(TESTS_ROOT,  'verify', 'output')
+
+def cs_verifyall(root_path=None, out_path=None):
+    set_paths(root_path, out_path)
+    suite = unittest.TestLoader().loadTestsFromTestCase(cs_verify)
+    testResult = unittest.TextTestRunner(verbosity=0).run(suite)
+    return testResult
+
+def test_sg(ut, test_name):
+    cs = load_config(test_name)
     resistances_computed, _solver_failed = cs.compute()
     
     resistances_saved = np.loadtxt(os.path.join(TESTS_BASELINE, test_name + '_resistances.txt')) 
@@ -64,9 +76,7 @@ def test_sg(ut, test_name):
         
         
 def test_network_sg(ut, test_name):
-    #print test_name
-    configFile = os.path.join(TESTS_CFG, test_name + '.ini')
-    cs = circuitscape(configFile, None)
+    cs = load_config(test_name)
 
     # These baseline outputs generated using rasters, with outputs written in graph format using 'write_baseline_results' option.
     resistances_computed, _solver_failed = cs.compute()
@@ -83,9 +93,7 @@ def test_network_sg(ut, test_name):
 
 
 def test_one_to_all(ut, test_name):
-    #print test_name
-    configFile = os.path.join(TESTS_CFG, test_name + '.ini')
-    cs = circuitscape(configFile, None)
+    cs = load_config(test_name)
 
     resistances_computed, _solver_failed = cs.compute()
 
@@ -98,9 +106,7 @@ def test_one_to_all(ut, test_name):
    
     
 def test_all_to_one(ut, test_name):
-    #print test_name
-    configFile = os.path.join(TESTS_CFG, test_name + '.ini')
-    cs = circuitscape(configFile, None)
+    cs = load_config(test_name)
     
     _resistances_computed, _solver_failed = cs.compute()
 
@@ -110,10 +116,8 @@ def test_all_to_one(ut, test_name):
 
         
 def test_mg(ut, test_name):
-    #print test_name
-    configFile = os.path.join(TESTS_CFG, test_name + '.ini')
-    cs = circuitscape(configFile, None)
-    
+    cs = load_config(test_name)
+        
     _voltages = cs.compute()
 
     compare_results(ut, test_name, 'curmap.asc', False)
@@ -268,6 +272,3 @@ class cs_verify(unittest.TestCase):
     def test_all_to_one_module_12(self):
         test_all_to_one(self, 'allToOneVerify12')           
          
-            
-if __name__ == '__main__':
-    unittest.main()

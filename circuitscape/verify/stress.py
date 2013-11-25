@@ -1,6 +1,6 @@
 #!/usr/bin/python
 ##
-## Circuitscape (C) 2008, Brad McRae and Viral B. Shah. 
+## Circuitscape (C) 2013, Brad McRae, Viral B. Shah. and Tanmay Mohapatra
 
 import sys
 import numpy as np
@@ -8,7 +8,7 @@ from circuitscape import circuitscape
 
 nrows = int(sys.argv[1])
 ncols = int(sys.argv[2])
-f = open('./verify/stress/cellmap.asc', 'w')
+f = open('circuitscape/verify/stress/cellmap.asc', 'w')
 f.write('ncols         ' + str(ncols) + '\n')
 f.write('nrows         ' + str(nrows) + '\n')
 f.write('xllcorner     ' + str(0) + '\n')
@@ -24,7 +24,7 @@ for row in data:
     f.write(str_fmt % tuple(row) + '\n')
 f.close()
     
-configFile = './verify/stress/stress.ini'
+configFile = 'circuitscape/verify/stress/stress.ini'
 cs = circuitscape(configFile, 'Screen')
 resistances = cs.compute()
 print resistances
