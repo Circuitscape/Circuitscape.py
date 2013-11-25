@@ -1,6 +1,6 @@
 #!/usr/bin/python
 ##
-## Circuitscape (C) 2013, Brad McRae and Viral B. Shah. 
+## Circuitscape (C) 2013, Brad McRae, Viral B. Shah. and Tanmay Mohapatra 
 
 import sys
 from circuitscape import circuitscape
