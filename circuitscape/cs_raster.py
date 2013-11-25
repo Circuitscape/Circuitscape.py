@@ -1,8 +1,3 @@
-#!/usr/bin/python
-##
-## Circuitscape (C) 2013, Brad McRae and Viral B. Shah. 
-##
-
 import time, logging, os, pickle
 import numpy as np
 from scipy import sparse

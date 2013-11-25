@@ -1,7 +1,3 @@
-##
-## Circuitscape (C) 2013, Brad McRae and Viral B. Shah. 
-##
-
 import ConfigParser, os, copy, ast
 
 class CSConfig:

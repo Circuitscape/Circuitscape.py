@@ -10,19 +10,19 @@ pytz.zoneinfo = pytz.tzinfo
 pytz.zoneinfo.UTC = pytz.UTC
 
 from setuptools import setup
-from csversion import CIRCUITSCAPE_VER, CIRCUITSCAPE_AUTHOR, CIRCUITSCAPE_EMAIL
+
+from circuitscape import __version__, __author__, __email__
 
 INCLUDES = []
-PACKAGES = ['wx', 'wxversion', 'PythonCard', 'numpy', 'scipy', 'pyamg']
+PACKAGES = ['circuitscape', 'PythonCard', 'wx', 'wxversion', 'numpy', 'scipy', 'pyamg']
 
-DATA_FILES = ['cs_gui.rsrc.py', 'verify.py', 'cs_logo.jpg', 
-              'verify', 'verify/1', 'verify/2', 'verify/3', 'verify/4', 'verify/5', 'verify/6', 'verify/7', 'verify/8']
+DATA_FILES = ['circuitscape/cs_logo.jpg', 'circuitscape/verify']
 OPTIONS = {'includes': PACKAGES, 
            'argv_emulation' : True,
            'plist': { 'CFBundleIdentifier': 'Circuitscape',
                       'CFBundleGetInfoString': 'Circuitscape: Circuit theoretic landscape connectivity',
                       'CFBundleDisplayName': 'Circuitscape',
-                      'CFBundleIconFile': 'cs_logo.jpg',
+                      'CFBundleIconFile': 'circuitscape/cs_logo.jpg',
                       'CFBundleIdentifier': 'org.circuitscape',
                       'CFBundleName': 'Circuitscape'
                      }
@@ -39,11 +39,11 @@ OPTIONS = {'includes': PACKAGES,
 # )
 
 setup(
-    app=['cs_gui.py'],
+    app=['circuitscape/cs_gui.py'],
     setup_requires=['py2app'],
     data_files=DATA_FILES,
     options={'py2app': OPTIONS},
-    version=CIRCUITSCAPE_VER,
-    author=CIRCUITSCAPE_AUTHOR,
-    author_email=CIRCUITSCAPE_EMAIL
+    version = __version__,
+    author = __author__,
+    author_email = __email__,
     )

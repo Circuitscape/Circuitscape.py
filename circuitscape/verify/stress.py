@@ -1,7 +1,4 @@
 #!/usr/bin/python
-##
-## Circuitscape (C) 2013, Brad McRae, Viral B. Shah. and Tanmay Mohapatra
-
 import sys
 import numpy as np
 from circuitscape import circuitscape

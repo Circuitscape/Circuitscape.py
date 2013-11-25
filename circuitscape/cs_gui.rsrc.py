@@ -149,7 +149,7 @@
     'name':'Image1', 
     'position':(7, 0), 
     'backgroundColor':(230, 230, 230, 255), 
-    'file':'cs_logo.jpg', 
+    #'file':'cs_logo.jpg', 
     },
 
 {'type':'StaticText', 
