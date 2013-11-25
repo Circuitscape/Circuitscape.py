@@ -1,9 +1,4 @@
-##
-## Circuitscape (C) 2013, Brad McRae and Viral B. Shah. 
-##
-
 import os, string, gzip
-#import StringIO
 import numpy as np
 from cs_profiler import print_rusage
 

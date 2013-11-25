@@ -1,7 +1,6 @@
-#!/usr/bin/python
-##
-## Circuitscape (C) 2013, Brad McRae, Viral B. Shah 
-##
+__version__ = '4.0.0-beta'
+__author__ = 'Brad McRae, Viral B. Shah, and Tanmay Mohapatra'
+__email__ = 'mcrae@circuitscape.org'
 
 import time
 from scipy import sparse

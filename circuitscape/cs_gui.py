@@ -1,11 +1,4 @@
-##
-## Circuitscape (C) 2008, 2009, 2010, Brad McRae and Viral B. Shah. 
-##
-## $Id: cs_gui.py 805 2012-07-30 23:11:04Z mcrae $
-##
-
-
-import os, sys, traceback, logging, time, multiprocessing
+import os, sys, traceback, logging, time, multiprocessing, tempfile
 import numpy as np
 
 import wxversion
@@ -24,13 +17,10 @@ import wx.lib.newevent
 from PythonCard import dialog, model 
 from PythonCard.components import button, checkbox, choice, image, staticline, statictext, textfield
 
-from circuitscape import circuitscape
+from circuitscape import circuitscape, CSIO, __version__
 from cs_base import CSBase
 from cs_cfg import CSConfig
-from cs_io import CSIO
 from verify import cs_verifyall
-
-from csversion import CIRCUITSCAPE_VER
 
 wxLogEvent, EVT_WX_LOG_EVENT = wx.lib.newevent.NewEvent()
 
@@ -90,7 +80,7 @@ class cs_gui(model.Background):
     
     def on_initialize(self, event):
         self.state = {}
-        self.state['version'] = CIRCUITSCAPE_VER
+        self.state['version'] = __version__
         
         #LOAD LAST self.options
         configFile = 'circuitscape.ini'
@@ -99,6 +89,7 @@ class cs_gui(model.Background):
         self.options.log_level = 'DEBUG'
         
         ##Set all objects to reflect options
+        self.components.Image1.file = get_packaged_resource('cs_logo.jpg')
         self.setWidgets()
         self.components.calcButton.SetFocus()
         self.statusBar = self.CreateStatusBar()
@@ -139,14 +130,29 @@ class cs_gui(model.Background):
         self.statusBar.SetStatusText('Verifying code (this will take a minute or two)',0)
         self.statusBar.SetStatusText('',1)
 
+        outdir = None
+        cwd = os.getcwd()
         try:
-            testResult=cs_verifyall()
+            root_path = os.path.dirname(__file__)
+            outdir = tempfile.mkdtemp()
+            root_path = os.path.split(root_path)[0]
+            os.chdir(root_path)
+            testResult = cs_verifyall(out_path=outdir)
             if testResult.wasSuccessful():
                 testsPassed=True
             else:
                 testsPassed=False
         except:
             testsPassed=False
+        finally:
+            os.chdir(cwd)
+            if None != outdir:
+                for root, dirs, files in os.walk(outdir, topdown=False):
+                    for name in files:
+                        os.remove(os.path.join(root, name))
+                    for name in dirs:
+                        os.rmdir(os.path.join(root, name))
+                os.rmdir(outdir)
 
         if testsPassed==True:
             dial = wx.MessageDialog(None, 'All tests passed!', 'Verification complete.', wx.OK)  # @UndefinedVariable
@@ -847,8 +853,14 @@ class cs_gui(model.Background):
         self.statusBar.SetStatusText(statustext,0)
         self.statusBar.SetStatusText('', 1)
         self.statusBar.SetStatusText('', 2)
-            
-if __name__ == '__main__':
-    app = model.Application(cs_gui)
+
+def get_packaged_resource(filename):
+    return os.path.join(os.path.dirname(__file__), filename)
+    
+def show_gui():
+    app = model.Application(cs_gui, aFileName=get_packaged_resource('cs_gui.rsrc.py'))
     app.MainLoop()
+                
+if __name__ == '__main__':
+    show_gui()
 

@@ -1,16 +1,18 @@
 from distutils.core import setup
 
+from circuitscape import __version__, __author__, __email__
+
 setup(
-    name='Circuitscape',
-    version='4.0.0-beta',
-    author='Brad McRae, Viral B. Shah, and Tanmay Mohapatra',
-    author_email='mcrae@circuitscape.org',
-    packages=['circuitscape', 'circuitscape.verify'],
-    scripts=['bin/csrun.py','bin/csverify.py'],
-    url='http://www.circuitscape.org/',
-    license='LICENSE.txt',
-    description='Circuitscape borrows algorithms from electronic circuit theory to predict patterns of movement, gene flow, and genetic differentiation among plant and animal populations in heterogeneous landscapes.',
-    long_description=open('README.txt').read(),
+    name = 'Circuitscape',
+    version = __version__,
+    author = __author__,
+    author_email = __email__,
+    packages = ['circuitscape', 'circuitscape.verify'],
+    scripts = ['bin/csrun.py','bin/csverify.py'],
+    url = 'http://www.circuitscape.org/',
+    license = 'LICENSE.txt',
+    description = 'Circuitscape borrows algorithms from electronic circuit theory to predict patterns of movement, gene flow, and genetic differentiation among plant and animal populations in heterogeneous landscapes.',
+    long_description = open('README.txt').read(),
     install_requires=[
         'wx >= 2.7.0', 
         'PythonCard >= 0.8.2', 

@@ -1,7 +1,3 @@
-##
-## Circuitscape (C) 2013, Brad McRae and Viral B. Shah. 
-##
-
 import sys, time, logging
 import numpy as np
 from scipy.sparse.linalg import cg
