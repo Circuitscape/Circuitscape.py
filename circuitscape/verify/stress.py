@@ -1,7 +1,7 @@
 #!/usr/bin/python
 import sys
 import numpy as np
-from circuitscape import circuitscape
+from circuitscape import Compute
 
 nrows = int(sys.argv[1])
 ncols = int(sys.argv[2])
@@ -22,6 +22,6 @@ for row in data:
 f.close()
     
 configFile = 'circuitscape/verify/stress/stress.ini'
-cs = circuitscape(configFile, 'Screen')
+cs = Compute(configFile, 'Screen')
 resistances = cs.compute()
 print resistances

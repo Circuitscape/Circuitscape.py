@@ -31,6 +31,7 @@ OPTIONS = {'includes': INCLUDES,
 
 setup(
     app             = ['bin/csgui.py'],
+    name            = 'Circuitscape',
     setup_requires  = ['py2app'],
     data_files      = DATA_FILES,
     options         = {'py2app': OPTIONS},

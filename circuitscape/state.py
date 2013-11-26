@@ -1,5 +1,7 @@
 from multiprocessing.pool import ThreadPool
 import multiprocessing
+from profiler import gc_after, print_rusage
+from pyamg import smoothed_aggregation_solver
 
 class CSState:
     logger = None
@@ -40,3 +42,16 @@ class CSState:
             self.worker_pool.join()
             self.worker_pool = None
             #CSState.logger.debug("closing worker pool")
+        
+    @gc_after
+    def del_amg_hierarchy(self):
+        if self.amg_hierarchy != None:
+            self.amg_hierarchy = None
+
+    @print_rusage
+    def create_amg_hierarchy(self, G, solver): 
+        """Creates AMG hierarchy."""  
+        if solver in ['amg', 'cg+amg']:
+            # construct the MG hierarchy
+            #  scipy.io.savemat('c:\\temp\\graph.mat',mdict={'d':G})
+            self.amg_hierarchy = smoothed_aggregation_solver(G)

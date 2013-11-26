@@ -1,6 +1,6 @@
 import os, string, gzip
 import numpy as np
-from cs_profiler import print_rusage
+from profiler import print_rusage
 
 class CSIO:
     FILE_TYPE_NPY = 1

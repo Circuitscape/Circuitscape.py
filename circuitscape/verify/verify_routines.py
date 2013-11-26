@@ -1,6 +1,6 @@
 import os, unittest
 import numpy as np
-import circuitscape
+import circuitscape as cscape
 
 TESTS_ROOT      = 'circuitscape'
 TESTS_CFG       = os.path.join(TESTS_ROOT,  'verify', 'config_files')
@@ -24,8 +24,8 @@ def compare_results(ut, test_name, result_file, compressed):
         result_name += '.gz'
         
     if result_file.endswith("asc"):
-        computed    = circuitscape.CSIO._ascii_grid_reader(os.path.join(TESTS_OUT,      result_name), 'float64') 
-        saved       = circuitscape.CSIO._ascii_grid_reader(os.path.join(TESTS_BASELINE, result_name), 'float64')
+        computed    = cscape.CSIO._ascii_grid_reader(os.path.join(TESTS_OUT,      result_name), 'float64') 
+        saved       = cscape.CSIO._ascii_grid_reader(os.path.join(TESTS_BASELINE, result_name), 'float64')
     else:
         computed    = np.loadtxt(os.path.join(TESTS_OUT,      result_name), 'float64')
         saved       = np.loadtxt(os.path.join(TESTS_BASELINE, result_name), 'float64')
@@ -34,7 +34,7 @@ def compare_results(ut, test_name, result_file, compressed):
 def load_config(test_name):
     #print test_name
     configFile = os.path.join(TESTS_CFG, test_name + '.ini')
-    cs = circuitscape.circuitscape(configFile, None)
+    cs = cscape.Compute(configFile, None)
     _out_dir, out_file = os.path.split(cs.options.output_file)
     cs.options.output_file = os.path.join(TESTS_OUT, out_file)
     return cs
