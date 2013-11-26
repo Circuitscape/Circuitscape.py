@@ -1,4 +1,6 @@
-<h1>CIRCUITSCAPE User Guide<img src="images/image15.jpg" alt="Ciucuitscape Icon" style="width: 100px;" valign="middle"/></h1>
+<img src="images/image15.jpg" alt="Ciucuitscape Icon" style="width: 100px;" valign="middle"/>
+
+#CIRCUITSCAPE User Guide 
 
 **Brad McRae and Viral Shah**
 
@@ -225,7 +227,7 @@ separate files.
 
 ## Pairwise, one-to-all, and all-to-one mode options
 
-***Focal node location and data type***
+###Focal node location and data type
 
 This file specifies locations of nodes between which effective resistance and
 current flow are to be calculated (See Figs. 1 and 2).  Files may be text
@@ -243,7 +245,7 @@ coordinates (and more than one cell in the underlying habitat grid) if the
 (located where Circuitscape is installed, e.g. C:\Program Files\Circuitscape)
 and can also be found on the Circuitscape downloads page.
 
-***Choose one: nodes represent focal POINTS or focal REGIONS***
+###Choose one: nodes represent focal POINTS or focal REGIONS
 
 Focal nodes may occur at points (single cells on the habitat grid) or across
 regions.  For the latter, at least one identifier must occur across multiple
@@ -256,7 +258,7 @@ large numbers of focal nodes, this option may require more computation time.
 
 ## Advanced mode options
 
-***Current source file***
+###Current source file
 
 This file specifies locations and strengths, in amps, of current sources
 (Figs. 4 and 5).  Either an ASCII grid or a text list may be used.  When a
@@ -268,7 +270,7 @@ either serve as a sink for current or may contribute current if there are
 negative current sources in the grid).  Examples are in the examples
 directory.
 
-***Ground point file and data type***
+###Ground point file and data type
 
 This file specifies locations of ground nodes and resistances or conductances
 of resistors tying them to ground (Figs. 4 and 5).  Either an ASCII grid or a
@@ -279,7 +281,7 @@ a current source, the ground will be removed unless the 'remove source
 whenever a source and ground conflict' item in the Options menu is checked.
 Examples are in the examples directory.
 
-***Choose ground data type: RESISTANCE or CONDUCTANCE***
+###Choose ground data type: RESISTANCE or CONDUCTANCE
 
 The ground data type indicates whether values in the ground file are in
 resistances or conductances.  To tie cells directly to ground, select
@@ -288,14 +290,14 @@ file to zero.
 
 ## Input habitat data
 
-*** Raster habitat map and data type ***
+###Raster habitat map and data type
 
 The raster habitat map specifies the ability of each cell in the landscape to
 carry current.  These maps should be in standard Arc/Info ASCII grid format as
 exported by ArcGIS or another standard GIS package (format is described
 below).  
 
-*** Choose habitat data type: RESISTANCE or CONDUCTANCE ***
+###Choose habitat data type: RESISTANCE or CONDUCTANCE
 
 This choice specifies whether habitat map files are coded in resistances (with
 higher values denoting greater resistance to movement) or conductances (the
@@ -309,7 +311,7 @@ barriers, and are disconnected from all other cells.  Cells with zero
 resistance or infinite conductance can be specified using separate short-
 circuit region files as described below.
 
-*** Optional: load a raster short-circuit region map ***
+###Optional: load a raster short-circuit region map
 
 This file provides locations of short-circuit regions, stored in Arc/Info
 ASCII grid format.  Short-circuit regions act as areas of zero resistance,
@@ -323,14 +325,14 @@ the habitat grid.
 
 ## Cell connection scheme and calculation
 
-*** Choose to connect cells to their FOUR or EIGHT neighbors ***
+###Choose to connect cells to their FOUR or EIGHT neighbors
 
 Circuitscape creates a graph (network) by connecting cells to their four or
 eight immediate neighbors, as specified by the user.  Choose four neighbors to
 connect cells to their four cardinal neighbors only, or eight neighbors to
 also connect diagonally adjacent cells.
 
-*** Choose how to calculate connections between neighbors ***
+###Choose how to calculate connections between neighbors
 
 This choice determines whether cells are connected by their average resistance
 or by their average conductance.  The distinction is particularly important
@@ -348,14 +350,14 @@ other, i.e., Gab = 1 / Rab.)
 
 ## Output options
 
-*** Base output filename ***
+###Base output filename
 
 Prompts user to browse and choose a directory path and base file name for
 output files.  Resistances, current maps, voltage maps, and user interface
 settings will all use this base name, along with appropriate suffixes and
 extensions.
 
-*** Create current maps ***
+###Create current maps
 
 Generates current maps for every pair of focal nodes in the pairwise mode, or
 for the current source and ground configuration specified in the advanced
@@ -374,7 +376,7 @@ by Jeff Jenness for Fig. 6.  Similar color ramps can be constructed in ArcMap
 and QGIS.)  Such maps can be used to identify areas which contribute most to
 connectivity between interest points (McRae et al. 2008).
 
-*** Create voltage maps ***
+###Create voltage maps
 
 For the pairwise modeling mode, voltage maps specify node voltages that would
 be observed for each focal node pair if one node were connected to a 1 amp
@@ -393,28 +395,28 @@ Associates.
 ![](images/image24.png)
 
 
-*** The menu bar ***
+###The menu bar
 <img height="164" src="images/image25.png" width="528">
 
 
-**File >> Load settings from last run**
+####File >> Load settings from last run
 
 Loads settings automatically saved the last time the "Run" button was clicked.
 
-**File >> Load settings from file**
+####File >> Load settings from file
 
 Allows user to browse for a configuration file (.ini extension) with
 previously saved settings.  These can include settings automatically saved in
 the user-specified output directory upon clicking the "Run" button, or those
 saved manually using the "Save settings" function.
 
-**File >> Save settings**
+####File >> Save settings
 
 Allows the user to save settings they have entered in the user interface for
 future retrieval as a configuration file (.ini extension).  This option is
 useful for creating run configurations for use in batch mode.
 
-**File >> Verify code**
+####File >> Verify code
 
 Allows the user to verify that their installation is working properly.
 Datasets in the "verify" directory will be used, and effective resistances and
@@ -422,64 +424,63 @@ current maps will be checked against known correct values.   If verification
 fails, see the terminal (Windows) or run the console utility (Mac) to see
 details.
 
-**File >> Run in batch mode**
+####File >> Run in batch mode
 
 Using batch mode, you can specify any number of configurations to run by
 loading configuration files saved in a single directory.  This can be useful
 for running large numbers of analyses.  The configuration files can be created
 in the user interface and saved under "Save settings" as described above.
 
-**Options>> Display completion times in terminal**
+####Options>> Display completion times in terminal
 
 Writes names of operations and completion times for each to terminal screen.
 
-**Options>> Compress output grids**
+####Options>> Compress output grids
 
 Output ASCII grids are automatically compressed using the gzip file format.
 This can be useful when many large maps will be written.
 
-**Options>> Log-transform current maps**
+####Options>> Log-transform current maps
 
 Values in output current maps will reflect a log10 transform of current
 densities, which is  useful for visualizing them in a GIS.  Cells with zero
 current will be recoded with NODATA values.
 
-**Options>> Pairwise mode: write cumulative map only**
+####Options>> Pairwise mode: write cumulative map only
 
 Maps of current flow between each pair of focal nodes will be calculated, but
 only one summed map of current from all pairwise calculations will be written
 to disk.
 
-**Options>> Pairwise mode: Run in low memory mode**
+####Options>> Pairwise mode: Run in low memory mode
 
 This option will use less memory in the pairwise mode when focal points are
 used, but will also run somewhat slower.  
 
-**Options>> Advanced mode:** use unit currents (i=1) for all current sources
+####Options>> Advanced mode: use unit currents (i=1) for all current sources
 
 All current sources will be set to 1 amp, regardless of the value specified in
 the current source input file.
 
-**Options>> Advanced mode:** use direct connections to ground (R=0) for all ground
-points
+####Options>> Advanced mode: use direct connections to ground (R=0) for all ground points
 
 All ground cells will be tied directly to ground, regardless of the value
 specified in the input ground file.
 
-**Options>> Advanced mode:** remove ground whenever a source and ground conflict
+####Options>> Advanced mode: remove ground whenever a source and ground conflict
 
 Whenever a cell is connected both to a current source and to ground, the
 ground connection will be removed.
 
-**Options>> Advanced mode:** remove source whenever a source and ground conflict
+####Options>> Advanced mode: remove source whenever a source and ground conflict
 
 Whenever a cell is connected both to a current source and to ground, the
 current source will be removed.
 
-***NEW FEATURES: the following options are in the beta stage of development (not
-exhaustively tested yet).  Please let us know if you have problems:***
+**NEW FEATURES: the following options are in the beta stage of development (not
+exhaustively tested yet).  Please let us know if you have problems:**
 
-**Options>>  Read mask file**
+####Options>>  Read mask file
 
 When checked, a dialog will open to select a raster mask file in ASCII grid
 format.  Cells with negative, zero, or NODATA values in the mask will be
@@ -487,7 +488,7 @@ dropped from the corresponding habitat map.  Positive integer cells will be
 retained.  File should only contain integers and have a .asc extension. See
 example file "mask.asc" in the examples directory.
 
-**Options>> One-to-all and All-to-One modes:** Read source strength file
+####Options>> One-to-all and All-to-One modes: Read source strength file
 
 When checked, a dialog will open to select a text list of focal node IDs and
 corresponding source strengths.  For any focal node in this list, the amount
@@ -498,7 +499,7 @@ given below, but with two columns (ID followed by source strength).  File
 should have a .txt extension. See example file "source_strength_list.txt" in
 the examples directory.
 
-**Options>> Read file with focal node pairs to include/exclude**
+####Options>> Read file with focal node pairs to include/exclude
 
 When checked, a dialog will open to select a matrix identifying which pairs of
 focal nodes to connect.  The file specifies minimum and maximum values in the
@@ -680,7 +681,7 @@ the habitat map above.  Region 3 is connected by low resistance corridors to
 the other two regions only if cells are connected to their eight neighbors.
 In the four-neighbor case, region 3 would be completely isolated.
 
-**Text list file format**
+##Text list file format
 
 Focal nodes, current sources, and grounds can also be stored as text lists
 (these must be saved with a ".txt" extension).  For each node referenced in a
