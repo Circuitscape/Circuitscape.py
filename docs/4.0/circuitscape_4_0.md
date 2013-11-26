@@ -1,4 +1,4 @@
-<img src="images/image15.jpg" alt="Ciucuitscape Icon" style="width: 100px;" valign="middle"/>
+<img src="images/image15.jpg" alt="Ciucuitscape Icon" width="100px"/>
 
 #CIRCUITSCAPE User Guide 
 
@@ -48,7 +48,7 @@ Landscapes](http://connectinglandscapes.org/) websites. Spear et al. (2010),
 Beier et al. (2011) and Zeller et al. (2012) also offer helpful advice on
 resistance mapping and connectivity analysis in general.
 
-Circuitscape can now be called directly from an **ArcGIS toolbox**.  Look for it
+Circuitscape can now be called directly from an **ArcGIS toolbox**. Look for it
 on the [downloads
 page](https://code.google.com/p/circuitscape/downloads/list).
 
@@ -93,9 +93,9 @@ The all-to-one mode is similar to the one-to-all mode, and takes the same
 input files.  However, in this mode Circuitscape connects one focal node to
 ground and all remaining focal nodes to 1-amp current sources.  It then
 repeats the process for each focal node; if there are n focal nodes, there
-will be n calculations. ***This mode can be a good alternative to the pairwise
+will be n calculations. _This mode can be a good alternative to the pairwise
 mode when the goal is to map important connectivity areas among multiple
-habitat patches, since it will run faster and use less memory.***
+habitat patches, since it will run faster and use less memory._
 
 In the advanced mode, the user defines any number of current sources and any
 number of grounds on the landscape, which are all activated simultaneously.
@@ -189,18 +189,37 @@ the system when negative sources are present.
 
 #2. Installing Circuitscape
 
+## As a Python Package
+
+Circuitscape is available as a regular Python package from the Python packages repository. Run the following command to get circuitscape:
+
+````
+sudo pip install -U circuitscape
+````
+
+Python can be installed from http://www.python.org/ and the `pip` installer from http://www.pip-installer.org/en/latest/installing.html.
+
+Once installed, the following commands are available for using Circuitscape:
+
+- `python csgui.py` : To use the graphical user interface
+- `python csrun.py <path to .ini configuration file>` : To use Circuitscape from the console.
+- `python csverify.py` : To verify the installation.
+
+
 ## Windows and Mac OS X
 
-Download and run the appropriate setup package.  This will install
+Download and run the appropriate setup package. This will install
 Circuitscape and create an "examples" directory in the installation directory
-with example input files on Windows.  Mac users should download this directory
+with example input files on Windows. Mac users should download this directory
 separately.
+
 
 # Linux
 
 Instructions to install and run Circuitscape on Linux can be found on the
 Circuitscape website .  Using Linux is the best way to run very large (up to
 ~100 million cell) landscapes.
+
 
 # 3. The graphical user interface
 
@@ -210,7 +229,7 @@ user interface shown above will appear.
 
 ## Source/ground modeling mode
 
-***Choose your modeling mode***
+###Choose your modeling mode
 
 Circuitscape is run in one of four modes: pairwise, one-to-all, all-to-one,
 and advanced.  Under the pairwise mode, resistance, current and voltage will
@@ -544,11 +563,33 @@ The configuration file has a .ini extension, and can be edited and saved from
 the user interface on Linux, Windows, or Mac operating systems.  The file may
 also be edited directly in a standard text editor.
 
-To call Circuitscape from the command line in Linux, use the command 'python
-cs_run.py [config file]' where [config file] is the name (and path, if the
+To call Circuitscape from the command line in Linux, use the command `python
+csrun.py [config file]` where `[config file]` is the name (and path, if the
 file is in a different directory) of the configuration file.
 
-#5\. Input file formats
+#5\. Using Circuitscape from other programs
+
+Circuitscape can be invoked from external programs to do computation and return result. 
+
+If the external program can interface with Python packages directly, then the Circuitscape methods can be called directly. E.g.:
+
+````
+from circuitscape import Compute
+
+cs = Compute('configuration.ini', 'Screen')
+result = cs.compute()
+````
+
+If such direct interfacing with Python packages is not possible, Circuitscape can be invoked as an application with the following command:
+
+````
+python csrun.py [configuration.ini]
+````
+
+In both cases above, results are written out onto files which can be read back. 
+
+
+#6\. Input file formats
 
 ##ASCII file format
 
@@ -768,7 +809,7 @@ format, e.g.:
 
 
 
-#5\. Computational limitations, speed, and landscape size
+#7\. Computational limitations, speed, and landscape size
 
 We have tested this code on landscapes with up to 100 million cells.
 Increasing numbers of connections using diagonal (eight neighbor) connections
@@ -801,7 +842,8 @@ grids (using larger cell sizes) may be necessary; doing so often produces
 results that are qualitatively similar to those obtained with smaller cell
 sizes.  See McRae et al. 2008 for details of effects of using coarser grids.
 
-#6\. Further Reading
+
+#8\. Further Reading
 
 Beier, P., W. Spencer, R. Baldwin, and B.H. McRae. 2011. Best science
 practices for developing regional connectivity maps. Conservation Biology
