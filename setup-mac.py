@@ -13,37 +13,28 @@ from setuptools import setup
 
 from circuitscape import __version__, __author__, __email__
 
+PACKAGES = ['pyamg', 'wx']
 INCLUDES = []
-PACKAGES = ['circuitscape', 'PythonCard', 'wx', 'wxversion', 'numpy', 'scipy', 'pyamg']
 
-DATA_FILES = ['circuitscape/cs_logo.jpg', 'circuitscape/verify']
-OPTIONS = {'includes': PACKAGES, 
-           'argv_emulation' : True,
+DATA_FILES = ['circuitscape/cs_logo.jpg', 'circuitscape']
+OPTIONS = {'includes': INCLUDES, 
+           'packages': PACKAGES,
+           'argv_emulation': True,
            'plist': { 'CFBundleIdentifier': 'Circuitscape',
                       'CFBundleGetInfoString': 'Circuitscape: Circuit theoretic landscape connectivity',
                       'CFBundleDisplayName': 'Circuitscape',
-                      'CFBundleIconFile': 'circuitscape/cs_logo.jpg',
+                      'CFBundleIconFile': 'cs_logo.jpg',
                       'CFBundleIdentifier': 'org.circuitscape',
                       'CFBundleName': 'Circuitscape'
                      }
            }
-#Now also compile cs_run.py.  compiling it first ensures that dependencies needed for cs_gui also included.
-# setup(
-#     app=['cs_run.py'],
-#     setup_requires=['py2app'],
-#     data_files=DATA_FILES,
-#     options={'py2app': OPTIONS},
-#     version=CIRCUITSCAPE_VER,
-#     author=CIRCUITSCAPE_AUTHOR,
-#     author_email=CIRCUITSCAPE_EMAIL
-# )
 
 setup(
-    app=['circuitscape/cs_gui.py'],
-    setup_requires=['py2app'],
-    data_files=DATA_FILES,
-    options={'py2app': OPTIONS},
-    version = __version__,
-    author = __author__,
-    author_email = __email__,
+    app             = ['bin/csgui.py'],
+    setup_requires  = ['py2app'],
+    data_files      = DATA_FILES,
+    options         = {'py2app': OPTIONS},
+    version         = __version__,
+    author          = __author__,
+    author_email    = __email__,
     )

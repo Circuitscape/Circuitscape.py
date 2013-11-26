@@ -2,3 +2,5 @@
 .pydevproject
 MANIFEST
 dist
+build
+output

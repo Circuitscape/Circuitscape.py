@@ -10,17 +10,20 @@ except:
         #wxversion.select('2.8')
         wxversion.select('2.9')
     except:
-        wxversion.select('2.7')
+        try:
+            wxversion.select('2.7')
+        except:
+            pass
 
 import wx
 import wx.lib.newevent
 from PythonCard import dialog, model 
-from PythonCard.components import button, checkbox, choice, image, staticline, statictext, textfield
+from PythonCard.components import button, checkbox, choice, image, staticline, statictext, textfield, spinner, textarea
 
 from circuitscape import circuitscape, CSIO, __version__
 from cs_base import CSBase
 from cs_cfg import CSConfig
-from verify import cs_verifyall
+from cs_gui_rsrc import CS_GUI_RSRC
 
 wxLogEvent, EVT_WX_LOG_EVENT = wx.lib.newevent.NewEvent()
 
@@ -135,15 +138,14 @@ class cs_gui(model.Background):
         try:
             root_path = os.path.dirname(__file__)
             outdir = tempfile.mkdtemp()
-            root_path = os.path.split(root_path)[0]
-            os.chdir(root_path)
+            if os.path.exists(root_path):
+                root_path = os.path.split(root_path)[0]
+                os.chdir(root_path)     # otherwise we are running inside a packaged folder and resources are availale at cwd
+            from verify import cs_verifyall
             testResult = cs_verifyall(out_path=outdir)
-            if testResult.wasSuccessful():
-                testsPassed=True
-            else:
-                testsPassed=False
+            testsPassed = testResult.wasSuccessful()
         except:
-            testsPassed=False
+            testsPassed = False
         finally:
             os.chdir(cwd)
             if None != outdir:
@@ -154,7 +156,7 @@ class cs_gui(model.Background):
                         os.rmdir(os.path.join(root, name))
                 os.rmdir(outdir)
 
-        if testsPassed==True:
+        if testsPassed:
             dial = wx.MessageDialog(None, 'All tests passed!', 'Verification complete.', wx.OK)  # @UndefinedVariable
             dial.ShowModal()
         else:
@@ -488,7 +490,7 @@ class cs_gui(model.Background):
 
         if (self.options.profiler_log_file == None) and (self.options.print_timings or self.options.print_rusages):
             self.options.profiler_log_file = out_base + '_rusages.log'
-            
+        
         #Check to see if all inputs are chosen
         (all_options_entered, message) = self.options.check()
         
@@ -848,17 +850,20 @@ class cs_gui(model.Background):
             self.enable_disable_network_widgets(True)        
             statustext=str('V ' + self.state['version']+' BETA NETWORK MODE')            
         else:
-            statustext=str('Version ' + self.state['version']+' Ready.')
+            statustext=str('Version ' + self.state['version'] + ' Ready.')
             self.enable_disable_network_widgets(False)            
         self.statusBar.SetStatusText(statustext,0)
         self.statusBar.SetStatusText('', 1)
         self.statusBar.SetStatusText('', 2)
 
 def get_packaged_resource(filename):
-    return os.path.join(os.path.dirname(__file__), filename)
+    res_path = os.path.join(os.path.dirname(__file__), filename)
+    if not os.path.exists(res_path):
+        res_path = filename     # we are running inside packaged app. resources packaged separately, accessible at cwd
+    return res_path
     
 def show_gui():
-    app = model.Application(cs_gui, aFileName=get_packaged_resource('cs_gui.rsrc.py'))
+    app = model.Application(cs_gui, rsrc=CS_GUI_RSRC)
     app.MainLoop()
                 
 if __name__ == '__main__':

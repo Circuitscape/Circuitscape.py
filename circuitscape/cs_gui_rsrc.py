@@ -1,4 +1,4 @@
-{'application':{'type':'Application',
+CS_GUI_RSRC = {'application':{'type':'Application',
           'name':'Minimal',
     'backgrounds': [
     {'type':'Background',
@@ -147,7 +147,8 @@
 
 {'type':'Image', 
     'name':'Image1', 
-    'position':(7, 0), 
+    'position':(7, 0),
+    'size':(72, 51),
     'backgroundColor':(230, 230, 230, 255), 
     #'file':'cs_logo.jpg', 
     },
