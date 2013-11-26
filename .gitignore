@@ -1,2 +1,6 @@
 .project
 .pydevproject
+MANIFEST
+dist
+build
+output
