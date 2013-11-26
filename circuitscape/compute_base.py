@@ -2,16 +2,15 @@ import sys, time, logging
 import numpy as np
 from scipy.sparse.linalg import cg
 from scipy import sparse
-from pyamg import smoothed_aggregation_solver
 from scipy.sparse.csgraph import connected_components
 
-from cs_cfg import CSConfig
-from cs_state import CSState
-from cs_io import CSIO
-from cs_profiler import ResourceLogger, print_rusage, gc_before, gc_after, GCPreempt, LowMemRetry
+from cfg import CSConfig
+from state import CSState
+from io import CSIO
+from profiler import ResourceLogger, print_rusage, gc_before, GCPreempt, LowMemRetry
 
 
-class CSBase(object):
+class ComputeBase(object):
     logger = None
     
     """Circuitscape base class, common across all circuitscape modules"""
@@ -31,7 +30,7 @@ class CSBase(object):
         if self.options.parallelize: 
             if sys.platform.startswith('win'):
                 self.options.parallelize = False
-                CSBase.logger.warn("No support for parallelization on Windows. Option disabled.")
+                ComputeBase.logger.warn("No support for parallelization on Windows. Option disabled.")
 
 
     @staticmethod
@@ -70,9 +69,9 @@ class CSBase(object):
             handler.close()
             
     def _setup_loggers(self, ext_log_handler):
-        if None != CSBase.logger:  # logger has already been setup
-            CSBase._close_handlers(CSBase.logger)
-            CSBase._close_handlers(ResourceLogger.rlogger)
+        if None != ComputeBase.logger:  # logger has already been setup
+            ComputeBase._close_handlers(ComputeBase.logger)
+            ComputeBase._close_handlers(ResourceLogger.rlogger)
         
         if ext_log_handler == 'Screen':
             self.options.screenprint_log = True
@@ -80,38 +79,33 @@ class CSBase(object):
 
         log_lvl = getattr(logging, self.options.log_level.upper())
         
-        CSIO.logger = CSState.logger = CSBase.logger = CSBase._create_logger('circuitscape', log_lvl, self.options.log_file, self.options.screenprint_log, ext_log_handler)
+        CSIO.logger = CSState.logger = ComputeBase.logger = ComputeBase._create_logger('circuitscape', log_lvl, self.options.log_file, self.options.screenprint_log, ext_log_handler)
 
         if self.options.profiler_log_file != self.options.log_file:
-            res_logger = CSBase._create_logger('circuitscape_profile', logging.DEBUG, self.options.profiler_log_file, self.options.screenprint_log, ext_log_handler)
+            res_logger = ComputeBase._create_logger('circuitscape_profile', logging.DEBUG, self.options.profiler_log_file, self.options.screenprint_log, ext_log_handler)
         else:
-            res_logger = CSBase.logger
+            res_logger = ComputeBase.logger
 
         ResourceLogger.init_rusage(self.options.print_timings, self.options.print_rusages, res_logger)
 
-        
-    @gc_after
-    def del_amg_hierarchy(self):
-        if self.state.amg_hierarchy != None:
-            self.state.amg_hierarchy = None
         
     def log_complete_job(self):
         """Writes total time elapsed at end of run."""
         (hours,mins,secs) = self.elapsed_time(self.state.start_time)
         if hours>0:
-            CSBase.logger.debug('Job took ' + str(hours) +' hours ' + str(mins) + ' minutes to complete.')
+            ComputeBase.logger.debug('Job took ' + str(hours) +' hours ' + str(mins) + ' minutes to complete.')
         else:
-            CSBase.logger.debug('Job took ' + str(mins) +' minutes ' + str(secs) + ' seconds to complete.')
+            ComputeBase.logger.debug('Job took ' + str(mins) +' minutes ' + str(secs) + ' seconds to complete.')
 
     def _on_low_memory(self):
         """Runs circuitscape in low memory mode. Not incredibly helpful it seems."""
         cs = self
         @staticmethod
         def _set_low_memory_mode(etype, ex, traceback):
-            cs.del_amg_hierarchy()
-            CSBase.logger.exception("Circuitscape is running low on memory. Closing other programs can help free memory resources.")
+            cs.state.del_amg_hierarchy()
+            ComputeBase.logger.exception("Circuitscape is running low on memory. Closing other programs can help free memory resources.")
             if not cs.options.low_memory_mode:
-                CSBase.logger.warning("Switching to low memory mode, which will take somewhat longer to complete.")
+                ComputeBase.logger.warning("Switching to low memory mode, which will take somewhat longer to complete.")
                 cs.options.low_memory_mode = True
                 cs.options.preemptive_memory_release = True
         return _set_low_memory_mode
@@ -146,18 +140,6 @@ class CSBase(object):
         G = -G + sparse.spdiags(G.sum(0), 0, n, n)
 
         return G
-
-    
-    @print_rusage
-    def create_amg_hierarchy(self, G): 
-        """Creates AMG hierarchy."""  
-        if self.options.solver == 'amg' or self.options.solver == 'cg+amg':
-            self.state.amg_hierarchy = None
-            # construct the MG hierarchy
-            ml = []
-            #  scipy.io.savemat('c:\\temp\\graph.mat',mdict={'d':G})
-            ml = smoothed_aggregation_solver(G)
-            self.state.amg_hierarchy = ml
 
 
     @staticmethod
@@ -219,7 +201,7 @@ class CSBase(object):
 
 
 
-class CSFocalPoints:
+class FocalPoints:
     """Represents a set of focal points and associate logic to work with them"""
     def __init__(self, points, included_pairs, is_network):
         self.included_pairs = included_pairs
@@ -263,7 +245,7 @@ class CSFocalPoints:
                     point = point+1
                 else:
                     _drop_flag = True   
-                    self.points_rc = CSBase.deleterow(self.points_rc, point)  
+                    self.points_rc = ComputeBase.deleterow(self.points_rc, point)  
              
             include_list = list(self.points_rc[:,0])
         
@@ -273,12 +255,12 @@ class CSFocalPoints:
             if self.included_pairs[row,0] in include_list: #match
                 row = row+1
             else:
-                self.included_pairs = CSBase.deleterowcol(self.included_pairs, delrow=row, delcol=row)   
+                self.included_pairs = ComputeBase.deleterowcol(self.included_pairs, delrow=row, delcol=row)   
                 _drop_flag = True
                 num_connection_rows = num_connection_rows-1
 
         #if _drop_flag==True:
-        #    CSBase.logger.info('\nNOTE: Code to exclude pairwise calculations is activated and some entries did not match with focal node file. Some focal nodes may have been dropped.')      
+        #    ComputeBase.logger.info('\nNOTE: Code to exclude pairwise calculations is activated and some entries did not match with focal node file. Some focal nodes may have been dropped.')      
 
 
     def _get_point_ids(self):
@@ -325,7 +307,7 @@ class CSFocalPoints:
         for idx in range(0, ncoords):
             sub_coords[idx,:] = self.points_rc[idx_list[idx], :]
         
-        return CSFocalPoints(sub_coords, self.included_pairs, self.is_network)
+        return FocalPoints(sub_coords, self.included_pairs, self.is_network)
 
     @staticmethod
     def grid_to_graph(x, y, node_map):
@@ -446,7 +428,7 @@ class CSFocalPoints:
 
 
 
-class CSHabitatGraph:
+class HabitatGraph:
     def __init__(self, g_map=None, poly_map=None, connect_using_avg_resistances=False, connect_four_neighbors_only=False, g_graph=None, node_names=None):
         if None != g_map:
             self.is_network = False
@@ -455,8 +437,8 @@ class CSHabitatGraph:
             self.connect_using_avg_resistances = connect_using_avg_resistances
             self.connect_four_neighbors_only = connect_four_neighbors_only
             
-            self.node_map = CSHabitatGraph._construct_node_map(g_map, poly_map)
-            (component_map, components) = CSHabitatGraph._construct_component_map(g_map, self.node_map, connect_using_avg_resistances, connect_four_neighbors_only)
+            self.node_map = HabitatGraph._construct_node_map(g_map, poly_map)
+            (component_map, components) = HabitatGraph._construct_component_map(g_map, self.node_map, connect_using_avg_resistances, connect_four_neighbors_only)
             self.component_map = component_map
             self.components = components
             
@@ -475,7 +457,7 @@ class CSHabitatGraph:
             self.num_nodes = self.node_map.size
     
     def get_graph(self):
-        return CSHabitatGraph._construct_g_graph(self.g_map, self.node_map, self.connect_using_avg_resistances, self.connect_four_neighbors_only)
+        return HabitatGraph._construct_g_graph(self.g_map, self.node_map, self.connect_using_avg_resistances, self.connect_four_neighbors_only)
     
     def prune_nodes_for_component(self, keep_component):
         """Removes nodes outside of component being operated on.
@@ -484,7 +466,7 @@ class CSHabitatGraph:
         """
         if self.is_network:
             del_indices = np.where(self.components != keep_component)
-            pruned_graph = CSBase.deleterowcol(self.g_graph, delrow=del_indices, delcol=del_indices)
+            pruned_graph = ComputeBase.deleterowcol(self.g_graph, delrow=del_indices, delcol=del_indices)
             indices = np.where(self.components == keep_component)
             nodes_in_component = self.node_map[indices]
             return (pruned_graph, nodes_in_component)                
@@ -496,8 +478,8 @@ class CSHabitatGraph:
             if self.poly_map !=  []:
                 poly_map_pruned = selector * self.poly_map
     
-            node_map_pruned = CSHabitatGraph._construct_node_map(g_map_pruned, poly_map_pruned)
-            G_pruned = CSHabitatGraph._construct_g_graph(g_map_pruned, node_map_pruned, self.connect_using_avg_resistances, self.connect_four_neighbors_only)
+            node_map_pruned = HabitatGraph._construct_node_map(g_map_pruned, poly_map_pruned)
+            G_pruned = HabitatGraph._construct_g_graph(g_map_pruned, node_map_pruned, self.connect_using_avg_resistances, self.connect_four_neighbors_only)
              
             return (G_pruned, node_map_pruned)
             
@@ -538,7 +520,7 @@ class CSHabitatGraph:
                 (pk, pl) = np.where(poly_map == polynum) #Added 040309 BHM                
                 if len(pi) > 0:  
                     node_map[pk, pl] = node_map[pi[0], pj[0]] #Modified 040309 BHM  
-        node_map[np.where(node_map)] = CSBase.relabel(node_map[np.where(node_map)], 1) #BHM 072409
+        node_map[np.where(node_map)] = ComputeBase.relabel(node_map[np.where(node_map)], 1) #BHM 072409
 
         return node_map
 
@@ -551,7 +533,7 @@ class CSHabitatGraph:
         Nodes with the same component number are in single, connected components.
         
         """  
-        G = CSHabitatGraph._construct_g_graph(g_map, node_map, connect_using_avg_resistances, connect_four_neighbors_only) 
+        G = HabitatGraph._construct_g_graph(g_map, node_map, connect_using_avg_resistances, connect_four_neighbors_only) 
         (_num_components, C) = connected_components(G)
         C += 1 # Number components from 1
 
@@ -568,8 +550,8 @@ class CSHabitatGraph:
     def _construct_g_graph(g_map, node_map, connect_using_avg_resistances, connect_four_neighbors_only):
         """Construct sparse adjacency matrix given raster maps of conductances and nodes."""
         numnodes = node_map.max()
-        (node1, node2, conductances) = CSHabitatGraph._get_conductances(g_map, node_map, connect_using_avg_resistances, connect_four_neighbors_only)
-        return CSHabitatGraph._make_sparse_csr(node1, node2, conductances, numnodes)
+        (node1, node2, conductances) = HabitatGraph._get_conductances(g_map, node_map, connect_using_avg_resistances, connect_four_neighbors_only)
+        return HabitatGraph._make_sparse_csr(node1, node2, conductances, numnodes)
         
     @staticmethod
     def _make_sparse_csr(node1, node2, conductances, numnodes):
@@ -651,8 +633,8 @@ class CSHabitatGraph:
         Returns an adjacency matrix with values representing node-to-node conductance values.
         
         """  
-        (s_horiz, t_horiz) = CSHabitatGraph._neighbors_horiz(g_map)
-        (s_vert,  t_vert)  = CSHabitatGraph._neighbors_vert(g_map)
+        (s_horiz, t_horiz) = HabitatGraph._neighbors_horiz(g_map)
+        (s_vert,  t_vert)  = HabitatGraph._neighbors_vert(g_map)
 
         s = np.c_[s_horiz, s_vert].flatten()
         t = np.c_[t_horiz, t_vert].flatten()
@@ -667,8 +649,8 @@ class CSHabitatGraph:
             conductances = 1 /((1/g1+1/g2)/2)
 
         if connect_four_neighbors_only == False:
-            (s_dr, t_dr) = CSHabitatGraph._neighbors_diag1(g_map)
-            (s_dl, t_dl) = CSHabitatGraph._neighbors_diag2(g_map)
+            (s_dr, t_dr) = HabitatGraph._neighbors_diag1(g_map)
+            (s_dl, t_dl) = HabitatGraph._neighbors_diag2(g_map)
 
             sd = np.c_[s_dr, s_dl].flatten()
             td = np.c_[t_dr, t_dl].flatten()
@@ -695,7 +677,7 @@ class CSHabitatGraph:
         return (node1, node2, conductances)
 
 
-class CSOutput:
+class Output:
     """Handles output of current and voltage maps"""
     def __init__(self, options, state, report_status, g_shape=None):
         self.options = options
@@ -757,13 +739,13 @@ class CSOutput:
         if self.is_network:
             if voltages != None:
                 (node_currents, branch_currents) = self._create_current_maps(voltages, G, finitegrounds)
-                branch_currents_array = CSOutput._convert_graph_to_3_col(branch_currents, node_map)
+                branch_currents_array = Output._convert_graph_to_3_col(branch_currents, node_map)
             else:
                 branch_currents, node_currents, branch_currents_array, _node_map = self.current_maps[name]
             
             if write:                
                 # Append node names and convert to array format
-                node_currents_array = CSOutput._append_names_to_node_currents(node_currents, node_map)                
+                node_currents_array = Output._append_names_to_node_currents(node_currents, node_map)                
                 CSIO.write_currents(self.options.output_file, branch_currents_array, node_currents_array, name)
                 
             if remove:
@@ -833,7 +815,7 @@ class CSOutput:
         If voltages and node_map are provided, create space for voltage map disregarding prior allocation.
         """
         if self.report_status==True:
-            CSBase.logger.info('writing voltage map ' + name)
+            ComputeBase.logger.info('writing voltage map ' + name)
         if self.is_network:
             if voltages == None:
                 voltages, node_map = self.voltage_maps[name]
@@ -876,12 +858,12 @@ class CSOutput:
         In network mode returns node and branch currents given voltages in arbitrary graphs.
         """  
         G =  G.tocoo()
-        node_currents = CSOutput._get_node_currents(voltages, G, finitegrounds)
+        node_currents = Output._get_node_currents(voltages, G, finitegrounds)
         
         if self.is_network:
             node_currents_col = np.zeros((node_currents.shape[0],1), dtype='float64')
             node_currents_col[:,0] = node_currents[:]
-            branch_currents = CSOutput._get_branch_currents(G, voltages, True) 
+            branch_currents = Output._get_branch_currents(G, voltages, True) 
             branch_currents = np.absolute(branch_currents) 
             return node_currents_col, branch_currents
         else:
@@ -895,8 +877,8 @@ class CSOutput:
     @staticmethod
     def _get_node_currents(voltages, G, finitegrounds):
         """Calculates currents at nodes."""  
-        node_currents_pos = CSOutput._get_node_currents_posneg(G, voltages, finitegrounds, True) 
-        node_currents_neg = CSOutput._get_node_currents_posneg(G, voltages, finitegrounds, False)
+        node_currents_pos = Output._get_node_currents_posneg(G, voltages, finitegrounds, True) 
+        node_currents_neg = Output._get_node_currents_posneg(G, voltages, finitegrounds, False)
         node_currents = np.where(node_currents_neg > node_currents_pos, node_currents_neg, node_currents_pos)
 
         return np.asarray(node_currents)[0]
@@ -905,7 +887,7 @@ class CSOutput:
     @staticmethod
     def _get_node_currents_posneg(G, voltages, finitegrounds, pos):
         """Calculates positive or negative node currents based on pos flag."""  
-        branch_currents = CSOutput._get_branch_currents(G, voltages, pos)
+        branch_currents = Output._get_branch_currents(G, voltages, pos)
         branch_currents = branch_currents - branch_currents.T #Can cause memory error
         
         branch_currents = branch_currents.tocoo() #Can cause memory error, but this and code below more memory efficient than previous version.
@@ -932,7 +914,7 @@ class CSOutput:
     @staticmethod
     def _get_branch_currents(G, voltages, pos):    
         """Calculates branch currents."""  
-        branch_currents = CSOutput._get_branch_currents_posneg(G, voltages, pos)
+        branch_currents = Output._get_branch_currents_posneg(G, voltages, pos)
         n = G.shape[0]
         mask = G.row < G.col
         branch_currents = sparse.csr_matrix((branch_currents, (G.row[mask], G.col[mask])), shape = (n,n)) #SQUARE MATRIX, SAME DIMENSIONS AS GRAPH

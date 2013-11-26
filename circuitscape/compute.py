@@ -1,24 +1,139 @@
+__version__ = '4.0.0-beta'
+__author__ = 'Brad McRae, Viral B. Shah, and Tanmay Mohapatra'
+__email__ = 'mcrae@circuitscape.org'
+
+
 import time, logging, os, pickle
 import numpy as np
 from scipy import sparse
 
-from cs_base import CSBase, CSFocalPoints, CSHabitatGraph, CSOutput
-from cs_profiler import print_rusage, gc_after, LowMemRetry
-from cs_io import CSIO
+from compute_base import ComputeBase, FocalPoints, HabitatGraph, Output
+from profiler import print_rusage, gc_after, LowMemRetry
+from io import CSIO
 
-
-class CSRaster(CSBase):
+class Compute(ComputeBase):
     def __init__(self, configFile, ext_log_handler):
-        super(CSRaster, self).__init__(configFile, ext_log_handler)
+        super(Compute, self).__init__(configFile, ext_log_handler)
+
+    @print_rusage
+    def compute(self):
+        """Main function for Circuitscape."""  
+        # Code below provides a back door to network mode, because not incorporated into GUI yet
+        if self.options.polygon_file == 'NETWORK': 
+            self.options.data_type='network' #can also be set in .ini file
+        if self.options.data_type=='network': 
+            self.options.graph_file = self.options.habitat_file
+            self.options.focal_node_file = self.options.point_file
+
+        self.state.start_time = time.time()
+
+        #Test write privileges by writing config file to output directory
+        self.options.write(self.options.output_file, True)
+        
+        if self.options.data_type=='network':
+            result, solver_failed = self.compute_network() # Call module for solving arbitrary graphs (not raster grids)
+            self.log_complete_job()
+            return result, solver_failed #Fixme: add in solver failed check
+
+        return self.compute_raster()
+
+
+    @print_rusage
+    def compute_network(self): 
+        """Solves arbitrary graphs instead of raster grids."""
+        (g_graph, node_names) = self.read_graph(self.options.graph_file)
+        focal_nodes = self.read_focal_nodes(self.options.focal_node_file)
+        
+        if self.options.use_included_pairs==True:
+            self.state.included_pairs = CSIO.read_included_pairs(self.options.included_pairs_file)
+        
+        fp = FocalPoints(focal_nodes, self.state.included_pairs, True)
+        g_habitat = HabitatGraph(g_graph=g_graph, node_names=node_names)
+        out = Output(self.options, self.state, False, (g_habitat.num_nodes, g_habitat.num_nodes))
+        if self.options.write_cur_maps:
+            out.alloc_c_map('')
+        
+        (resistances, solver_failed) = self.single_ground_all_pair_resistances(g_habitat, fp, out, True)
+        _resistances, resistances_3col = self.write_resistances(fp.point_ids, resistances)
+        if self.options.write_cur_maps:
+            full_branch_currents, full_node_currents, _bca, _np = out.get_c_map('')
+            full_branch_currents = Output._convert_graph_to_3_col(full_branch_currents, node_names)
+            full_node_currents = Output._append_names_to_node_currents(full_node_currents, node_names)
+
+            ind = np.lexsort((full_branch_currents[:, 1], full_branch_currents[:, 0]))
+            full_branch_currents = full_branch_currents[ind]
+
+            ind = np.lexsort((full_node_currents[:, 1], full_node_currents[:, 0]))
+            full_node_currents = full_node_currents[ind]
+
+            CSIO.write_currents(self.options.output_file, full_branch_currents, full_node_currents, '')
+            
+        return resistances_3col, solver_failed
+
+    @gc_after
+    def read_graph(self, filename):
+        """Reads arbitrary graph from disk. Returns sparse adjacency matrix and node names ."""
+        graph_list = CSIO.load_graph(filename)
+
+        try:
+            zeros_in_resistance_graph = False           
+            nodes = ComputeBase.deletecol(graph_list,2) 
+            node_names = np.unique(np.asarray(nodes, dtype='int32'))
+            nodes[np.where(nodes>= 0)] = ComputeBase.relabel(nodes[np.where(nodes>= 0)], 0)
+            node1 = nodes[:,0]
+            node2 = nodes[:,1]
+            data = graph_list[:,2]
+            
+            ######################## Reclassification code
+            if self.options.use_reclass_table == True:
+                try:
+                    reclass_table = CSIO.read_point_strengths(self.options.reclass_file)    
+                except:
+                    raise RuntimeError('Error reading reclass table.  Please check file format.')
+                for i in range (0,reclass_table.shape[0]):
+                    data = np.where(data==reclass_table[i,0], reclass_table[i,1],data)
+                Compute.logger.debug('Reclassified habitat graph using %s'%(self.options.reclass_file,))
+            ########################
+            
+            if self.options.habitat_map_is_resistances == True:
+                zeros_in_resistance_graph = (np.where(data==0, 1, 0)).sum() > 0
+                conductances = 1/data
+            else:
+                conductances = data
+                
+            numnodes = node_names.shape[0]
+            G = sparse.csr_matrix((conductances, (node1, node2)), shape = (numnodes, numnodes))
+
+            Gdense=G.todense()
+            g_graph = np.maximum(Gdense, Gdense.T) # To handle single or double entries for elements BHM 06/28/11
+            g_graph = sparse.csr_matrix(g_graph)
+        except:
+            raise RuntimeError('Error processing graph/network file.  Please check file format')
+        
+        if zeros_in_resistance_graph == True:
+            raise RuntimeError('Error: zero resistance values are not currently allowed in habitat network/graph input file.')
+        
+        return g_graph, node_names
+
+
+    def read_focal_nodes(self, filename):
+        """Loads list of focal nodes for arbitrary graph."""  
+        focal_nodes = CSIO.load_graph(filename)
+        try:    
+            if filename == self.options.graph_file:#If graph was used as focal node file, then just want first two columns for focal_nodes.
+                focal_nodes = ComputeBase.deletecol(focal_nodes, 2)
+            focal_nodes = np.unique(np.asarray(focal_nodes))
+        except:
+            raise RuntimeError('Error processing focal node file.  Please check file format')
+        return focal_nodes
+
 
     @print_rusage
     def compute_raster(self):
-        """Main function for Circuitscape."""  
-        
         self.load_maps()
         if self.options.screenprint_log == True:        
             num_nodes = (np.where(self.state.g_map > 0, 1, 0)).sum()         
-            CSRaster.logger.debug('Resistance/conductance map has %d nodes' % (num_nodes,))
+            Compute.logger.debug('Resistance/conductance map has %d nodes' % (num_nodes,))
 
         if self.options.scenario == 'pairwise':
             resistances, solver_failed = self.pairwise_module(self.state.g_map, self.state.poly_map, self.state.points_rc)
@@ -27,13 +142,13 @@ class CSRaster(CSBase):
 
         elif self.options.scenario == 'advanced':
             self.options.write_max_cur_maps = False
-            CSRaster.logger.info('Calling solver module.')
-            g_habitat = CSHabitatGraph(g_map=self.state.g_map, poly_map=self.state.poly_map, connect_using_avg_resistances=self.options.connect_using_avg_resistances, connect_four_neighbors_only=self.options.connect_four_neighbors_only)
-            cs = CSOutput(self.options, self.state, False)
-            voltages, _current_map, solver_failed = self.advanced_module(g_habitat, cs, self.state.source_map, self.state.ground_map)
+            Compute.logger.info('Calling solver module.')
+            g_habitat = HabitatGraph(g_map=self.state.g_map, poly_map=self.state.poly_map, connect_using_avg_resistances=self.options.connect_using_avg_resistances, connect_four_neighbors_only=self.options.connect_four_neighbors_only)
+            out = Output(self.options, self.state, False)
+            voltages, _current_map, solver_failed = self.advanced_module(g_habitat, out, self.state.source_map, self.state.ground_map)
             self.log_complete_job()
             if solver_failed == True:
-                CSRaster.logger.error('Solver failed')
+                Compute.logger.error('Solver failed')
             return voltages, solver_failed
         
         else:
@@ -71,14 +186,14 @@ class CSRaster(CSBase):
         """Overhead module for one-to-all AND all-to-one modes with raster data."""  
         last_write_time = time.time()
 
-        cs = CSOutput(self.options, self.state, False)
+        out = Output(self.options, self.state, False)
         if self.options.write_cur_maps:
-            cs.alloc_c_map('')
+            out.alloc_c_map('')
             if self.options.write_max_cur_maps:
-                cs.alloc_c_map('max')
+                out.alloc_c_map('max')
         
-        fp = CSFocalPoints(points_rc, self.state.included_pairs, False)
-        fp = CSFocalPoints(fp.get_unique_coordinates(), self.state.included_pairs, False)
+        fp = FocalPoints(points_rc, self.state.included_pairs, False)
+        fp = FocalPoints(fp.get_unique_coordinates(), self.state.included_pairs, False)
         point_ids = fp.point_ids
         points_rc_unique = fp.points_rc
         included_pairs = self.state.included_pairs
@@ -97,17 +212,17 @@ class CSRaster(CSBase):
 
             (strength_map, strengths_rc) = self.get_strength_map(points_rc_unique, self.state.point_strengths)            
 
-            g_habitat = CSHabitatGraph(g_map=g_map, poly_map=poly_map_temp, connect_using_avg_resistances=self.options.connect_using_avg_resistances, connect_four_neighbors_only=self.options.connect_four_neighbors_only)
-            CSRaster.logger.debug('Graph has ' + str(g_habitat.num_nodes) + ' nodes and '+ str(g_habitat.num_components) + ' components.')
+            g_habitat = HabitatGraph(g_map=g_map, poly_map=poly_map_temp, connect_using_avg_resistances=self.options.connect_using_avg_resistances, connect_four_neighbors_only=self.options.connect_four_neighbors_only)
+            Compute.logger.debug('Graph has ' + str(g_habitat.num_nodes) + ' nodes and '+ str(g_habitat.num_components) + ' components.')
             component_with_points = g_habitat.unique_component_with_points(unique_point_map)
         else:
-            g_habitat = CSHabitatGraph(g_map=g_map, poly_map=poly_map, connect_using_avg_resistances=self.options.connect_using_avg_resistances, connect_four_neighbors_only=self.options.connect_four_neighbors_only)
-            CSRaster.logger.debug('Graph has ' + str(g_habitat.num_nodes) + ' nodes and '+ str(g_habitat.num_components) + ' components.')
+            g_habitat = HabitatGraph(g_map=g_map, poly_map=poly_map, connect_using_avg_resistances=self.options.connect_using_avg_resistances, connect_four_neighbors_only=self.options.connect_four_neighbors_only)
+            Compute.logger.debug('Graph has ' + str(g_habitat.num_nodes) + ' nodes and '+ str(g_habitat.num_components) + ' components.')
             component_with_points = None
 
         for pt_idx in range(0, point_ids.size): # These are the 'src' nodes, pt_idx.e. the 'one' in all-to-one and one-to-all
 
-            CSRaster.logger.info('solving focal node ' + str(pt_idx+1) + ' of ' + str(point_ids.size))
+            Compute.logger.info('solving focal node ' + str(pt_idx+1) + ' of ' + str(point_ids.size))
 
             if self.options.use_included_pairs==True: # Done above otherwise    
                 #######################   
@@ -123,7 +238,7 @@ class CSRaster(CSBase):
                         points_rc_unique_temp[pair, 0] = 0 #point will not be burned in to unique_point_map
 
                 poly_map_temp = self.get_poly_map_temp2(poly_map, point_map, points_rc_unique_temp, included_pairs, pt_idx)
-                g_habitat = CSHabitatGraph(g_map=g_map, poly_map=poly_map_temp, connect_using_avg_resistances=self.options.connect_using_avg_resistances, connect_four_neighbors_only=self.options.connect_four_neighbors_only)
+                g_habitat = HabitatGraph(g_map=g_map, poly_map=poly_map_temp, connect_using_avg_resistances=self.options.connect_using_avg_resistances, connect_four_neighbors_only=self.options.connect_four_neighbors_only)
 
                 unique_point_map = np.zeros((self.state.nrows, self.state.ncols),int)
                 unique_point_map[points_rc_unique_temp[:,1], points_rc_unique_temp[:,2]] = points_rc_unique_temp[:,0]
@@ -152,14 +267,14 @@ class CSRaster(CSBase):
                     self.options.remove_src_or_gnd = 'rmvsrc'
                 #FIXME: right now one-to-all *might* fail if there is just one node that is not grounded (I haven't encountered this problem lately BHM Nov 2009).
                 
-                resistance, current_map, solver_failed = self.advanced_module(g_habitat, cs, source_map, ground_map, src, component_with_points)
+                resistance, current_map, solver_failed = self.advanced_module(g_habitat, out, source_map, ground_map, src, component_with_points)
                 if not solver_failed:
                     if self.options.write_cur_maps:
-                        cs.accumulate_c_map_with_values('', current_map)
+                        out.accumulate_c_map_with_values('', current_map)
                         if self.options.write_max_cur_maps:    
-                            cs.store_max_c_map_values('max', current_map)
+                            out.store_max_c_map_values('max', current_map)
                 else:
-                    CSRaster.logger.warning('Solver failed for at least one focal node.  \nFocal nodes with failed solves will be marked with value of -777 \nin output resistance list.\n')
+                    Compute.logger.warning('Solver failed for at least one focal node.  \nFocal nodes with failed solves will be marked with value of -777 \nin output resistance list.\n')
     
                 resistance_vector[pt_idx,0] = src
                 resistance_vector[pt_idx,1] = resistance
@@ -167,16 +282,16 @@ class CSRaster(CSBase):
                 if solver_failed==True:
                     solver_failed_somewhere = True
 
-            (hours,mins,_secs) = CSBase.elapsed_time(last_write_time)
+            (hours,mins,_secs) = ComputeBase.elapsed_time(last_write_time)
             if mins > 2 or hours > 0: 
                 last_write_time = time.time()
                 CSIO.write_resistances_one_to_all(self.options.output_file, resistance_vector, '_incomplete', self.options.scenario)
       
         if not solver_failed_somewhere:
             if self.options.write_cur_maps:
-                cs.write_c_map('', True)
+                out.write_c_map('', True)
                 if self.options.write_max_cur_maps:
-                    cs.write_c_map('max', True)
+                    out.write_c_map('max', True)
 
         CSIO.write_resistances_one_to_all(self.options.output_file, resistance_vector, '', self.options.scenario)
        
@@ -219,11 +334,11 @@ class CSRaster(CSBase):
     @print_rusage
     def pairwise_module(self, g_map, poly_map, points_rc):
         """Overhead module for pairwise mode with raster data."""  
-        cs = CSOutput(self.options, self.state, False)
+        out = Output(self.options, self.state, False)
         if self.options.write_cur_maps:
-            cs.alloc_c_map('')
+            out.alloc_c_map('')
             if self.options.write_max_cur_maps:
-                cs.alloc_c_map('max')
+                out.alloc_c_map('max')
 
         # If there are no focal regions, pass all points to single_ground_all_pair_resistances,
         # otherwise, pass one point at a time.
@@ -231,15 +346,15 @@ class CSRaster(CSBase):
             if points_rc.shape[0] != (np.unique(np.asarray(points_rc[:,0]))).shape[0]:
                 raise RuntimeError('At least one focal node contains multiple cells.  If this is what you really want, then choose focal REGIONS in the pull-down menu') 
 
-            fp = CSFocalPoints(points_rc, self.state.included_pairs, False)
-            g_habitat = CSHabitatGraph(g_map=g_map, poly_map=poly_map, connect_using_avg_resistances=self.options.connect_using_avg_resistances, connect_four_neighbors_only=self.options.connect_four_neighbors_only)
+            fp = FocalPoints(points_rc, self.state.included_pairs, False)
+            g_habitat = HabitatGraph(g_map=g_map, poly_map=poly_map, connect_using_avg_resistances=self.options.connect_using_avg_resistances, connect_four_neighbors_only=self.options.connect_four_neighbors_only)
             
             while LowMemRetry.retry():
                 with LowMemRetry():
-                    (resistances, solver_failed) = self.single_ground_all_pair_resistances(g_habitat, fp, cs, True)
+                    (resistances, solver_failed) = self.single_ground_all_pair_resistances(g_habitat, fp, out, True)
                     
             if solver_failed == True:
-                CSRaster.logger.warning('Solver failed for at least one focal node pair. ' 
+                Compute.logger.warning('Solver failed for at least one focal node pair. ' 
                 '\nThis can happen when input resistances differ by more than' 
                 '\n~6 orders of magnitude. Pairs with failed solves will be '
                 '\nmarked with value of -777 in output resistance matrix.\n')
@@ -250,8 +365,8 @@ class CSRaster(CSBase):
             point_map = np.zeros((self.state.nrows, self.state.ncols), int)
             point_map[points_rc[:,1], points_rc[:,2]] = points_rc[:,0]
             
-            fp = CSFocalPoints(points_rc, self.state.included_pairs, False)
-            fp = CSFocalPoints(fp.get_unique_coordinates(), self.state.included_pairs, False)
+            fp = FocalPoints(points_rc, self.state.included_pairs, False)
+            fp = FocalPoints(fp.get_unique_coordinates(), self.state.included_pairs, False)
             point_ids = fp.point_ids
             
             numpoints = point_ids.size
@@ -276,16 +391,16 @@ class CSRaster(CSBase):
             
                 # create a subset of points_rc by getting first instance of each point in points_rc
                 fp_subset = fp.get_subset([pt1_idx, pt2_idx])
-                g_habitat = CSHabitatGraph(g_map=g_map, poly_map=poly_map_temp, connect_using_avg_resistances=self.options.connect_using_avg_resistances, connect_four_neighbors_only=self.options.connect_four_neighbors_only)
+                g_habitat = HabitatGraph(g_map=g_map, poly_map=poly_map_temp, connect_using_avg_resistances=self.options.connect_using_avg_resistances, connect_four_neighbors_only=self.options.connect_four_neighbors_only)
             
                 num_points_solved += 1
-                CSRaster.logger.info('solving focal pair ' + str(num_points_solved) + ' of '+ str(num_points_to_solve))
+                Compute.logger.info('solving focal pair ' + str(num_points_solved) + ' of '+ str(num_points_to_solve))
             
-                (pairwise_resistance, solver_failed) = self.single_ground_all_pair_resistances(g_habitat, fp_subset, cs, False)
+                (pairwise_resistance, solver_failed) = self.single_ground_all_pair_resistances(g_habitat, fp_subset, out, False)
 
                 del poly_map_temp
                 if solver_failed == True:
-                    CSRaster.logger.warning('Solver failed for at least one focal node pair.  \nPairs with failed solves will be marked with value of -777 \nin output resistance matrix.\n')
+                    Compute.logger.warning('Solver failed for at least one focal node pair.  \nPairs with failed solves will be marked with value of -777 \nin output resistance matrix.\n')
 
                 resistances[pt2_idx, pt1_idx] = resistances[pt1_idx, pt2_idx] = pairwise_resistance[0,1]
 
@@ -296,9 +411,9 @@ class CSRaster(CSBase):
         # Add row and column headers and write resistances to disk
         resistances, _resistances_3col = self.write_resistances(point_ids, resistances)
         if self.options.write_cur_maps:
-            cs.write_c_map('')
+            out.write_c_map('')
             if self.options.write_max_cur_maps:
-                cs.write_c_map('max')
+                out.write_c_map('max')
 
         return resistances,solver_failed
 
@@ -326,7 +441,7 @@ class CSRaster(CSBase):
            
         solver_failed_somewhere = [False]
         
-        CSRaster.logger.debug('Graph has ' + str(g_habitat.num_nodes) + ' nodes, ' + str(numpoints) + ' focal points and '+ str(g_habitat.num_components)+ ' components.')
+        Compute.logger.debug('Graph has ' + str(g_habitat.num_nodes) + ' nodes, ' + str(numpoints) + ' focal points and '+ str(g_habitat.num_components)+ ' components.')
         resistances = -1 * np.ones((numpoints, numpoints), dtype = 'float64')         #Inf creates trouble in python 2.5 on Windows. Use -1 instead.
         
         if use_resistance_calc_shortcut==True:
@@ -340,7 +455,7 @@ class CSRaster(CSBase):
                 continue
                         
             G_pruned, local_node_map = g_habitat.prune_nodes_for_component(c)
-            G = CSBase.laplacian(G_pruned)
+            G = ComputeBase.laplacian(G_pruned)
             del G_pruned 
             
             if use_resistance_calc_shortcut:
@@ -352,14 +467,14 @@ class CSRaster(CSBase):
                     if parallelize:
                         self.state.worker_pool_wait()
                         
-                    self.del_amg_hierarchy()
+                    self.state.del_amg_hierarchy()
                     
                     if (local_dst != None) and (G_dst_dst != None):
                         G[local_dst, local_dst] = G_dst_dst
                         local_dst = G_dst_dst = None
                     
                     if (use_resistance_calc_shortcut==True):
-                        CSRaster.get_shortcut_resistances(pt1_idx, voltmatrix, numpoints, resistances, shortcut_resistances)
+                        Compute.get_shortcut_resistances(pt1_idx, voltmatrix, numpoints, resistances, shortcut_resistances)
                         break #No need to continue, we've got what we need to calculate resistances
                     else:
                         continue
@@ -370,9 +485,9 @@ class CSRaster(CSBase):
                 if report_status==True:
                     num_points_solved += 1
                     if use_resistance_calc_shortcut==True:
-                        CSRaster.logger.info('solving focal node ' + str(num_points_solved) + ' of '+ str(num_points_to_solve))
+                        Compute.logger.info('solving focal node ' + str(num_points_solved) + ' of '+ str(num_points_to_solve))
                     else:
-                        CSRaster.logger.info('solving focal pair ' + str(num_points_solved) + ' of '+ str(num_points_to_solve))
+                        Compute.logger.info('solving focal pair ' + str(num_points_solved) + ' of '+ str(num_points_to_solve))
             
                 local_src = fp.get_graph_node_idx(pt2_idx, local_node_map)
                 if None == local_dst:
@@ -381,7 +496,7 @@ class CSRaster(CSBase):
                     G[local_dst, local_dst] = 0
 
                 if self.state.amg_hierarchy == None:
-                    self.create_amg_hierarchy(G)
+                    self.state.create_amg_hierarchy(G, self.options.solver)
 
                 if use_resistance_calc_shortcut:
                     post_solve = self._post_single_ground_solve(G, fp, cs, resistances, numpoints, pt1_idx, pt2_idx, local_src, local_dst, local_node_map, solver_failed_somewhere, use_resistance_calc_shortcut, voltmatrix)
@@ -389,24 +504,24 @@ class CSRaster(CSBase):
                     post_solve = self._post_single_ground_solve(G, fp, cs, resistances, numpoints, pt1_idx, pt2_idx, local_src, local_dst, local_node_map, solver_failed_somewhere)
                 
                 if parallelize:
-                    self.state.worker_pool.apply_async(CSRaster.parallel_single_ground_solver, args=(G, local_src, local_dst, options.solver, self.state.amg_hierarchy), callback=post_solve)
-                    #post_solve(self.state.worker_pool.apply(CSRaster.parallel_single_ground_solver, args=(G, local_src, local_dst, options.solver, self.state.amg_hierarchy)))
+                    self.state.worker_pool.apply_async(Compute.parallel_single_ground_solver, args=(G, local_src, local_dst, options.solver, self.state.amg_hierarchy), callback=post_solve)
+                    #post_solve(self.state.worker_pool.apply(Compute.parallel_single_ground_solver, args=(G, local_src, local_dst, options.solver, self.state.amg_hierarchy)))
                 else:
                     try:
-                        voltages = CSRaster.single_ground_solver(G, local_src, local_dst, options.solver, self.state.amg_hierarchy)
+                        voltages = Compute.single_ground_solver(G, local_src, local_dst, options.solver, self.state.amg_hierarchy)
                     except:
                         voltages = None
                     post_solve(voltages)
 
                 if options.low_memory_mode==True or options.point_file_contains_polygons==True:
-                    self.del_amg_hierarchy()
+                    self.state.del_amg_hierarchy()
     
-            (hours,mins,_secs) = CSBase.elapsed_time(last_write_time)
+            (hours,mins,_secs) = ComputeBase.elapsed_time(last_write_time)
             if mins > 2 or hours > 0: 
                 last_write_time = time.time()
                 CSIO.save_incomplete_resistances(options.output_file, resistances)# Save incomplete resistances    
 
-        self.del_amg_hierarchy()
+        self.state.del_amg_hierarchy()
 
         # Finally, resistance to self is 0.
         if use_resistance_calc_shortcut==True: 
@@ -460,7 +575,7 @@ class CSRaster(CSBase):
             try:
                 os.close(read_fd)
                 write_file = os.fdopen(write_fd, 'w')
-                result = CSRaster.single_ground_solver(G, src, dst, solver_type, ml)
+                result = Compute.single_ground_solver(G, src, dst, solver_type, ml)
             except Exception as e:
                 result = e
             write_file.write(pickle.dumps(result))
@@ -469,25 +584,25 @@ class CSRaster(CSBase):
         elif (child_pid > 0):
             pid = str(child_pid)
             try:
-                #CSRaster.logger.debug("parallel: waiting for " + pid)
+                #Compute.logger.debug("parallel: waiting for " + pid)
                 os.close(write_fd)
                 read_file = os.fdopen(read_fd)
                 result = read_file.read()
                 voltages = pickle.loads(result)
-                #CSRaster.logger.debug("parallel: got results from " + pid)
+                #Compute.logger.debug("parallel: got results from " + pid)
                 if isinstance(voltages, Exception):
-                    CSRaster.logger.exception("parallel: got error from " + pid + ": " + str(voltages))
+                    Compute.logger.exception("parallel: got error from " + pid + ": " + str(voltages))
                     voltages = None
             except:
-                CSRaster.logger.exception("parallel: exception waiting for results from " + pid)
+                Compute.logger.exception("parallel: exception waiting for results from " + pid)
                 voltages = None
             finally:
                 read_file.close()
-                #CSRaster.logger.debug("parallel: waiting for termination of " + pid)
+                #Compute.logger.debug("parallel: waiting for termination of " + pid)
                 os.waitpid(child_pid, 0)
-                #CSRaster.logger.debug("parallel: terminated " + pid)
+                #Compute.logger.debug("parallel: terminated " + pid)
         else:
-            CSRaster.logger.error("parallel: unable to create new processes")
+            Compute.logger.error("parallel: unable to create new processes")
             voltages = None
         return voltages
         
@@ -502,7 +617,7 @@ class CSRaster(CSBase):
         else:
             rhs[dst] = -1
             rhs[src] = 1
-            voltages = CSBase.solve_linear_system (G, rhs, solver_type, ml)
+            voltages = ComputeBase.solve_linear_system (G, rhs, solver_type, ml)
 
         return voltages
 
@@ -512,11 +627,11 @@ class CSRaster(CSBase):
         solver_failed = False
          
         if self.options.scenario=='advanced':
-            CSRaster.logger.debug('Graph has ' + str(g_habitat.num_nodes) + ' nodes and '+ str(g_habitat.num_components)+ ' components.')
+            Compute.logger.debug('Graph has ' + str(g_habitat.num_nodes) + ' nodes and '+ str(g_habitat.num_components)+ ' components.')
 
         if component_with_points != None:
             G = g_habitat.get_graph()
-            G = CSBase.laplacian(G)
+            G = ComputeBase.laplacian(G)
             node_map = g_habitat.node_map
         
         vc_map_id = '' if source_id==None else str(source_id)
@@ -548,7 +663,7 @@ class CSRaster(CSBase):
 
                 if component_with_points == None:
                     (G, node_map) = g_habitat.prune_nodes_for_component(comp)
-                    G = CSBase.laplacian(G)
+                    G = ComputeBase.laplacian(G)
 
                 numnodes = node_map.max()
                 sources = np.zeros(numnodes)
@@ -656,12 +771,12 @@ class CSRaster(CSBase):
             #Gsolve = deleterowcol(Gsolve, delrow = dst, delcol = dst)
             keep = np.delete(np.arange(0, sources.shape[0]), dst)
             sources = sources[keep]            
-        Gsolve = CSBase.deleterowcol(Gsolve, delrow = dst_to_delete, delcol = dst_to_delete)
+        Gsolve = ComputeBase.deleterowcol(Gsolve, delrow = dst_to_delete, delcol = dst_to_delete)
         
-        self.create_amg_hierarchy(Gsolve)
-        voltages = CSBase.solve_linear_system(Gsolve, sources, self.options.solver, self.state.amg_hierarchy)
+        self.state.create_amg_hierarchy(Gsolve, self.options.solver)
+        voltages = ComputeBase.solve_linear_system(Gsolve, sources, self.options.solver, self.state.amg_hierarchy)
         del Gsolve
-        self.del_amg_hierarchy()
+        self.state.del_amg_hierarchy()
 
         numinfgrounds = infgroundlist.shape[0]
         if numinfgrounds>0:
@@ -776,7 +891,7 @@ class CSRaster(CSBase):
     @print_rusage
     def load_maps(self):
         """Loads all raster maps into self.state."""  
-        CSRaster.logger.info('Reading maps')
+        Compute.logger.info('Reading maps')
         reclass_file = self.options.reclass_file if self.options.use_reclass_table else None
         CSIO.read_cell_map(self.options.habitat_file, self.options.habitat_map_is_resistances, reclass_file, self.state)
         
@@ -812,6 +927,7 @@ class CSRaster(CSBase):
         if self.options.use_variable_source_strengths==True:
             self.state.point_strengths = CSIO.read_point_strengths(self.options.variable_source_file) 
         
-        CSRaster.logger.info('Processing maps')
+        Compute.logger.info('Processing maps')
         return 
  
+

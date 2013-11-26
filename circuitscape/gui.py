@@ -7,7 +7,6 @@ try:
     wxversion.select('2.8')
 except:
     try:
-        #wxversion.select('2.8')
         wxversion.select('2.9')
     except:
         try:
@@ -20,10 +19,10 @@ import wx.lib.newevent
 from PythonCard import dialog, model 
 from PythonCard.components import button, checkbox, choice, image, staticline, statictext, textfield, spinner, textarea
 
-from circuitscape import circuitscape, CSIO, __version__
-from cs_base import CSBase
-from cs_cfg import CSConfig
-from cs_gui_rsrc import CS_GUI_RSRC
+from compute import Compute, CSIO, __version__
+from compute_base import ComputeBase
+from cfg import CSConfig
+from gui_rsrc import GUI_RSRC
 
 wxLogEvent, EVT_WX_LOG_EVENT = wx.lib.newevent.NewEvent()
 
@@ -52,7 +51,7 @@ class GUILogger(logging.Handler):
             evt = wxLogEvent(message=msg, levelname=record.levelname, status_msg=status_msg)
             wx.PostEvent(self.dest, evt) # @UndefinedVariable
         
-            (hours,mins,secs) = CSBase.elapsed_time(self.last_gui_yield_time)
+            (hours,mins,secs) = ComputeBase.elapsed_time(self.last_gui_yield_time)
             if (secs > 5) or (mins > 0) or (hours > 0):
                 self.last_gui_yield_time = time.time()
                 wx.SafeYield(None, True)  # @UndefinedVariable
@@ -64,7 +63,7 @@ class GUILogger(logging.Handler):
             self.handleError(record)
 
 
-class cs_gui(model.Background):
+class GUI(model.Background):
     OPTIONS_SCENARIO            = ['not entered', 'pairwise', 'one-to-all', 'all-to-one', 'advanced']
     SCENARIO_PAIRWISE_ADVANCED  = [    (0,0),        (1,0),       (1,0),        (1,0),       (0,1)  ]
     
@@ -99,8 +98,8 @@ class cs_gui(model.Background):
         self.statusBar.SetFieldsCount(3)        
         self.reset_status_bar()
         
-        cs_gui.log_handler = GUILogger(self)
-        cs_gui.logger = CSBase._create_logger("circuitscape_gui", getattr(logging, self.options.log_level.upper()), None, False, cs_gui.log_handler)
+        GUI.log_handler = GUILogger(self)
+        GUI.logger = ComputeBase._create_logger("circuitscape_gui", getattr(logging, self.options.log_level.upper()), None, False, GUI.log_handler)
         self.Bind(EVT_WX_LOG_EVENT, self.onLogEvent)    
 
            
@@ -129,7 +128,7 @@ class cs_gui(model.Background):
             self.components.calcButton.SetFocus()
 
     def on_menuFileVerifyCode_select(self, event):
-        cs_gui.logger.info('Verifying code (this will take a minute or two)')
+        GUI.logger.info('Verifying code (this will take a minute or two)')
         self.statusBar.SetStatusText('Verifying code (this will take a minute or two)',0)
         self.statusBar.SetStatusText('',1)
 
@@ -214,7 +213,7 @@ class cs_gui(model.Background):
         result = dialog.fileDialog(self, 'Select any number of Circuitscape Options Files within one directory', '', '', wildcard ) 
         if result.accepted==True:
             wx.BeginBusyCursor()  # @UndefinedVariable
-            cs_gui.logger.debug('Running Circuitscape in batch mode')
+            GUI.logger.debug('Running Circuitscape in batch mode')
             startTime = time.time()
             startTimeHMS = time.strftime('%H:%M:%S')
             self.statusBar.SetStatusText('Batch start ' + str(startTimeHMS), 0)
@@ -223,11 +222,11 @@ class cs_gui(model.Background):
             for selection in result.paths:
                 job += 1
                 _configDir, configFile = os.path.split(selection)
-                cs_gui.logger.debug('Processing ' + configFile)
+                GUI.logger.debug('Processing ' + configFile)
                 self.statusBar.SetStatusText('Batch start ' + str(startTimeHMS) + '. Running job ' + str(job) +'/' + str(numjobs), 0)
                 
                 try:
-                    cs = circuitscape(selection, self)
+                    cs = Compute(selection, self)
                 except RuntimeError as error:
                     message = str(error)
                     dial = wx.MessageDialog(None, message, 'Error', wx.OK | wx.ICON_ERROR)  # @UndefinedVariable
@@ -244,7 +243,7 @@ class cs_gui(model.Background):
                     self.statusBar.SetStatusText('',1)
                     self.statusBar.SetStatusText('',2)
                     result, _solver_failed = cs.compute()
-                    cs_gui.logger.debug('Finished processing ' + configFile)
+                    GUI.logger.debug('Finished processing ' + configFile)
                 except RuntimeError as error:
                     message = str(error)
                     dial = wx.MessageDialog(None, message, 'Error', wx.OK | wx.ICON_ERROR)  # @UndefinedVariable
@@ -255,13 +254,13 @@ class cs_gui(model.Background):
                 except:
                     self.unknown_exception()
                     
-            cs_gui.logger.debug('Done with batch operations.')
+            GUI.logger.debug('Done with batch operations.')
             wx.EndBusyCursor()  # @UndefinedVariable
             
             self.components.calcButton.SetFocus()
             self.reset_status_bar()
 
-            (hours,mins,secs) = CSBase.elapsed_time(startTime)
+            (hours,mins,secs) = ComputeBase.elapsed_time(startTime)
             if hours > 0:
                 self.statusBar.SetStatusText('Batch job took ' + str(hours) +' hours ' + str(mins) + ' minutes to complete.',2)
             else:
@@ -351,36 +350,36 @@ class cs_gui(model.Background):
     ##CHOICE BOXES
     def on_scenarioChoice_select(self, event):   
         scenario = event.GetSelection()
-        self.options.scenario               = cs_gui.OPTIONS_SCENARIO[scenario]
-        pairwise_enabled, advanced_enabled  = cs_gui.SCENARIO_PAIRWISE_ADVANCED[scenario]
+        self.options.scenario               = GUI.OPTIONS_SCENARIO[scenario]
+        pairwise_enabled, advanced_enabled  = GUI.SCENARIO_PAIRWISE_ADVANCED[scenario]
         self.enable_disable_widgets(pairwise_enabled, advanced_enabled)
 
     def on_habResistanceChoice_select(self, event):   
         hab = event.GetSelection()
-        self.options.habitat_map_is_resistances = cs_gui.OPTIONS_HABITAT_MAP_IS_RESISTANCES[hab]
+        self.options.habitat_map_is_resistances = GUI.OPTIONS_HABITAT_MAP_IS_RESISTANCES[hab]
         
 
     def on_connCalcChoice_select(self, event):   
         calc = event.GetSelection()
-        self.options.connect_using_avg_resistances = cs_gui.OPTIONS_CONNECT_USING_AVG_RESISTANCES[calc]
+        self.options.connect_using_avg_resistances = GUI.OPTIONS_CONNECT_USING_AVG_RESISTANCES[calc]
 
     def on_connSchemeChoice_select(self, event):   
         scheme = event.GetSelection()
-        self.options.connect_four_neighbors_only = cs_gui.OPTIONS_CONNECT_FOUR_NEIGHBORS_ONLY[scheme]
+        self.options.connect_four_neighbors_only = GUI.OPTIONS_CONNECT_FOUR_NEIGHBORS_ONLY[scheme]
 
     def on_focalNodeChoice_select(self, event):
         choice = event.GetSelection() 
-        self.options.point_file_contains_polygons = cs_gui.OPTIONS_POINT_FILE_CONTAINS_POLYGONS[choice]
+        self.options.point_file_contains_polygons = GUI.OPTIONS_POINT_FILE_CONTAINS_POLYGONS[choice]
 
     def on_gndResistanceChoice_select(self, event):   
         gnd_resistance = event.GetSelection()
-        self.options.ground_file_is_resistances = cs_gui.OPTIONS_GROUND_FILE_IS_RESISTANCES[gnd_resistance]
+        self.options.ground_file_is_resistances = GUI.OPTIONS_GROUND_FILE_IS_RESISTANCES[gnd_resistance]
 
     def on_logLevelChoice_select(self, event):
         log_lvl = event.GetSelection()
-        self.options.log_level = cs_gui.OPTIONS_LOG_LEVEL[log_lvl]
-        cs_gui.logger.setLevel(getattr(logging, self.options.log_level.upper()))
-        cs_gui.log_handler.setLevel(getattr(logging, self.options.log_level.upper()))
+        self.options.log_level = GUI.OPTIONS_LOG_LEVEL[log_lvl]
+        GUI.logger.setLevel(getattr(logging, self.options.log_level.upper()))
+        GUI.log_handler.setLevel(getattr(logging, self.options.log_level.upper()))
 
 ##CHECK BOXES
 
@@ -511,11 +510,11 @@ class cs_gui(model.Background):
             dial.ShowModal()
             return  
                             
-        cs_gui.logger.debug('Calling Circuitscape...')
+        GUI.logger.debug('Calling Circuitscape...')
         startTime = time.strftime('%H:%M:%S')
         self.statusBar.SetStatusText('Job started ' + str(startTime), 0)
         try:
-            cs = circuitscape('circuitscape.ini', cs_gui.log_handler)
+            cs = Compute('circuitscape.ini', GUI.log_handler)
         except RuntimeError as error:
             message = str(error)
             dial = wx.MessageDialog(None, message, 'Error', wx.OK | wx.ICON_ERROR)  # @UndefinedVariable
@@ -536,7 +535,7 @@ class cs_gui(model.Background):
             return
 
         if self.options.data_type == 'network':        
-            cs_gui.logger.debug('Running in Network (Graph) Mode')
+            GUI.logger.debug('Running in Network (Graph) Mode')
                             
         if self.options.scenario == 'pairwise':
             try:
@@ -552,8 +551,8 @@ class cs_gui(model.Background):
                     msg = 'Pairwise resistances (-1 indicates disconnected focal node pair, -777 indicates failed solve):'
                 else:
                     msg = 'Pairwise resistances (-1 indicates disconnected node pair):'
-                cs_gui.logger.info(msg + "\n" + np.array_str(resistances, 300))
-                cs_gui.logger.info('Done.')
+                GUI.logger.info(msg + "\n" + np.array_str(resistances, 300))
+                GUI.logger.info('Done.')
                 
                 if solver_failed == True:
                     message = 'At least one solve failed.  Failure is coded as -777 in output resistance matrix.'
@@ -585,7 +584,7 @@ class cs_gui(model.Background):
                     dial = wx.MessageDialog(None, message, 'Error', wx.OK | wx.ICON_EXCLAMATION)  # @UndefinedVariable
                     dial.ShowModal()
                 
-                cs_gui.logger.info('Done.')
+                GUI.logger.info('Done.')
             except RuntimeError as error:
                 message = str(error)
                 dial = wx.MessageDialog(None, message, 'Error', wx.OK | wx.ICON_ERROR)  # @UndefinedVariable
@@ -617,8 +616,8 @@ class cs_gui(model.Background):
                     msg = 'Resistances (-1 indicates disconnected node, -777 indicates failed solve):'
                 else:
                     msg = 'Resistances (-1 indicates disconnected node):'
-                cs_gui.logger.info(msg + '\n' + np.array_str(resistances, 300))
-                cs_gui.logger.info('Done.')
+                GUI.logger.info(msg + '\n' + np.array_str(resistances, 300))
+                GUI.logger.info('Done.')
                 
                 if solver_failed == True:
                     message = 'At least one solve failed.  Failure is coded as -777 in output node/resistance list.'
@@ -674,7 +673,7 @@ class cs_gui(model.Background):
             e_type = value = tb = None # clean up
  
     def memory_error_feedback(self):
-        cs_gui.logger.error('Circuitscape ran out of memory. Please see user guide for information about memory requirements.')
+        GUI.logger.error('Circuitscape ran out of memory. Please see user guide for information about memory requirements.')
         message='Circuitscape ran out of memory. \nPlease see user guide for information about memory requirements.'
         dial = wx.MessageDialog(None, message, 'Error', wx.OK | wx.ICON_ERROR)  # @UndefinedVariable
         dial.ShowModal()
@@ -692,15 +691,15 @@ class cs_gui(model.Background):
         
 ###SUBROUTINES
     def setWidgets(self):
-        idx = cs_gui.OPTIONS_SCENARIO.index(self.options.scenario)
+        idx = GUI.OPTIONS_SCENARIO.index(self.options.scenario)
         self.components.scenarioChoice.SetSelection(idx)
-        pairwise_enabled, advanced_enabled = cs_gui.SCENARIO_PAIRWISE_ADVANCED[idx]
+        pairwise_enabled, advanced_enabled = GUI.SCENARIO_PAIRWISE_ADVANCED[idx]
         self.enable_disable_widgets(pairwise_enabled, advanced_enabled)
 
         self.components.habitatFile.text = self.options.habitat_file
         self.components.srcTargetFile.text = self.options.point_file
         
-        idx = cs_gui.OPTIONS_POINT_FILE_CONTAINS_POLYGONS.index(self.options.point_file_contains_polygons)
+        idx = GUI.OPTIONS_POINT_FILE_CONTAINS_POLYGONS.index(self.options.point_file_contains_polygons)
         self.components.focalNodeChoice.SetSelection(idx)
             
         self.components.polygonFile.text = self.options.polygon_file
@@ -710,25 +709,25 @@ class cs_gui(model.Background):
         self.components.gndFile.text = self.options.ground_file
         self.components.outFile.text = self.options.output_file
         
-        idx = cs_gui.OPTIONS_HABITAT_MAP_IS_RESISTANCES.index(self.options.habitat_map_is_resistances)
+        idx = GUI.OPTIONS_HABITAT_MAP_IS_RESISTANCES.index(self.options.habitat_map_is_resistances)
         self.components.habResistanceChoice.SetSelection(idx)
 
-        idx = cs_gui.OPTIONS_GROUND_FILE_IS_RESISTANCES.index(self.options.ground_file_is_resistances)
+        idx = GUI.OPTIONS_GROUND_FILE_IS_RESISTANCES.index(self.options.ground_file_is_resistances)
         self.components.gndResistanceChoice.SetSelection(idx)
 
-        idx = cs_gui.OPTIONS_CONNECT_FOUR_NEIGHBORS_ONLY.index(self.options.connect_four_neighbors_only)
+        idx = GUI.OPTIONS_CONNECT_FOUR_NEIGHBORS_ONLY.index(self.options.connect_four_neighbors_only)
         self.components.connSchemeChoice.SetSelection(idx)
             
-        idx = cs_gui.OPTIONS_CONNECT_USING_AVG_RESISTANCES.index(self.options.connect_using_avg_resistances)
+        idx = GUI.OPTIONS_CONNECT_USING_AVG_RESISTANCES.index(self.options.connect_using_avg_resistances)
         self.components.connCalcChoice.SetSelection(idx)
         
-        idx = cs_gui.OPTIONS_LOG_LEVEL.index(self.options.log_level)
+        idx = GUI.OPTIONS_LOG_LEVEL.index(self.options.log_level)
         self.components.logLevelChoice.SetSelection(idx)
-        if cs_gui.logger != None:
-            cs_gui.logger.setLevel(getattr(logging, self.options.log_level.upper()))
+        if GUI.logger != None:
+            GUI.logger.setLevel(getattr(logging, self.options.log_level.upper()))
 
-        if cs_gui.log_handler != None:
-            cs_gui.log_handler.setLevel(getattr(logging, self.options.log_level.upper()))
+        if GUI.log_handler != None:
+            GUI.log_handler.setLevel(getattr(logging, self.options.log_level.upper()))
 
         self.components.parallelSpin.value = self.components.parallelSpin.max = 1
         if sys.platform.startswith('win'):
@@ -811,14 +810,14 @@ class cs_gui(model.Background):
 
         self.components.parallelSpin.enabled = is_pairwise_scenario
 
-        foreColor = cs_gui.COLOR_ENABLED if pairwiseEnabled else cs_gui.COLOR_DISABLED
+        foreColor = GUI.COLOR_ENABLED if pairwiseEnabled else GUI.COLOR_DISABLED
         self.components.pairwiseOptionsTitle.foregroundColor    = \
             self.components.srcTargetFileText.foregroundColor       = foreColor
         
-        foreColor = cs_gui.COLOR_ENABLED if is_pairwise_scenario else cs_gui.COLOR_DISABLED
+        foreColor = GUI.COLOR_ENABLED if is_pairwise_scenario else GUI.COLOR_DISABLED
         self.components.parallelizeText.foregroundColor = foreColor
                     
-        foreColor = cs_gui.COLOR_ENABLED if advancedEnabled else cs_gui.COLOR_DISABLED
+        foreColor = GUI.COLOR_ENABLED if advancedEnabled else GUI.COLOR_DISABLED
         self.components.gndFileText.foregroundColor             = \
             self.components.advancedOptionsTitle.foregroundColor    = \
             self.components.srcFileText.foregroundColor             = foreColor
@@ -863,7 +862,7 @@ def get_packaged_resource(filename):
     return res_path
     
 def show_gui():
-    app = model.Application(cs_gui, rsrc=CS_GUI_RSRC)
+    app = model.Application(GUI, rsrc=GUI_RSRC)
     app.MainLoop()
                 
 if __name__ == '__main__':

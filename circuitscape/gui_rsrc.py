@@ -1,4 +1,4 @@
-CS_GUI_RSRC = {'application':{'type':'Application',
+GUI_RSRC = {'application':{'type':'Application',
           'name':'Minimal',
     'backgrounds': [
     {'type':'Background',
