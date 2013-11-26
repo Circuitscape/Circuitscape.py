@@ -88,6 +88,16 @@ def test_network_sg(ut, test_name):
         compare_results(ut, test_name, 'branch_currents_0_1.txt', False)
 
 
+def test_network_mg(ut, test_name):
+    cs = load_config(test_name)
+        
+    _voltages = cs.compute()
+
+    compare_results(ut, test_name, 'node_currents.txt', False)
+    compare_results(ut, test_name, 'voltages.txt', False)
+    compare_results(ut, test_name, 'branch_currents.txt', False)
+
+
 def test_one_to_all(ut, test_name):
     cs = load_config(test_name)
 
@@ -136,7 +146,11 @@ class cs_verify(unittest.TestCase):
         # Baseline test case generated with verify\4\cellmap5x5 and points5x5
         # Settings: conductances/8N with resulting baseline graph converted to resistances.  
         test_network_sg(self, 'sgNetworkVerify3') 
-         
+
+    def test_network_multiple_ground_1(self):
+        # Simple test with one source and one ground
+        test_network_mg(self, 'mgNetworkVerify1') 
+        
     def test_single_ground_all_pairs_resistances_1(self):
         test_sg(self, 'sgVerify1') 
  
