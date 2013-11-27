@@ -1,5 +1,3 @@
-<img src="images/image15.jpg" alt="Ciucuitscape Icon" width="100px"/>
-
 #CIRCUITSCAPE User Guide 
 
 **Brad McRae and Viral Shah**
@@ -7,20 +5,16 @@
 **Version 4.0 - Updated November 26, 2013**
 
 ***How to cite this document:***
-<br/>McRae, B.H., and Shah, V.B.  2009\.  Circuitscape User Guide.  ONLINE.  The
-University of California, Santa Barbara.  Available at:
-http://www.circuitscape.org.
+<br/>McRae, B.H., and Shah, V.B.  2009\.  Circuitscape User Guide.  ONLINE.
+The University of California, Santa Barbara. Available at: http://www.circuitscape.org.
 
-**First time users:**
-
-Please see the section on memory management before running large grids (> 1
-million cells).
+**First time users:** Please see the section on memory management before running large grids (> 1 million cells).
 
 #1. Introduction
 
 Circuitscape is an open-source program that uses circuit theory to predict
 connectivity in heterogeneous landscapes for individual movement, gene flow,
-and conservation planning.  Circuit theory complements common analytic
+and conservation planning. Circuit theory complements common analytic
 connectivity models because of its theoretical basis in random walk theory and
 its ability to evaluate contributions of multiple dispersal pathways.
 Landscapes are represented as conductive surfaces, with low resistances
@@ -42,15 +36,15 @@ results. Defining areas to connect, parameterizing resistance models, and
 other modeling decisions you will need to make are not trivial. Before diving
 in, we strongly recommend that users first acquaint themselves with the
 process and challenges of connectivity modeling by consulting published
-resources. Good places to start include overviews on the [Corridor
-Design](http://www.corridordesign.org/) and [Connecting
-Landscapes](http://connectinglandscapes.org/) websites. Spear et al. (2010),
-Beier et al. (2011) and Zeller et al. (2012) also offer helpful advice on
-resistance mapping and connectivity analysis in general.
+resources. Good places to start include overviews on the 
+[Corridor Design](http://www.corridordesign.org/) and 
+[Connecting Landscapes](http://connectinglandscapes.org/) websites. 
+Spear et al. (2010), Beier et al. (2011) and Zeller et al. (2012) also 
+offer helpful advice on resistance mapping and connectivity analysis in general.
 
-Circuitscape can now be called directly from an **ArcGIS toolbox**. Look for it
-on the [downloads
-page](https://code.google.com/p/circuitscape/downloads/list).
+Circuitscape can now be called directly from an **ArcGIS toolbox**. 
+Look for it on the 
+[downloads page](https://code.google.com/p/circuitscape/downloads/list).
 
 Lastly, users interested in mapping important connectivity areas may wish to
 consider [Linkage Mapper](https://code.google.com/p/linkage-mapper/), which
@@ -61,7 +55,7 @@ Linkage Mapper toolkit).
 ##How Circuitscape Works
 
 Circuitscape may be called through its graphical user interface (above), from
-an ArcGIS toolbox, or from the command line.  Users supply the program with a
+an ArcGIS toolbox, or from the command line. Users supply the program with a
 raster habitat map, which is either coded in resistances (with higher values
 denoting greater resistance to movement) or conductances (the reciprocal of
 resistance; higher values indicate greater ease of movement).
@@ -157,7 +151,6 @@ The all-to-one mode is similar, with arrow directions reversed; that is, one
 node is connected to ground while the remaining nodes are connected to 1-amp
 current sources.
 
-* * *
 
 ### How Circuitscape works in the advanced mode:
 
