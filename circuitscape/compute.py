@@ -145,6 +145,7 @@ class Compute(ComputeBase):
             Compute.logger.info('Calling solver module.')
             g_habitat = HabitatGraph(g_map=self.state.g_map, poly_map=self.state.poly_map, connect_using_avg_resistances=self.options.connect_using_avg_resistances, connect_four_neighbors_only=self.options.connect_four_neighbors_only)
             out = Output(self.options, self.state, False)
+            Compute.logger.debug('Graph has ' + str(g_habitat.num_nodes) + ' nodes and '+ str(g_habitat.num_components)+ ' components.')
             voltages, _current_map, solver_failed = self.advanced_module(g_habitat, out, self.state.source_map, self.state.ground_map)
             self.log_complete_job()
             if solver_failed == True:
@@ -216,8 +217,9 @@ class Compute(ComputeBase):
             Compute.logger.debug('Graph has ' + str(g_habitat.num_nodes) + ' nodes and '+ str(g_habitat.num_components) + ' components.')
             component_with_points = g_habitat.unique_component_with_points(unique_point_map)
         else:
-            g_habitat = HabitatGraph(g_map=g_map, poly_map=poly_map, connect_using_avg_resistances=self.options.connect_using_avg_resistances, connect_four_neighbors_only=self.options.connect_four_neighbors_only)
-            Compute.logger.debug('Graph has ' + str(g_habitat.num_nodes) + ' nodes and '+ str(g_habitat.num_components) + ' components.')
+            if Compute.logger.isEnabledFor(logging.DEBUG):
+                g_habitat = HabitatGraph(g_map=g_map, poly_map=poly_map, connect_using_avg_resistances=self.options.connect_using_avg_resistances, connect_four_neighbors_only=self.options.connect_four_neighbors_only)
+                Compute.logger.debug('Graph has ' + str(g_habitat.num_nodes) + ' nodes and '+ str(g_habitat.num_components) + ' components.')
             component_with_points = None
 
         for pt_idx in range(0, point_ids.size): # These are the 'src' nodes, pt_idx.e. the 'one' in all-to-one and one-to-all
@@ -285,7 +287,7 @@ class Compute(ComputeBase):
             (hours,mins,_secs) = ComputeBase.elapsed_time(last_write_time)
             if mins > 2 or hours > 0: 
                 last_write_time = time.time()
-                CSIO.write_resistances_one_to_all(self.options.output_file, resistance_vector, '_incomplete', self.options.scenario)
+                CSIO.write_resistances(self.options.output_file, resistance_vector, incomplete=True)
       
         if not solver_failed_somewhere:
             if self.options.write_cur_maps:
@@ -293,7 +295,7 @@ class Compute(ComputeBase):
                 if self.options.write_max_cur_maps:
                     out.write_c_map('max', True)
 
-        CSIO.write_resistances_one_to_all(self.options.output_file, resistance_vector, '', self.options.scenario)
+        CSIO.write_resistances(self.options.output_file, resistance_vector)
        
         return resistance_vector, solver_failed_somewhere 
 
@@ -519,7 +521,7 @@ class Compute(ComputeBase):
             (hours,mins,_secs) = ComputeBase.elapsed_time(last_write_time)
             if mins > 2 or hours > 0: 
                 last_write_time = time.time()
-                CSIO.save_incomplete_resistances(options.output_file, resistances)# Save incomplete resistances    
+                CSIO.write_resistances(options.output_file, resistances, incomplete=True)# Save incomplete resistances    
 
         self.state.del_amg_hierarchy()
 
@@ -622,23 +624,20 @@ class Compute(ComputeBase):
         return voltages
 
     @print_rusage
-    def advanced_module(self, g_habitat, cs, source_map, ground_map, source_id=None, component_with_points=None):
+    def advanced_module(self, g_habitat, out, source_map, ground_map, source_id=None, component_with_points=None):
         solver_called = False
         solver_failed = False
          
-        if self.options.scenario=='advanced':
-            Compute.logger.debug('Graph has ' + str(g_habitat.num_nodes) + ' nodes and '+ str(g_habitat.num_components)+ ' components.')
-
         if component_with_points != None:
             G = g_habitat.get_graph()
             G = ComputeBase.laplacian(G)
             node_map = g_habitat.node_map
         
         vc_map_id = '' if source_id==None else str(source_id)
-        cs.alloc_v_map(vc_map_id)
+        out.alloc_v_map(vc_map_id)
         
         if self.options.write_cur_maps:
-            cs.alloc_c_map(vc_map_id)
+            out.alloc_c_map(vc_map_id)
             
         for comp in range(1, g_habitat.num_components+1):
             if (component_with_points != None) and (comp != component_with_points):
@@ -656,9 +655,11 @@ class Compute(ComputeBase):
                 (rows, cols) = np.where(local_source_map)
                 values = local_source_map[rows,cols]
                 local_sources_rc = np.c_[values,rows,cols]
+                
                 (rows, cols) = np.where(local_ground_map)
                 values = local_ground_map[rows,cols]
                 local_grounds_rc = np.c_[values,rows,cols]
+                
                 del rows, cols, values, local_source_map, local_ground_map 
 
                 if component_with_points == None:
@@ -672,14 +673,14 @@ class Compute(ComputeBase):
                 num_local_grounds = local_grounds_rc.shape[0]
 
                 for source in range(0, num_local_sources):
-                    src = self.grid_to_graph (local_sources_rc[source,1], local_sources_rc[source,2], node_map)
+                    src = self.grid_to_graph(local_sources_rc[source,1], local_sources_rc[source,2], node_map)
                     # Possible to have more than one source at a node when there are polygons
-                    sources[src] = sources[src] + local_sources_rc[source,0] 
+                    sources[src] += local_sources_rc[source,0] 
 
                 for ground in range(0, num_local_grounds):
                     gnd = self.grid_to_graph (local_grounds_rc[ground,1], local_grounds_rc[ground,2], node_map)
                     # Possible to have more than one ground at a node when there are polygons
-                    grounds[gnd] = grounds[gnd] + local_grounds_rc[ground,0] 
+                    grounds[gnd] += local_grounds_rc[ground,0] 
 
                 (sources, grounds, finitegrounds) = self.resolve_conflicts(sources, grounds)
 
@@ -696,32 +697,32 @@ class Compute(ComputeBase):
                 if solver_failed==False:
                     ##Voltage and current mapping are cumulative, since there may be independent components.
                     if self.options.write_volt_maps or (self.options.scenario=='one-to-all'):
-                        cs.accumulate_v_map(vc_map_id, voltages, node_map)
+                        out.accumulate_v_map(vc_map_id, voltages, node_map)
                         
                     if self.options.write_cur_maps:
-                        cs.accumulate_c_map(vc_map_id, voltages, G, node_map, finitegrounds, None, None)
+                        out.accumulate_c_map(vc_map_id, voltages, G, node_map, finitegrounds, None, None)
         
-        if solver_failed==False:
-            cs.write_v_map(vc_map_id)
+        if solver_failed==False and self.options.write_volt_maps:
+            out.write_v_map(vc_map_id)
             
         if ((source_id == None) and self.options.write_cur_maps) or ((source_id != None) and (self.options.write_cum_cur_map_only==False)):
-            cs.write_c_map(vc_map_id)
+            out.write_c_map(vc_map_id)
             
         if self.options.scenario=='one-to-all':
             if solver_failed==False:
                 (row, col) = np.where(source_map>0)
-                vmap = cs.get_v_map(vc_map_id)
+                vmap = out.get_v_map(vc_map_id)
                 voltages = vmap[row,col]/source_map[row,col] #allows for variable source strength
         elif self.options.scenario=='all-to-one':
             if solver_failed==False:
                 voltages = 0 #return 0 voltage/resistance for all-to-one mode           
 
-        cs.rm_v_map(vc_map_id)
+        out.rm_v_map(vc_map_id)
         # Advanced mode will return voltages of the last component solved only for verification purposes.  
         if solver_called==False:
             voltages = -1
 
-        return voltages, cs.get_c_map(vc_map_id, True), solver_failed
+        return voltages, out.get_c_map(vc_map_id, True), solver_failed
 
         
     def resolve_conflicts(self, sources, grounds):
@@ -752,13 +753,10 @@ class Compute(ComputeBase):
     @print_rusage
     def multiple_solver(self, G, sources, grounds, finitegrounds):
         """Solver used for advanced mode."""  
-        if finitegrounds[0]==-9999:#Fixme: no need to do this, right?
-            finitegrounds = np.zeros(G.shape[0], dtype='int32') #create dummy vector for pairwise case
-            Gsolve = G + sparse.spdiags(finitegrounds.T, 0, G.shape[0], G.shape[0]) 
-            finitegrounds = [-9999]
-        else:
-            Gsolve = G + sparse.spdiags(finitegrounds.T, 0, G.shape[0], G.shape[0]) 
-           
+        Gsolve = G
+        if finitegrounds[0] != -9999:
+            Gsolve = G + sparse.spdiags(finitegrounds.T, 0, G.shape[0], G.shape[0])
+        
         ##remove infinite grounds from graph
         infgroundlist = np.where(grounds==np.Inf)
         infgroundlist = infgroundlist[0]

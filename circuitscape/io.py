@@ -514,17 +514,6 @@ class CSIO:
 
 
     @staticmethod
-    def save_incomplete_resistances(outfile_template, resistances):
-        """Saves resistances from ongoing calculations.  
-        
-        Helpful for debugging or recovering partial results after crash or user abort.
-        """  
-        out_base, out_ext = os.path.splitext(outfile_template)
-        out_file = out_base + '_resistances_incomplete' + out_ext
-        np.savetxt(out_file, resistances)
-        return
-
-    @staticmethod
     def write_resistances_3columns(outfile_template, resistances_3columns):    
         """Writes effective resistances to disk in 3 column format."""  
         out_base, out_ext = os.path.splitext(outfile_template)
@@ -533,29 +522,14 @@ class CSIO:
         return         
 
     @staticmethod
-    def write_resistances_one_to_all(outfile_template, resistances, string, scenario):
-        """Saves effective resistances from one-to-all calculations to disk."""
-        out_base, out_extn = os.path.splitext(outfile_template)
-        out_file = out_base + ('_resistances' if (scenario == 'one-to-all') else '_results') + string + out_extn
-        np.savetxt(out_file, resistances) 
-        
-        #remove partial result file        
-        if string=='':
-            old_file = out_base + ('_resistances_incomplete' if (scenario == 'one-to-all') else '_results_incomplete') + string + out_extn
-            try:
-                os.remove(old_file)
-            except:
-                pass 
-        return
-
-    @staticmethod
-    def write_resistances(outfile_template, resistances, resistances_3columns):
+    def write_resistances(outfile_template, resistances, resistances_3columns=None, incomplete=False):
         """Writes resistance file to disk."""
         out_base, out_extn = os.path.splitext(outfile_template)
-        out_file = out_base + '_resistances' + out_extn
+        out_file = out_base + '_resistances' + ('_incomplete' if incomplete else '') + out_extn
         np.savetxt(out_file, resistances)
         
-        CSIO.write_resistances_3columns(outfile_template, resistances_3columns)
+        if resistances_3columns != None:
+            CSIO.write_resistances_3columns(outfile_template, resistances_3columns)
         
         #remove partial result file        
         old_file = out_base + '_resistances_incomplete' + out_extn
