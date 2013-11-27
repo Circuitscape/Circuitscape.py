@@ -525,20 +525,13 @@ will not be analyzed.  Focal node 5 will be dropped entirely:
 
 ````
 min        2
-
 max        50
-
-0        1        2        3        4        5  
-
-1        0        100        6.67        7        1  
-
-2        100        0        11        1        60
-
-3        6.67        11        0        -1        100  
-
-4        7        1        -1        0        0
-
-5        1        60        100        0        0
+0      1      2      3       4      5  
+1      0      100    6.67    7      1  
+2      100    0      11      1      60
+3      6.67   11     0      -1      100  
+4      7      1      -1      0      0
+5      1      60     100     0      0
 ````
 
 This affects all modes except the Advanced Mode.  Files should be in tab-
@@ -627,16 +620,16 @@ xllcorner     1
 yllcorner     1
 cellsize      1
 NODATA_value  -9999
-130      168      153      -9999      14      12      13       107      140      171
-104      3        2        -9999      13      158     12       14       13       114
-124      2        2        12       -9999     -9999   13       161      4        5
-184      5        4        14       13        14      -9999    13       4        4
-105      143      103      169      -9999     115     10       -9999    166      14
-187      1        163      188      121      142      14       175      -9999    10
-198      11       110      115      149      2        2        164      3        -9999
-100      11       193      14       12       4        2        1        11       13
--9999    11       12       11       10       12       167      157      181      157
--9999    -9999    122      134      12       157      192      184      190      172
+130      168      153      -9999    14       12      13       107      140      171
+104      3        2        -9999    13       158     12       14       13       114
+124      2        2        12       -9999    -9999   13       161      4        5
+184      5        4        14       13       14      -9999    13       4        4
+105      143      103      169      -9999    115     10       -9999    166      14
+187      1        163      188      121      142     14       175      -9999    10
+198      11       110      115      149      2       2        164      3        -9999
+100      11       193      14       12       4       2        1        11       13
+-9999    11       12       11       10       12      167      157      181      157
+-9999    -9999    122      134      12       157     192      184      190      172
 ````
 
 Below is a 10 x 10 focal region map.  Here, habitat cells with very low
@@ -649,36 +642,21 @@ the short-circuit region file format.
 
 ````
 ncols                10
-
 nrows                10
-
 xllcorner            1
-
 yllcorner            1
-
 cellsize             1
-
 NODATA_value -9999
-
--9999         -9999         -9999         -9999         -9999         -9999         -9999         -9999         -9999         -9999
-
--9999         1             1             -9999         -9999         -9999         -9999         -9999         -9999         -9999
-
--9999         1             1             -9999         -9999         -9999         -9999         -9999         3             3
-
--9999         1             1             -9999         -9999         -9999         -9999         -9999         3             3
-
--9999         -9999         -9999         -9999         -9999         -9999         -9999         -9999         -9999         -9999
-
--9999         1             -9999         -9999         -9999         -9999         -9999         -9999         -9999         -9999
-
--9999         -9999         -9999         -9999          2             2            -9999         -9999         -9999         -9999
-
--9999         -9999         -9999         -9999          2             2             2            -9999         -9999         -9999
-
--9999         -9999         -9999         -9999         -9999         -9999         -9999         -9999         -9999         -9999
-
--9999         -9999         -9999         -9999         -9999         -9999         -9999         -9999         -9999         -9999
+-9999  -9999  -9999  -9999  -9999  -9999  -9999  -9999  -9999  -9999
+-9999  1      1      -9999  -9999  -9999  -9999  -9999  -9999  -9999
+-9999  1      1      -9999  -9999  -9999  -9999  -9999  3      3
+-9999  1      1      -9999  -9999  -9999  -9999  -9999  3      3
+-9999  -9999  -9999  -9999  -9999  -9999  -9999  -9999  -9999  -9999
+-9999  1      -9999  -9999  -9999  -9999  -9999  -9999  -9999  -9999
+-9999  -9999  -9999  -9999   2      2     -9999  -9999  -9999  -9999
+-9999  -9999  -9999  -9999   2      2      2     -9999  -9999  -9999
+-9999  -9999  -9999  -9999  -9999  -9999  -9999  -9999  -9999  -9999
+-9999  -9999  -9999  -9999  -9999  -9999  -9999  -9999  -9999   -9999
 ````
 
 Note that regions 1 and 2 are well-connected by a low-resistance corridor in
@@ -694,9 +672,7 @@ text list, a value and X and Y coordinates are specified as shown below.
 
 ````
     Value1 X1 Y1
-
     Value2 X2 Y2
-
     …
 ````   
 
@@ -706,23 +682,14 @@ Example text list (a partial list of the cell locations in the focal region
 map above; coordinates are for cell centroids):
 
 ````
-
     1    2.5    9.5
-
     1    3.5    9.5
-
     1    2.5    8.5
-
     1    3.5    8.5
-
     1    2.5    7.5  
-
     1    3.5    7.5
-
     1    2.5    5.5
-
     2    6.5    4.5
-
     …
 ````
 
@@ -738,38 +705,35 @@ Here are pairwise resistances written to the output directory for the eight
 neighbor case (using per-cell resistances and average resistances for cell
 connection calculations; this can be replicated by loading
 eight_neighbor_example.ini from the examples directory).  The first row and
-column contain the focal node ID's:
+column contain the focal node IDs:
 
-      0\.           1\.                       2\.                       3\.      
-
-      1\.           0\.                      11.93688471      15.03634473
-
-      2\.          11.93688471      0\.                       11.57640568
-
-      3\.          15.03634473      11.57640568      0\.      
+````
+  0\.          1\.          2\.          3\.  
+  1\.          0\.          11.93688471  15.03634473
+  2\.          11.93688471  0\.          11.57640568
+  3\.          15.03634473  11.57640568  0\.  
+````
 
 Here are pairwise resistances written to the output directory for the four
 neighbor case, in which focal node 3 was completely isolated (-1 indicates
 infinite resistance):
 
-      0\.          1\.                               2\.                         3\.      
-
-      1\.          0\.                           33.55792693             -1
-
-      2\.          33.55792693           0\.                         -1
-
-      3\.          -1                                    -1                         0\.      
+````
+  0\.          1\.          2\.          3\.  
+  1\.          0\.          33.55792693  -1
+  2\.          33.55792693  0\ .         -1
+  3\.          -1           -1           0\.      
+````
 
 For convenience, resistances are also written to a separate file in a 3-column
 format, e.g.:
 
-      1.          2\.          33.55792693           
-
-      1\.      3.        -1
-
-      2\.      3.        -1
-
-        
+````
+  1.      2.       33.55792693           
+  1.      3.       -1
+  2.      3.       -1
+````
+     
 
 
 
