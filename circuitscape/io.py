@@ -185,15 +185,16 @@ class CSIO:
     @staticmethod
     def read_point_strengths(filename):
         """Reads list of variable source strengths from disk.
-        
         This code also used for reading file for reclassifying input data.
         """
         CSIO._check_file_exists(filename)
         try:
             point_strengths = np.loadtxt(filename)
+            if len(point_strengths.shape) == 1:
+                point_strengths = np.array([point_strengths])
         except ValueError:
             raise RuntimeError('Error reading focal node source strength list. Please check file format.')                
-           
+        
         i = np.argsort(point_strengths[:,0])
         return point_strengths[i]
     
@@ -549,7 +550,7 @@ class CSIO:
         
         if fileadd != '':
             fileadd = ('_' + fileadd)
-        if branch_currents!=None:
+        if branch_currents != None:
             filename = out_base + '_branch_currents' + fileadd + '.txt'
             np.savetxt(filename, branch_currents)
         filename = out_base + '_node_currents' + fileadd + '.txt'

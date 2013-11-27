@@ -19,11 +19,11 @@ class Compute(ComputeBase):
     def compute(self):
         """Main function for Circuitscape."""  
         # Code below provides a back door to network mode, because not incorporated into GUI yet
-        if self.options.polygon_file == 'NETWORK': 
-            self.options.data_type='network' #can also be set in .ini file
-        if self.options.data_type=='network': 
-            self.options.graph_file = self.options.habitat_file
-            self.options.focal_node_file = self.options.point_file
+#         if self.options.polygon_file == 'NETWORK': 
+#             self.options.data_type='network' #can also be set in .ini file
+#         if self.options.data_type=='network': 
+#             self.options.graph_file = self.options.habitat_file
+#             self.options.focal_node_file = self.options.point_file
 
         self.state.start_time = time.time()
 
@@ -41,22 +41,41 @@ class Compute(ComputeBase):
     @print_rusage
     def compute_network(self): 
         """Solves arbitrary graphs instead of raster grids."""
-        (g_graph, node_names) = self.read_graph(self.options.graph_file)
-        focal_nodes = self.read_focal_nodes(self.options.focal_node_file)
+        (g_graph, node_names) = self.read_graph(self.options.habitat_file)
+        
+        fp = None
+        if self.options.scenario == 'pairwise':
+            focal_nodes = self.read_focal_nodes(self.options.point_file)
+            fp = FocalPoints(focal_nodes, self.state.included_pairs, True)
+        elif self.options.scenario == 'advanced':
+            self.state.source_map = CSIO.read_point_strengths(self.options.source_file)
+            self.state.ground_map = CSIO.read_point_strengths(self.options.ground_file)
         
         if self.options.use_included_pairs==True:
             self.state.included_pairs = CSIO.read_included_pairs(self.options.included_pairs_file)
         
-        fp = FocalPoints(focal_nodes, self.state.included_pairs, True)
         g_habitat = HabitatGraph(g_graph=g_graph, node_names=node_names)
         out = Output(self.options, self.state, False, (g_habitat.num_nodes, g_habitat.num_nodes))
         if self.options.write_cur_maps:
             out.alloc_c_map('')
         
-        (resistances, solver_failed) = self.single_ground_all_pair_resistances(g_habitat, fp, out, True)
-        _resistances, resistances_3col = self.write_resistances(fp.point_ids, resistances)
+        Compute.logger.info('Calling solver module.')
+        Compute.logger.debug('Graph has ' + str(g_habitat.num_nodes) + ' nodes and '+ str(g_habitat.num_components)+ ' components.')
+        if self.options.scenario == 'pairwise':
+            (resistances, solver_failed) = self.single_ground_all_pair_resistances(g_habitat, fp, out, True)
+            full_branch_currents, full_node_currents, _bca, _np = out.get_c_map('')            
+            _resistances, resistances_3col = self.write_resistances(fp.point_ids, resistances)
+            result1 = resistances_3col
+        elif self.options.scenario == 'advanced':
+            self.options.write_max_cur_maps = False
+            voltages, current_map, solver_failed = self.advanced_module(g_habitat, out, self.state.source_map, self.state.ground_map)
+            full_branch_currents, full_node_currents, _bca, _np = current_map
+            result1 = voltages
+            
+        if solver_failed == True:
+            Compute.logger.error('Solver failed')
+            
         if self.options.write_cur_maps:
-            full_branch_currents, full_node_currents, _bca, _np = out.get_c_map('')
             full_branch_currents = Output._convert_graph_to_3_col(full_branch_currents, node_names)
             full_node_currents = Output._append_names_to_node_currents(full_node_currents, node_names)
 
@@ -68,7 +87,7 @@ class Compute(ComputeBase):
 
             CSIO.write_currents(self.options.output_file, full_branch_currents, full_node_currents, '')
             
-        return resistances_3col, solver_failed
+        return result1, solver_failed
 
     @gc_after
     def read_graph(self, filename):
@@ -120,7 +139,7 @@ class Compute(ComputeBase):
         """Loads list of focal nodes for arbitrary graph."""  
         focal_nodes = CSIO.load_graph(filename)
         try:    
-            if filename == self.options.graph_file:#If graph was used as focal node file, then just want first two columns for focal_nodes.
+            if filename == self.options.habitat_file:#If graph was used as focal node file, then just want first two columns for focal_nodes.
                 focal_nodes = ComputeBase.deletecol(focal_nodes, 2)
             focal_nodes = np.unique(np.asarray(focal_nodes))
         except:
@@ -276,7 +295,7 @@ class Compute(ComputeBase):
                         if self.options.write_max_cur_maps:    
                             out.store_max_c_map_values('max', current_map)
                 else:
-                    Compute.logger.warning('Solver failed for at least one focal node.  \nFocal nodes with failed solves will be marked with value of -777 \nin output resistance list.\n')
+                    Compute.logger.warning('Solver failed for at least one focal node. Focal nodes with failed solves will be marked with value of -777 in output resistance list.')
     
                 resistance_vector[pt_idx,0] = src
                 resistance_vector[pt_idx,1] = resistance
@@ -627,7 +646,7 @@ class Compute(ComputeBase):
     def advanced_module(self, g_habitat, out, source_map, ground_map, source_id=None, component_with_points=None):
         solver_called = False
         solver_failed = False
-         
+        node_map = None 
         if component_with_points != None:
             G = g_habitat.get_graph()
             G = ComputeBase.laplacian(G)
@@ -643,15 +662,37 @@ class Compute(ComputeBase):
             if (component_with_points != None) and (comp != component_with_points):
                 continue
 
-            c_map = np.where(g_habitat.component_map == comp, 1, 0)
-            local_source_map = np.multiply(c_map, source_map)
-            local_ground_map = np.where(c_map, ground_map, 0) 
-            del c_map
+            if self.options.data_type == 'raster':
+                c_map = np.where(g_habitat.component_map == comp, 1, 0)
+                local_source_map = np.multiply(c_map, source_map)
+                local_ground_map = np.where(c_map, ground_map, 0) 
+                del c_map
+                have_sources = (np.where(local_source_map, 1, 0)).sum() > 0
+                have_grounds = (np.where(local_ground_map, 1, 0)).sum() > 0
+            else:
+                c_map = np.where(g_habitat.components == comp, 1, 0)
+                sources = np.zeros(g_habitat.num_nodes)
+                for idx in range(0, source_map.shape[0]):
+                    sources = np.where(g_habitat.node_map == source_map[idx,0], source_map[idx,1], sources)
+                grounds = -9999 * np.ones(g_habitat.num_nodes)
+                for idx in range(0, ground_map.shape[0]):
+                    grounds = np.where(g_habitat.node_map == ground_map[idx,0], ground_map[idx,1], grounds)
+                if self.options.ground_file_is_resistances:
+                    _grounds = 1 / grounds
+                    grounds = np.where(grounds == -9999, 0, _grounds)
+                else:
+                    grounds = np.where(grounds == -9999, 0, grounds)
+                have_sources = (np.where(sources, 1, 0)).sum() > 0
+                have_grounds = (np.where(grounds, 1, 0)).sum() > 0
             
-            source_in_component = (np.where(local_source_map, 1, 0)).sum() > 0
-            ground_in_component = (np.where(local_ground_map, 1, 0)).sum() > 0
+            if not (have_sources and have_grounds):
+                continue
             
-            if (source_in_component) & (ground_in_component):
+            if component_with_points == None:
+                (G, node_map) = g_habitat.prune_nodes_for_component(comp)
+                G = ComputeBase.laplacian(G)
+                
+            if self.options.data_type == 'raster':
                 (rows, cols) = np.where(local_source_map)
                 values = local_source_map[rows,cols]
                 local_sources_rc = np.c_[values,rows,cols]
@@ -661,52 +702,48 @@ class Compute(ComputeBase):
                 local_grounds_rc = np.c_[values,rows,cols]
                 
                 del rows, cols, values, local_source_map, local_ground_map 
-
-                if component_with_points == None:
-                    (G, node_map) = g_habitat.prune_nodes_for_component(comp)
-                    G = ComputeBase.laplacian(G)
-
+    
                 numnodes = node_map.max()
                 sources = np.zeros(numnodes)
                 grounds = np.zeros(numnodes)
                 num_local_sources = local_sources_rc.shape[0]
                 num_local_grounds = local_grounds_rc.shape[0]
-
+    
                 for source in range(0, num_local_sources):
                     src = self.grid_to_graph(local_sources_rc[source,1], local_sources_rc[source,2], node_map)
                     # Possible to have more than one source at a node when there are polygons
                     sources[src] += local_sources_rc[source,0] 
-
+    
                 for ground in range(0, num_local_grounds):
                     gnd = self.grid_to_graph (local_grounds_rc[ground,1], local_grounds_rc[ground,2], node_map)
                     # Possible to have more than one ground at a node when there are polygons
                     grounds[gnd] += local_grounds_rc[ground,0] 
 
-                (sources, grounds, finitegrounds) = self.resolve_conflicts(sources, grounds)
+            (sources, grounds, finitegrounds) = self.resolve_conflicts(sources, grounds)
 
-                solver_called = True
-                try:
-                    voltages = self.multiple_solver(G, sources, grounds, finitegrounds) 
-                    del sources, grounds
-                except MemoryError:
-                    raise MemoryError
-                except:
-                    voltages = -777
-                    solver_failed = True
+            solver_called = True
+            try:
+                voltages = self.multiple_solver(G, sources, grounds, finitegrounds) 
+                del sources, grounds
+            except MemoryError:
+                raise MemoryError
+            except:
+                voltages = -777
+                solver_failed = True
 
-                if solver_failed==False:
-                    ##Voltage and current mapping are cumulative, since there may be independent components.
-                    if self.options.write_volt_maps or (self.options.scenario=='one-to-all'):
-                        out.accumulate_v_map(vc_map_id, voltages, node_map)
-                        
-                    if self.options.write_cur_maps:
-                        out.accumulate_c_map(vc_map_id, voltages, G, node_map, finitegrounds, None, None)
+            if solver_failed==False:
+                ##Voltage and current mapping are cumulative, since there may be independent components.
+                if self.options.write_volt_maps or (self.options.scenario=='one-to-all'):
+                    out.accumulate_v_map(vc_map_id, voltages, node_map)
+                    
+                if self.options.write_cur_maps:
+                    out.accumulate_c_map(vc_map_id, voltages, G, node_map, finitegrounds, None, None)
         
         if solver_failed==False and self.options.write_volt_maps:
             out.write_v_map(vc_map_id)
             
         if ((source_id == None) and self.options.write_cur_maps) or ((source_id != None) and (self.options.write_cum_cur_map_only==False)):
-            out.write_c_map(vc_map_id)
+            out.write_c_map(vc_map_id, node_map=node_map)
             
         if self.options.scenario=='one-to-all':
             if solver_failed==False:

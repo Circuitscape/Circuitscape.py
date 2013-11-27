@@ -457,7 +457,10 @@ class HabitatGraph:
             self.num_nodes = self.node_map.size
     
     def get_graph(self):
-        return HabitatGraph._construct_g_graph(self.g_map, self.node_map, self.connect_using_avg_resistances, self.connect_four_neighbors_only)
+        if self.is_network:
+            return self.g_graph
+        else:
+            return HabitatGraph._construct_g_graph(self.g_map, self.node_map, self.connect_using_avg_resistances, self.connect_four_neighbors_only)
     
     def prune_nodes_for_component(self, keep_component):
         """Removes nodes outside of component being operated on.
