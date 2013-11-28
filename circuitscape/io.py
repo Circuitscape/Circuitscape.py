@@ -566,7 +566,9 @@ class CSIO:
         output_voltages[:,1] = voltages[:]
 
         out_base, _out_extn = os.path.splitext(outfile_template)
-        filename = out_base + '_voltages_' + fileadd + '.txt'
+        if fileadd != '':
+            fileadd = ('_' + fileadd)
+        filename = out_base + '_voltages' + fileadd + '.txt'
         np.savetxt(filename, output_voltages)      
 
     @staticmethod
