@@ -141,7 +141,7 @@ class CSIO:
             f.write('NODATA_value  ' + str(state.nodata) + '\n')
              
             delimiter = ''
-            fmt = ['%.6f ']*state.ncols 
+            fmt = ['%.10g ']*state.ncols 
             fmt = delimiter.join(fmt)
             fmt += '\n'
             for row in data:
@@ -519,7 +519,7 @@ class CSIO:
         """Writes effective resistances to disk in 3 column format."""  
         out_base, out_ext = os.path.splitext(outfile_template)
         out_file = out_base + '_resistances_3columns' + out_ext
-        np.savetxt(out_file, resistances_3columns)
+        np.savetxt(out_file, resistances_3columns, fmt='%.10g')
         return         
 
     @staticmethod
@@ -527,7 +527,7 @@ class CSIO:
         """Writes resistance file to disk."""
         out_base, out_extn = os.path.splitext(outfile_template)
         out_file = out_base + '_resistances' + ('_incomplete' if incomplete else '') + out_extn
-        np.savetxt(out_file, resistances)
+        np.savetxt(out_file, resistances, fmt='%.10g')
         
         if resistances_3columns != None:
             CSIO.write_resistances_3columns(outfile_template, resistances_3columns)
@@ -552,9 +552,9 @@ class CSIO:
             fileadd = ('_' + fileadd)
         if branch_currents != None:
             filename = out_base + '_branch_currents' + fileadd + '.txt'
-            np.savetxt(filename, branch_currents)
+            np.savetxt(filename, branch_currents, fmt='%.10g')
         filename = out_base + '_node_currents' + fileadd + '.txt'
-        np.savetxt(filename, node_currents)      
+        np.savetxt(filename, node_currents, fmt='%.10g')      
 
     @staticmethod
     @print_rusage
@@ -569,7 +569,7 @@ class CSIO:
         if fileadd != '':
             fileadd = ('_' + fileadd)
         filename = out_base + '_voltages' + fileadd + '.txt'
-        np.savetxt(filename, output_voltages)      
+        np.savetxt(filename, output_voltages, fmt='%.10g')      
 
     @staticmethod
     def match_headers(t_file, match_files):
