@@ -1,17 +1,20 @@
 import os, string, gzip
 import numpy as np
+from scipy import sparse
 from profiler import print_rusage
 
 class CSIO:
     FILE_TYPE_NPY = 1
     FILE_TYPE_AAGRID = 2
     FILE_TYPE_TXTLIST = 3
-    FILE_TYPE_INCL_PAIRS = 4
+    FILE_TYPE_INCL_PAIRS_AAGRID = 4
+    FILE_TYPE_INCL_PAIRS = 5
     
     FILE_HDR_GZIP = '\x1f\x8b\x08'
     FILE_HDR_NPY = '\x93NUMPY'
     FILE_HDR_AAGRID = 'ncols'
-    FILE_HDR_INCL_PAIRS = 'min'
+    FILE_HDR_INCL_PAIRS_AAGRID = 'min'
+    FILE_HDR_INCL_PAIRS = 'mode'
 
     MSG_RESAMPLE = '%s raster has different %s than habitat raster. Circuitscape will try to crudely resample the raster. We recommend using the "Export to Circuitscape" ArcGIS tool to create ASCII grids with compatible cell size and extent.'
     MSG_NO_RESAMPLE = '%s raster must have same %s as habitat raster'
@@ -57,6 +60,8 @@ class CSIO:
             filetype = CSIO.FILE_TYPE_NPY
         elif hdr.startswith(CSIO.FILE_HDR_AAGRID):
             filetype = CSIO.FILE_TYPE_AAGRID
+        elif hdr.startswith(CSIO.FILE_HDR_INCL_PAIRS_AAGRID):
+            filetype = CSIO.FILE_TYPE_INCL_PAIRS_AAGRID
         elif hdr.startswith(CSIO.FILE_HDR_INCL_PAIRS):
             filetype = CSIO.FILE_TYPE_INCL_PAIRS
         else:
@@ -141,7 +146,7 @@ class CSIO:
             f.write('NODATA_value  ' + str(state.nodata) + '\n')
              
             delimiter = ''
-            fmt = ['%.6f ']*state.ncols 
+            fmt = ['%.10g ']*state.ncols 
             fmt = delimiter.join(fmt)
             fmt += '\n'
             for row in data:
@@ -185,15 +190,16 @@ class CSIO:
     @staticmethod
     def read_point_strengths(filename):
         """Reads list of variable source strengths from disk.
-        
         This code also used for reading file for reclassifying input data.
         """
         CSIO._check_file_exists(filename)
         try:
             point_strengths = np.loadtxt(filename)
+            if len(point_strengths.shape) == 1:
+                point_strengths = np.array([point_strengths])
         except ValueError:
             raise RuntimeError('Error reading focal node source strength list. Please check file format.')                
-           
+        
         i = np.argsort(point_strengths[:,0])
         return point_strengths[i]
     
@@ -429,30 +435,39 @@ class CSIO:
         2- or 3-column format would be easier.
         """
         CSIO._check_file_exists(filename)
+        filetype = CSIO._guess_file_type(filename)
         
         try:
-            with open(filename, 'r') as f:
-                minval = string.split(f.readline())[1]
-                maxval = string.split(f.readline())[1]
-                minval = float(minval)
-                maxval = float(maxval)
+            if filetype == CSIO.FILE_TYPE_INCL_PAIRS_AAGRID:
+                with open(filename, 'r') as f:
+                    minval = float(string.split(f.readline())[1])
+                    maxval = float(string.split(f.readline())[1])
+                    
+                included_pairs = np.loadtxt(filename, skiprows=2, dtype='float')
+                point_ids = included_pairs[1:,0]
+                included_pairs = included_pairs[1:, 1:]
+                included_pairs = np.where(included_pairs>maxval, 0, included_pairs)
+                pair_list = np.where(included_pairs >= minval)
+                pair_list = (point_ids[pair_list[0]], point_ids[pair_list[1]])
+                pair_list = np.vstack(pair_list).T
                 
-            included_pairs = np.loadtxt(filename, skiprows=2, dtype='Float64')
-            point_ids = included_pairs[:,0]
-            included_pairs = np.where(included_pairs>maxval, 0, included_pairs)
-            included_pairs = np.where(included_pairs<minval, 0, 1)             
-            included_pairs[:,0] = point_ids
-            included_pairs[0,:] = point_ids
-            included_pairs[0,0] = -1
-            i = np.argsort(included_pairs[:,0])
-            included_pairs = included_pairs[i]
-            included_pairs = included_pairs.T            
-            i = np.argsort(included_pairs[:,0])
-            included_pairs = included_pairs[i] 
-        except:
-            raise RuntimeError('Error reading focal node include/exclude matrix. Please check file format.')                
+                mode = "include"
+            elif filetype == CSIO.FILE_TYPE_INCL_PAIRS:
+                with open(filename, 'r') as f:
+                    mode = string.split(f.readline())[1]
+                pair_list = np.loadtxt(filename, skiprows=1, dtype='int32')
+                point_ids = np.unique(pair_list)
+                
+            I = pair_list[:,0]
+            J = pair_list[:,1]
+            V = np.ones(pair_list.shape[0])
+            max_node = np.max(pair_list)+1
+            included_pairs = sparse.csr_matrix((V, (I, J)), shape=(max_node, max_node))
+        except Exception as ex:
+            CSIO.logger.exception(ex)
+            raise RuntimeError('Error reading focal node include/exclude matrix. Please check file format.')
     
-        return included_pairs
+        return (mode, point_ids, included_pairs)
 
 
     @staticmethod
@@ -514,48 +529,22 @@ class CSIO:
 
 
     @staticmethod
-    def save_incomplete_resistances(outfile_template, resistances):
-        """Saves resistances from ongoing calculations.  
-        
-        Helpful for debugging or recovering partial results after crash or user abort.
-        """  
-        out_base, out_ext = os.path.splitext(outfile_template)
-        out_file = out_base + '_resistances_incomplete' + out_ext
-        np.savetxt(out_file, resistances)
-        return
-
-    @staticmethod
     def write_resistances_3columns(outfile_template, resistances_3columns):    
         """Writes effective resistances to disk in 3 column format."""  
         out_base, out_ext = os.path.splitext(outfile_template)
         out_file = out_base + '_resistances_3columns' + out_ext
-        np.savetxt(out_file, resistances_3columns)
+        np.savetxt(out_file, resistances_3columns, fmt='%.10g')
         return         
 
     @staticmethod
-    def write_resistances_one_to_all(outfile_template, resistances, string, scenario):
-        """Saves effective resistances from one-to-all calculations to disk."""
-        out_base, out_extn = os.path.splitext(outfile_template)
-        out_file = out_base + ('_resistances' if (scenario == 'one-to-all') else '_results') + string + out_extn
-        np.savetxt(out_file, resistances) 
-        
-        #remove partial result file        
-        if string=='':
-            old_file = out_base + ('_resistances_incomplete' if (scenario == 'one-to-all') else '_results_incomplete') + string + out_extn
-            try:
-                os.remove(old_file)
-            except:
-                pass 
-        return
-
-    @staticmethod
-    def write_resistances(outfile_template, resistances, resistances_3columns):
+    def write_resistances(outfile_template, resistances, resistances_3columns=None, incomplete=False):
         """Writes resistance file to disk."""
         out_base, out_extn = os.path.splitext(outfile_template)
-        out_file = out_base + '_resistances' + out_extn
-        np.savetxt(out_file, resistances)
+        out_file = out_base + '_resistances' + ('_incomplete' if incomplete else '') + out_extn
+        np.savetxt(out_file, resistances, fmt='%.10g')
         
-        CSIO.write_resistances_3columns(outfile_template, resistances_3columns)
+        if resistances_3columns != None:
+            CSIO.write_resistances_3columns(outfile_template, resistances_3columns)
         
         #remove partial result file        
         old_file = out_base + '_resistances_incomplete' + out_extn
@@ -575,11 +564,11 @@ class CSIO:
         
         if fileadd != '':
             fileadd = ('_' + fileadd)
-        if branch_currents!=None:
+        if branch_currents != None:
             filename = out_base + '_branch_currents' + fileadd + '.txt'
-            np.savetxt(filename, branch_currents)
+            np.savetxt(filename, branch_currents, fmt='%.10g')
         filename = out_base + '_node_currents' + fileadd + '.txt'
-        np.savetxt(filename, node_currents)      
+        np.savetxt(filename, node_currents, fmt='%.10g')      
 
     @staticmethod
     @print_rusage
@@ -591,8 +580,10 @@ class CSIO:
         output_voltages[:,1] = voltages[:]
 
         out_base, _out_extn = os.path.splitext(outfile_template)
-        filename = out_base + '_voltages_' + fileadd + '.txt'
-        np.savetxt(filename, output_voltages)      
+        if fileadd != '':
+            fileadd = ('_' + fileadd)
+        filename = out_base + '_voltages' + fileadd + '.txt'
+        np.savetxt(filename, output_voltages, fmt='%.10g')      
 
     @staticmethod
     def match_headers(t_file, match_files):

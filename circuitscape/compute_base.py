@@ -1,4 +1,4 @@
-import sys, time, logging
+import sys, time, logging, copy
 import numpy as np
 from scipy.sparse.linalg import cg
 from scipy import sparse
@@ -198,13 +198,38 @@ class ComputeBase(object):
         return newlabel-1+offset
 
 
+class IncludeExcludePairs:
+    """Represents a set of focal points that are to be included/excluded during computation"""
+    def __init__(self, filename):
+        mode, point_ids, mat = CSIO.read_included_pairs(filename)
+        self.is_include = (mode == "include")
+        self.point_ids = point_ids
+        self.mat = mat.tolil()
+        self.max_id = int(np.max(point_ids)) + 1
 
+    def is_included_pair(self, point_id1, point_id2):
+        return (point_id1 < self.max_id) and (point_id2 < self.max_id) and (((self.mat[point_id1, point_id2] + self.mat[point_id2, point_id1]) > 0) == self.is_include)
 
+    def is_included(self, point_id):
+        return (point_id < self.max_id) and (((self.mat[point_id,:].sum() + self.mat[:,point_id].sum()) > 0) == self.is_include)
+    
+    def is_present(self, point_id):
+        return (point_id in self.point_ids)
+    
+    def delete_point(self, point_id):
+        if(point_id < self.max_id):
+            self.mat[point_id, :] = 0
+            self.mat[:, point_id] = 0
+
+    def keep_only_points(self, points):
+        for point_id in range(0, self.max_id):
+            if point_id not in points:
+                self.delete_point(point_id)
 
 class FocalPoints:
     """Represents a set of focal points and associate logic to work with them"""
     def __init__(self, points, included_pairs, is_network):
-        self.included_pairs = included_pairs
+        self.incl_pairs = copy.deepcopy(included_pairs)
         self.is_network = is_network
         if is_network:
             # network mode
@@ -219,49 +244,34 @@ class FocalPoints:
             self._prune_included_pairs()
             self.point_ids = self._get_point_ids()            
 
-    
     def _prune_included_pairs(self):
         """Remove excluded points from focal node list when using extra file that lists pairs to include/exclude."""
-        
-        if self.included_pairs == None:
+        if self.incl_pairs == None:
             return
-        
-        include_list = list(self.included_pairs[0,:])
-        point = 0
+
+        idx = 0
         _drop_flag = False
         
         if self.is_network:
-            while point < self.point_ids.size: #Prune out any points not in includeList
-                if self.point_ids[point] in include_list: #match
-                    point = point+1
+            while idx < self.point_ids.size: #Prune out any points not in includeList
+                if self.incl_pairs.is_present(self.point_ids[idx]):
+                    idx += 1
                 else:
                     _drop_flag = True   
-                    self.point_ids = np.delete(self.point_ids, point)
-             
-            include_list = list(self.point_ids[:])            
+                    self.point_ids = np.delete(self.point_ids, idx)
+            self.incl_pairs.keep_only_points(self.point_ids)
         else:
-            while point < self.points_rc.shape[0]: #Prune out any points not in include_list
-                if self.points_rc[point,0] in include_list: #match
-                    point = point+1
+            while idx < self.points_rc.shape[0]:
+                if self.incl_pairs.is_present(self.points_rc[idx, 0]):
+                    idx += 1
                 else:
-                    _drop_flag = True   
-                    self.points_rc = ComputeBase.deleterow(self.points_rc, point)  
-             
-            include_list = list(self.points_rc[:,0])
-        
-        num_connection_rows = self.included_pairs.shape[0]
-        row = 1
-        while row < num_connection_rows: #Prune out any entries in include_list that are not in points_rc
-            if self.included_pairs[row,0] in include_list: #match
-                row = row+1
-            else:
-                self.included_pairs = ComputeBase.deleterowcol(self.included_pairs, delrow=row, delcol=row)   
-                _drop_flag = True
-                num_connection_rows = num_connection_rows-1
-
-        #if _drop_flag==True:
-        #    ComputeBase.logger.info('\nNOTE: Code to exclude pairwise calculations is activated and some entries did not match with focal node file. Some focal nodes may have been dropped.')      
-
+                    _drop_flag = True
+                    self.points_rc = ComputeBase.deleterow(self.points_rc, idx)
+            self.incl_pairs.keep_only_points(self.points_rc[:,0])
+            
+        if _drop_flag==True:
+            ComputeBase.logger.info('Code to exclude pairwise calculations is activated and some entries did not match with focal node file. Some focal nodes may have been dropped.')      
+            
 
     def _get_point_ids(self):
         """Return a list of unique focal node IDs"""
@@ -307,7 +317,7 @@ class FocalPoints:
         for idx in range(0, ncoords):
             sub_coords[idx,:] = self.points_rc[idx_list[idx], :]
         
-        return FocalPoints(sub_coords, self.included_pairs, self.is_network)
+        return FocalPoints(sub_coords, self.incl_pairs, self.is_network)
 
     @staticmethod
     def grid_to_graph(x, y, node_map):
@@ -375,12 +385,11 @@ class FocalPoints:
                     yield (n1_idx, n2_idx)
                 yield(n1_idx, -1)
         else:        
-            numpoints = self.points_rc.shape[0]
+            numpoints = self.point_ids.size
+            
             for pt1_idx in range(0, numpoints): 
                 for pt2_idx in range(pt1_idx+1, numpoints):
-                    # tan: is this check required? 
-                    # after pruning focal points for included pairs, this should always point to a valid pair
-                    if (None != self.included_pairs) and (self.included_pairs[pt1_idx+1, pt2_idx+1] != 1):
+                    if (None != self.incl_pairs) and not self.incl_pairs.is_included_pair(self.point_ids[pt1_idx], self.point_ids[pt2_idx]):
                         continue
                     yield (pt1_idx, pt2_idx)
                 yield(pt1_idx, -1)
@@ -416,9 +425,7 @@ class FocalPoints:
                 if (dst <  0 or components[dst] != comp):
                     continue
                 for pt2_idx in range(pt1_idx+1, numpoints):
-                    # tan: is this check required? 
-                    # after pruning focal points for included pairs, this should always point to a valid pair
-                    if (None != self.included_pairs) and (self.included_pairs[pt1_idx+1, pt2_idx+1] != 1):
+                    if (None != self.incl_pairs) and not self.incl_pairs.is_included_pair(self.points_rc[pt1_idx, 0], self.points_rc[pt2_idx, 0]):
                         continue
                     src = self.get_graph_node_idx(pt2_idx, node_map)
                     if (src >=  0 and components[src] == comp):
@@ -457,7 +464,10 @@ class HabitatGraph:
             self.num_nodes = self.node_map.size
     
     def get_graph(self):
-        return HabitatGraph._construct_g_graph(self.g_map, self.node_map, self.connect_using_avg_resistances, self.connect_four_neighbors_only)
+        if self.is_network:
+            return self.g_graph
+        else:
+            return HabitatGraph._construct_g_graph(self.g_map, self.node_map, self.connect_using_avg_resistances, self.connect_four_neighbors_only)
     
     def prune_nodes_for_component(self, keep_component):
         """Removes nodes outside of component being operated on.
