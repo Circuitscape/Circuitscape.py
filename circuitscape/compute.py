@@ -7,7 +7,7 @@ import time, logging, os, pickle
 import numpy as np
 from scipy import sparse
 
-from compute_base import ComputeBase, FocalPoints, HabitatGraph, Output
+from compute_base import ComputeBase, FocalPoints, IncludeExcludePairs, HabitatGraph, Output
 from profiler import print_rusage, gc_after, LowMemRetry
 from io import CSIO
 
@@ -45,14 +45,14 @@ class Compute(ComputeBase):
         
         fp = None
         if self.options.scenario == 'pairwise':
+            if self.options.use_included_pairs==True:
+                self.state.included_pairs = IncludeExcludePairs(self.options.included_pairs_file)
+            
             focal_nodes = self.read_focal_nodes(self.options.point_file)
-            fp = FocalPoints(focal_nodes, self.state.included_pairs, True)
+            fp = FocalPoints(focal_nodes, self.state.included_pairs, True)            
         elif self.options.scenario == 'advanced':
             self.state.source_map = CSIO.read_point_strengths(self.options.source_file)
-            self.state.ground_map = CSIO.read_point_strengths(self.options.ground_file)
-        
-        if self.options.use_included_pairs==True:
-            self.state.included_pairs = CSIO.read_included_pairs(self.options.included_pairs_file)
+            self.state.ground_map = CSIO.read_point_strengths(self.options.ground_file)        
         
         g_habitat = HabitatGraph(g_graph=g_graph, node_names=node_names)
         out = Output(self.options, self.state, False, (g_habitat.num_nodes, g_habitat.num_nodes))
@@ -252,8 +252,8 @@ class Compute(ComputeBase):
                 point_map[points_rc[:,1], points_rc[:,2]] = points_rc[:,0]       
 
                 #loop thru exclude[point,:], delete included pairs of focal point from point_map and points_rc_unique_temp
-                for pair in range(0, point_ids.size):  
-                    if (included_pairs[pt_idx+1, pair+1] == 0) and (pt_idx !=  pair):
+                for pair in range(0, point_ids.size):
+                    if (pt_idx !=  pair) and not self.state.included_pairs.is_included_pair(point_ids[pt_idx], point_ids[pair]):
                         pt_id = point_ids[pair]
                         point_map = np.where(point_map==pt_id, 0, point_map)
                         points_rc_unique_temp[pair, 0] = 0 #point will not be burned in to unique_point_map
@@ -346,7 +346,7 @@ class Compute(ComputeBase):
             #burn in src pt_idx to polygon map
             poly_map_temp = self.get_overlap_polymap(points_rc[pt1_idx,0], point_map, poly_map_temp, new_poly_num)                     
             for pt_idx in range(0, points_rc.shape[0]): #burn in dst points to polygon map
-                if included_pairs[pt1_idx+1, pt_idx+1] == 1:  
+                if included_pairs.is_included_pair(points_rc[pt1_idx,0], points_rc[pt_idx,0]):
                     new_poly_num = new_poly_num+1
                     poly_map_temp = self.get_overlap_polymap(points_rc[pt_idx,0], point_map, poly_map_temp, new_poly_num) 
         return poly_map_temp
@@ -956,7 +956,7 @@ class Compute(ComputeBase):
             self.state.ground_map = []
 
         if self.options.use_included_pairs==True:
-            self.state.included_pairs = CSIO.read_included_pairs(self.options.included_pairs_file)
+            self.state.included_pairs = IncludeExcludePairs(self.options.included_pairs_file)
         
         self.state.point_strengths = None
         if self.options.use_variable_source_strengths==True:
