@@ -151,6 +151,14 @@ class cs_verify(unittest.TestCase):
         # Simple test with one source and one ground
         test_network_mg(self, 'mgNetworkVerify1') 
         
+    def test_network_multiple_ground_2(self):
+        # Simple test with one source and five grounds. Same as Fig 2 in McRae et al. 2008.
+        test_network_mg(self, 'mgNetworkVerify2') 
+
+    def test_network_multiple_ground_3(self):
+        # Modification of mgNetworkVerify2 with 4 current sources instead of 1.
+        test_network_mg(self, 'mgNetworkVerify3') 
+        
     def test_single_ground_all_pairs_resistances_1(self):
         test_sg(self, 'sgVerify1') 
  
