@@ -363,10 +363,13 @@ class Compute(ComputeBase):
 
         # If there are no focal regions, pass all points to single_ground_all_pair_resistances,
         # otherwise, pass one point at a time.
-        if self.options.point_file_contains_polygons == False:
-            if points_rc.shape[0] != (np.unique(np.asarray(points_rc[:,0]))).shape[0]:
-                raise RuntimeError('At least one focal node contains multiple cells.  If this is what you really want, then choose focal REGIONS in the pull-down menu') 
 
+        if points_rc.shape[0] != (np.unique(np.asarray(points_rc[:,0]))).shape[0]:
+            self.options.point_file_contains_polygons == True # This used to be set in GUI, now autodetect
+        else:
+            self.options.point_file_contains_polygons == False    
+
+        if self.options.point_file_contains_polygons == False:
             fp = FocalPoints(points_rc, self.state.included_pairs, False)
             g_habitat = HabitatGraph(g_map=g_map, poly_map=poly_map, connect_using_avg_resistances=self.options.connect_using_avg_resistances, connect_four_neighbors_only=self.options.connect_four_neighbors_only)
             
