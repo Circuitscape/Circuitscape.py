@@ -449,7 +449,7 @@ GUI_RSRC = {'application':{'type':'Application',
     'name':'Image1', 
     'position':(891, -5), 
     'backgroundColor':(230, 230, 230, 255), 
-    'file':'cs_logo.jpg', 
+    #'file':'cs_logo.jpg', 
     },
 
 {'type':'StaticLine', 
