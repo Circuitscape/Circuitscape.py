@@ -863,23 +863,22 @@ class GUI(model.Background):
 
     def report_menu_files(self):
         self.components.logMessages.clear()
+        menu_files_exist = False
         if self.options.data_type != 'network':
-            menu_files_exist = False
             if self.options.use_mask == True:
-                self.components.logMessages.appendText('Mask file set to ' + str(self.options.mask_file) + '.\n')    
+                self.components.logMessages.appendText('Mask file set to ' + str(self.options.mask_file) + '.\n')
                 menu_files_exist = True
             if self.options.use_polygons == True:
-                self.components.logMessages.appendText('Short-circuit region file set to ' + str(self.options.polygon_file) + '.\n')        
+                self.components.logMessages.appendText('Short-circuit region file set to ' + str(self.options.polygon_file) + '.\n')
                 menu_files_exist = True
             if (self.options.use_variable_source_strengths == True) and (self.options.scenario == 'one-to-all' or self.options.scenario == 'all-to-one'):
                 self.components.logMessages.appendText('Variable source strength file set to ' + str(self.options.variable_source_file) + '.\n')
                 menu_files_exist = True
-            if self.options.use_included_pairs == True and self.options.scenario == 'pairwise':
-                self.components.logMessages.appendText('Include/exclude file set to ' + str(self.options.included_pairs_file) + '.\n')
-                menu_files_exist = True
-            if menu_files_exist == True:
-                self.components.logMessages.appendText('These inputs can be changed in the Options menu.\n')
-               
+        if self.options.use_included_pairs == True and self.options.scenario == 'pairwise':
+            self.components.logMessages.appendText('Include/exclude file set to ' + str(self.options.included_pairs_file) + '.\n')
+            menu_files_exist = True
+        if menu_files_exist == True:
+            self.components.logMessages.appendText('These inputs can be changed in the Options menu.\n')
         
     def reset_status_bar(self):
         if self.options.data_type == 'network':
