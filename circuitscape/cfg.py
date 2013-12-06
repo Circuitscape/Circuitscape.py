@@ -8,8 +8,8 @@ class CSConfig:
             'version': 'unknown'
         },
         'Connection scheme for raster habitat data': {
-            'connect_four_neighbors_only': 'not entered', 
-            'connect_using_avg_resistances': 'not entered',
+            'connect_four_neighbors_only': False, 
+            'connect_using_avg_resistances': False,
         },
         'Short circuit regions (aka polygons)': {
             'use_polygons': False,
@@ -18,7 +18,7 @@ class CSConfig:
         'Options for advanced mode': {
             'source_file': '(Browse for a current source file)', 
             'ground_file': '(Browse for a ground point file)', 
-            'ground_file_is_resistances': 'not entered', 
+            'ground_file_is_resistances': True, 
             'use_unit_currents': False, 
             'use_direct_grounds': False,
             'remove_src_or_gnd': 'not entered' 
@@ -53,8 +53,8 @@ class CSConfig:
             'write_cur_maps': False
         }, 
         'Habitat raster or graph': {
-            'habitat_map_is_resistances': 'not entered',
-            'habitat_file': '(Browse for a habitat map file)'
+            'habitat_map_is_resistances': True,
+            'habitat_file': '(Browse for a resistance file)'
         }, 
         'Circuitscape mode': {
             'scenario': 'not entered', 
@@ -80,15 +80,15 @@ class CSConfig:
     
     CHECKS_AND_MESSAGES = {
         'scenario':                         'Please choose a scenario',
-        'habitat_file':                     'Please choose a raster habitat map file',
-        'habitat_map_is_resistances':       'Please choose a habitat data type', 
-        'connect_four_neighbors_only':      'Please choose a cell connection scheme',
-        'connect_using_avg_resistances':    'Please choose a cell connection calculation', 
+        'habitat_file':                     'Please choose a resistance file',
+        # 'habitat_map_is_resistances':       'Please choose a habitat data type', 
+        # 'connect_four_neighbors_only':      'Please choose a cell connection scheme',
+        # 'connect_using_avg_resistances':    'Please choose a cell connection calculation', 
         'output_file':                      'Please choose an output file name',
         'point_file':                       'Please choose a focal node file',
         'source_file':                      'Please enter a current source file',
         'ground_file':                      'Ground point file does not exist!',
-        'ground_file_is_resistances':       'Please choose a ground data type',
+        # 'ground_file_is_resistances':       'Please choose a ground data type',
         'reclass_file':                     'Please choose a file with reclassification data',
         'polygon_file':                     'Please enter a short-circuit region file or uncheck this option'            
     }
@@ -144,9 +144,9 @@ class CSConfig:
         # remove checks that are not required
         if self.options['scenario'] not in ['pairwise', 'one-to-all']:
             del checks['point_file']
-            
+
         if self.options['scenario'] != 'advanced':
-            for key in ['source_file', 'ground_file', 'ground_file_is_resistances']:
+            for key in ['source_file', 'ground_file']:#, 'ground_file_is_resistances']:
                 del checks[key]
 
         if self.options['use_polygons'] == False:
