@@ -193,11 +193,9 @@ class Compute(ComputeBase):
 
     def append_names_to_resistances(self, point_ids, resistances):        
         """Adds names of focal nodes to resistance matrices."""  
-        focal_labels = np.insert(point_ids, [0], 0, axis = 0)
-        resistances = np.insert(resistances, [0], 0, axis = 0)
-        resistances = np.insert(resistances, [0], 0, axis = 1)
-        resistances[0,:] = focal_labels
-        resistances[:,0] = focal_labels
+        resistances = np.insert(resistances, 0, point_ids, axis = 0)
+        focal_labels = np.insert(point_ids, 0, 0, axis = 0)
+        resistances = np.insert(resistances, 0, focal_labels, axis = 1)
         return resistances
         
     
@@ -365,11 +363,11 @@ class Compute(ComputeBase):
         # otherwise, pass one point at a time.
 
         if points_rc.shape[0] != (np.unique(np.asarray(points_rc[:,0]))).shape[0]:
-            self.options.point_file_contains_polygons == True # This used to be set in GUI, now autodetect
+            self.state.point_file_contains_polygons = True # This used to be set in GUI, now autodetect
         else:
-            self.options.point_file_contains_polygons == False    
+            self.state.point_file_contains_polygons = False
 
-        if self.options.point_file_contains_polygons == False:
+        if self.state.point_file_contains_polygons == False:
             fp = FocalPoints(points_rc, self.state.included_pairs, False)
             g_habitat = HabitatGraph(g_map=g_map, poly_map=poly_map, connect_using_avg_resistances=self.options.connect_using_avg_resistances, connect_four_neighbors_only=self.options.connect_four_neighbors_only)
             
@@ -383,8 +381,7 @@ class Compute(ComputeBase):
                 '\n~6 orders of magnitude. Pairs with failed solves will be '
                 '\nmarked with value of -777 in output resistance matrix.\n')
 
-            point_ids = points_rc[:,0]
-
+            point_ids = fp.point_ids
         else:
             point_map = np.zeros((self.state.nrows, self.state.ncols), int)
             point_map[points_rc[:,1], points_rc[:,2]] = points_rc[:,0]
@@ -454,10 +451,10 @@ class Compute(ComputeBase):
         parallelize = options.parallelize
 
         # TODO: revisit to see if restriction can be removed 
-        if options.low_memory_mode==True or options.point_file_contains_polygons==True:
+        if options.low_memory_mode==True or self.state.point_file_contains_polygons==True:
             parallelize = False
         
-        if (options.point_file_contains_polygons == True) or  (options.write_cur_maps == True) or (options.write_volt_maps == True) or (options.use_included_pairs==True):
+        if (self.state.point_file_contains_polygons == True) or  (options.write_cur_maps == True) or (options.write_volt_maps == True) or (options.use_included_pairs==True):
             use_resistance_calc_shortcut = False
         else:     
             use_resistance_calc_shortcut = True # We use this when there are no focal regions.  It saves time when we are also not creating maps
@@ -537,7 +534,7 @@ class Compute(ComputeBase):
                         voltages = None
                     post_solve(voltages)
 
-                if options.low_memory_mode==True or options.point_file_contains_polygons==True:
+                if options.low_memory_mode==True or self.state.point_file_contains_polygons==True:
                     self.state.del_amg_hierarchy()
     
             (hours,mins,_secs) = ComputeBase.elapsed_time(last_write_time)

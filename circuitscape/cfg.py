@@ -63,7 +63,6 @@ class CSConfig:
         'Options for pairwise and one-to-all and all-to-one modes': {
             'use_included_pairs': False, 
             'included_pairs_file': 'None', 
-            'point_file_contains_polygons': 'not entered', 
             'point_file': '(Browse for file with locations of focal points or areas)'
         },
         'Options for reclassification of habitat data': {

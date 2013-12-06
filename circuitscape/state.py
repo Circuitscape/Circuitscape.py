@@ -19,6 +19,7 @@ class CSState:
         self.nrows = None
         self.point_strengths = None
         self.points_rc = None
+        self.point_file_contains_polygons = False
         self.poly_map = None
         self.source_map = None
         self.start_time = None
