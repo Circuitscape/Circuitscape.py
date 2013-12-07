@@ -438,7 +438,7 @@ class GUI(model.Background):
             wildcard = "Tab-delimited text list (*.txt)|*.txt|All Files (*.*)|*.*" 
         else:
             wildcard = "ASCII Raster (*.asc)|*.asc|All Files (*.*)|*.*" 
-        result = dialog.fileDialog(self, 'Select Raster Habitat Map', '', '', wildcard) 
+        result = dialog.fileDialog(self, 'Select Raster Habitat Map or Network/Graph File', '', '', wildcard) 
         if result.accepted == True: 
             file_name = result.paths[0]
             self.components.habitatFile.text = file_name

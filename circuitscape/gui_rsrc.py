@@ -464,7 +464,7 @@ GUI_RSRC = {'application':{'type':'Application',
     'position':(27, 293), 
     'font':{'style': 'bold', 'faceName': u'Lucida Grande', 'family': 'sansSerif', 'size': 11}, 
     'foregroundColor':(0, 0, 160, 255), 
-    'text':'Focal node location file and data type', 
+    'text':'Focal node location file', 
     },
 
 {'type':'StaticText', 

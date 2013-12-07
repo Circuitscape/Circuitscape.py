@@ -63,13 +63,15 @@ class Compute(ComputeBase):
         Compute.logger.debug('Graph has ' + str(g_habitat.num_nodes) + ' nodes and '+ str(g_habitat.num_components)+ ' components.')
         if self.options.scenario == 'pairwise':
             (resistances, solver_failed) = self.single_ground_all_pair_resistances(g_habitat, fp, out, True)
-            full_branch_currents, full_node_currents, _bca, _np = out.get_c_map('')            
+            if self.options.write_cur_maps:
+                full_branch_currents, full_node_currents, _bca, _np = out.get_c_map('')            
             _resistances, resistances_3col = self.write_resistances(fp.point_ids, resistances)
             result1 = resistances_3col
         elif self.options.scenario == 'advanced':
             self.options.write_max_cur_maps = False
             voltages, current_map, solver_failed = self.advanced_module(g_habitat, out, self.state.source_map, self.state.ground_map)
-            full_branch_currents, full_node_currents, _bca, _np = current_map
+            if self.options.write_cur_maps:
+                full_branch_currents, full_node_currents, _bca, _np = current_map
             result1 = voltages
             
         if solver_failed == True:
@@ -454,7 +456,7 @@ class Compute(ComputeBase):
         if options.low_memory_mode==True or self.state.point_file_contains_polygons==True:
             parallelize = False
         
-        if (self.state.point_file_contains_polygons == True) or  (options.write_cur_maps == True) or (options.write_volt_maps == True) or (options.use_included_pairs==True):
+        if (self.state.point_file_contains_polygons == True) or (options.write_cur_maps == True) or (options.write_volt_maps == True) or (options.use_included_pairs==True) or (options.data_type=='network'):
             use_resistance_calc_shortcut = False
         else:     
             use_resistance_calc_shortcut = True # We use this when there are no focal regions.  It saves time when we are also not creating maps
