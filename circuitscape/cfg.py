@@ -3,6 +3,8 @@ import ConfigParser, os, copy, ast
 class CSConfig:
     """Represents a Circuitscape configuration object"""
     
+    FILE_PATH_PROPS = ['polygon_file', 'source_file', 'ground_file', 'mask_file', 'output_file', 'habitat_file', 'point_file', 'reclass_file']
+    
     DEFAULTS = {
         'Version': {
             'version': 'unknown'
@@ -41,13 +43,13 @@ class CSConfig:
             'variable_source_file': 'None'
         }, 
         'Output options': {
-            'set_null_currents_to_nodata': True, 
+            'set_null_currents_to_nodata': False, 
             'output_file': '(Choose a base name for output files)', 
             'write_cum_cur_map_only': False, 
             'log_transform_maps': False, 
             'write_max_cur_maps': False, 
             'compress_grids': False, 
-            'set_null_voltages_to_nodata': True, 
+            'set_null_voltages_to_nodata': False, 
             'set_focal_node_currents_to_zero': False, 
             'write_volt_maps': False, 
             'write_cur_maps': False
@@ -80,14 +82,10 @@ class CSConfig:
     CHECKS_AND_MESSAGES = {
         'scenario':                         'Please choose a scenario',
         'habitat_file':                     'Please choose a resistance file',
-        # 'habitat_map_is_resistances':       'Please choose a habitat data type', 
-        # 'connect_four_neighbors_only':      'Please choose a cell connection scheme',
-        # 'connect_using_avg_resistances':    'Please choose a cell connection calculation', 
         'output_file':                      'Please choose an output file name',
         'point_file':                       'Please choose a focal node file',
         'source_file':                      'Please enter a current source file',
         'ground_file':                      'Ground point file does not exist!',
-        # 'ground_file_is_resistances':       'Please choose a ground data type',
         'reclass_file':                     'Please choose a file with reclassification data',
         'polygon_file':                     'Please enter a short-circuit region file or uncheck this option'            
     }
@@ -113,6 +111,19 @@ class CSConfig:
                 except:
                     self.options[item[0]] = item[1]
 
+    def as_dict(self, rel_to_abs=None):
+        result = {}
+        for section in CSConfig.DEFAULTS.keys():
+            for option in CSConfig.DEFAULTS[section].keys():
+                val = self.options[option]
+                if option in CSConfig.FILE_PATH_PROPS:
+                    if (val == None) or (val == CSConfig.DEFAULTS[section][option]):
+                        val = ''
+                    elif (not os.path.isabs(val)) and (rel_to_abs != None):
+                        val = os.path.join(rel_to_abs, val)
+                result[option] = val
+        return result
+    
     def write(self, cfg_filename, is_filename_template=False):
         if is_filename_template:
             out_base, _out_extn = os.path.splitext(cfg_filename)
