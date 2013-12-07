@@ -322,7 +322,7 @@ class GUI(model.Background):
 
         if self.menuBar.getChecked('menuOptionsMask') == True:
             wildcard = "ASCII Raster (*.asc)|*.asc|All Files (*.*)|*.*"
-            result = dialog.fileDialog(self, 'Select Raster Mask.  All cells with NODATA or non-positive-integer values will be dropped from habitat map. ', '', '', wildcard) 
+            result = dialog.fileDialog(self, 'Select Raster Mask.  All cells with NODATA or non-positive-integer values will be dropped from resistance map. ', '', '', wildcard) 
             if result.accepted == True: 
                 file_name = result.paths[0]
                 self.options.mask_file = file_name
@@ -675,7 +675,7 @@ class GUI(model.Background):
         headers_match = CSIO.match_headers(self.options.habitat_file, match_files)
 
         if headers_match == False:
-            result = wx.MessageDialog(None, "Raster map headers do not match.  Circuitscape can try to resample maps to match the habitat map (Beta code, no guarantees). \n\nNote:all maps MUST be in the same projection.  Some focal nodes or short-circuit regions may be lost. \n\nUsing the 'Export to Circuitscape' ArcGIS tool is a better bet.\n\nContinue?", "Warning", wx.YES_NO).ShowModal()  # @UndefinedVariable
+            result = wx.MessageDialog(None, "Raster map headers do not match.  Circuitscape can try to resample maps to match the resistance map (Beta code, no guarantees). \n\nNote:all maps MUST be in the same projection.  Some focal nodes or short-circuit regions may be lost. \n\nUsing the 'Export to Circuitscape' tool or the Circuitscape for ArcGIS toolbox is a better bet.\n\nContinue?", "Warning", wx.YES_NO).ShowModal()  # @UndefinedVariable
             return (result == wx.ID_NO) # @UndefinedVariable
         return False
 
