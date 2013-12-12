@@ -39,6 +39,7 @@ class ComputeBase(object):
         logger.setLevel(log_lvl)
         
         formatter = logging.Formatter('%(asctime)s:%(levelname)s:%(message)s', '%m/%d/%Y %I.%M.%S.%p')
+        #bhm formatter = logging.Formatter('%(message)s', '%p')
         handlers = []
         
         if ext_log_handler:
