@@ -1,4 +1,4 @@
-import ConfigParser, os, copy, ast
+import ConfigParser, os, copy, ast, codecs
 
 class CSConfig:
     """Represents a Circuitscape configuration object"""
@@ -103,7 +103,13 @@ class CSConfig:
             raise RuntimeError('File %s does not exist'%(cfgfile,))
     
         config = ConfigParser.ConfigParser()
-        config.read(cfgfile)
+        try:
+            config.read(cfgfile)
+        except:
+            # try again with utf8 bom markers
+            with codecs.open(cfgfile, 'r', encoding='utf_8_sig') as fp:
+                config.readfp(fp)
+                
         for section in config.sections():
             for item in config.items(section):
                 try:
