@@ -23,7 +23,7 @@ class CSConfig:
             'ground_file_is_resistances': True, 
             'use_unit_currents': False, 
             'use_direct_grounds': False,
-            'remove_src_or_gnd': 'not entered' 
+            'remove_src_or_gnd': 'keepall' 
         }, 
         'Mask file': {
             'mask_file': 'None', 
