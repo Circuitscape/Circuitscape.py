@@ -308,7 +308,7 @@ class GUI(model.Background):
         if self.options.data_type == 'network':
             wildcard = "Tab-delimited text list (*.txt)|*.txt|All Files (*.*)|*.*" 
         else:
-            wildcard = "ASCII Raster (*.asc)|*.asc|All Files (*.*)|*.*" 
+            wildcard = "ASCII Raster (*.asc or *.txt)|*.asc;*.txt|All Files (*.*)|*.*" 
         result = dialog.fileDialog(self, 'Select Raster Habitat Map or Network/Graph File', '', '', wildcard) 
         if result.accepted == True: 
             file_name = result.paths[0]
@@ -316,7 +316,7 @@ class GUI(model.Background):
             self.options.habitat_file = file_name
       
     def on_srcTargetBrowse_mouseClick(self, event):
-        wildcard = "Tab-delimited text list (*.txt) or ASCII Raster (*.asc)|*.txt;*.asc|All Files (*.*)|*.*" 
+        wildcard = "Tab-delimited text list or ASCII Raster (*.txt or *.asc)|*.txt;*.asc|All Files (*.*)|*.*" 
         result = dialog.fileDialog(self, 'Select Source/Target File', '', '', wildcard) 
         if result.accepted == True:        
             file_name = result.paths[0]
@@ -324,7 +324,7 @@ class GUI(model.Background):
             self.options.point_file = file_name
 
     def on_currentSrcBrowse_mouseClick(self, event):
-        wildcard = "Tab-delimited text list (*.txt) or ASCII Raster (*.asc)|*.txt;*.asc|All Files (*.*)|*.*" 
+        wildcard = "Tab-delimited text list or ASCII Raster (*.txt or *.asc)|*.txt;*.asc|All Files (*.*)|*.*" 
         result = dialog.fileDialog(self, 'Select Source/Target File', '', '', wildcard) 
         if result.accepted == True:        
             file_name = result.paths[0]
@@ -340,7 +340,7 @@ class GUI(model.Background):
             self.options.output_file = file_name
 
     def on_gndBrowse_mouseClick(self, event):
-        wildcard = "Tab-delimited text list (*.txt) or ASCII Raster (*.asc)|*.txt;*.asc|All Files (*.*)|*.*" 
+        wildcard = "Tab-delimited text list or ASCII Raster (*.txt or *.asc)|*.txt;*.asc|All Files (*.*)|*.*" 
         result = dialog.fileDialog(self, 'Select Ground File', '', '', wildcard ) 
         if result.accepted == True:        
             file_name = result.paths[0]
@@ -719,7 +719,7 @@ class GUI(model.Background):
         if len(msg) > 1:
             self.components.logMessages.appendText(' '*20 + '-'*150 + '\n')
             self.components.logMessages.appendText(msg)
-            self.components.logMessages.appendText(' '*20 + '-'*42 + 'These inputs can be changed in the Options menu' + '-'*42 +'\n')
+            self.components.logMessages.appendText(' '*20 + '-'*42 + 'These inputs can be changed in the Options menu' + '-'*42 +'\n\n')
 
     def reset_status_bar(self):
         if self.options.data_type == 'network':
