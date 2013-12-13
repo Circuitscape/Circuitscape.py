@@ -5,8 +5,8 @@
 **Version 4.0 - Updated November 26, 2013**
 
 ***How to cite this document:***
-<br/>McRae, B.H., and Shah, V.B.  2009\.  Circuitscape User Guide.  ONLINE.
-The University of California, Santa Barbara. Available at: http://www.circuitscape.org.
+<br/>McRae, B.H., V.B. Shah, and  T.K. Mohapatra. 2013\.  Circuitscape User Guide.  ONLINE.
+The Nature Conservancy. Available at: http://www.circuitscape.org.
 
 **First time users:** Please see the section on memory management before running large grids (> 1 million cells).
 
