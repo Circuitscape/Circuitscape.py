@@ -1,4 +1,4 @@
-{'type':'CustomDialog',
+GUI_OPTIONS_RSRC = {'type':'CustomDialog',
     'name':'csOptions',
     'title':'Circuitscape options',
     'position':(371, 58),

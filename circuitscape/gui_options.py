@@ -4,10 +4,11 @@ __date__ = "$Date: 2004/08/12 19:18:51 $"
 """
 
 from PythonCard import dialog, model
+from gui_options_rsrc import GUI_OPTIONS_RSRC
 
 class OptionsWindow(model.CustomDialog):
     def __init__(self, parent):
-        model.CustomDialog.__init__(self, parent)
+        model.CustomDialog.__init__(self, parent, aDialogRsrc=GUI_OPTIONS_RSRC)
         self.parent = self.getParent()
         self.childOptions = self.parent.options #key- copies over options to child
         self.setChildWidgets()
@@ -181,7 +182,7 @@ class OptionsWindow(model.CustomDialog):
     def on_rmvSrcGndChoice_select(self, event):
         self.childOptions.remove_src_or_gnd = self.parent.OPTIONS_REMOVE_SOURCE_GROUND[event.GetSelection()]    
 
-def optionsWindow(parent):
+def show_options_window(parent):
     dlg = OptionsWindow(parent)
     result = dlg.showModal()
     dlg.get_options_in_child_boxes()

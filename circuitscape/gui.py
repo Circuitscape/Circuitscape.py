@@ -19,7 +19,7 @@ import wx.lib.newevent
 from PythonCard import dialog, model
 from PythonCard.components import button, checkbox, choice, image, staticline, statictext, textfield, spinner, textarea
 
-from csOptions import optionsWindow
+from gui_options import show_options_window
 from compute import Compute, CSIO, __version__
 from compute_base import ComputeBase
 from cfg import CSConfig
@@ -168,7 +168,7 @@ class GUI(model.Background):
         dial.ShowModal()
         
     def on_menuOptionsMoreOptions_select(self, event):
-        result = optionsWindow(self)
+        result = show_options_window(self)
         if result.accepted == True:
             self.options = result.options
             self.report_menu_files()
