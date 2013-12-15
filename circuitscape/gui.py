@@ -209,17 +209,17 @@ class GUI(model.Background):
                 try:
                     cs = Compute(selection, self)
                 except RuntimeError as error:
-                    wx.EndBusyCursor()
+                    wx.EndBusyCursor()  # @UndefinedVariable
                     message = str(error)
                     dial = wx.MessageDialog(None, message, 'Error', wx.OK | wx.ICON_ERROR)  # @UndefinedVariable
                     dial.ShowModal()
                     return
                 except MemoryError:
-                    wx.EndBusyCursor()
+                    wx.EndBusyCursor()  # @UndefinedVariable
                     self.memory_error_feedback()
                     return
                 except:
-                    wx.EndBusyCursor()
+                    wx.EndBusyCursor()  # @UndefinedVariable
                     self.unknown_exception()
                     return
 
@@ -280,6 +280,7 @@ class GUI(model.Background):
     def on_logLevelChoice_select(self, event):
         log_lvl = event.GetSelection()
         self.options.log_level = GUI.OPTIONS_LOG_LEVEL[log_lvl]
+        GUI.logger = ComputeBase._create_logger("circuitscape_gui", getattr(logging, self.options.log_level), None, False, GUI.log_handler)
         GUI.logger.setLevel(getattr(logging, self.options.log_level.upper()))
         GUI.log_handler.setLevel(getattr(logging, self.options.log_level.upper()))
 
@@ -433,7 +434,7 @@ class GUI(model.Background):
             try:
                 wx.BeginBusyCursor()  # @UndefinedVariable
                 self.statusBar.SetStatusText('',1)
-                self.statusBar.SetStatusText('',2)                
+                self.statusBar.SetStatusText('',2)
                 resistances, solver_failed = cs.compute()
                 wx.EndBusyCursor()  # @UndefinedVariable
                 
@@ -451,19 +452,18 @@ class GUI(model.Background):
                     dial = wx.MessageDialog(None, message, 'Error', wx.OK | wx.ICON_EXCLAMATION)  # @UndefinedVariable
                     dial.ShowModal()
             except MemoryError:
-                wx.EndBusyCursor()
+                wx.EndBusyCursor()  # @UndefinedVariable
                 self.memory_error_feedback()
                 return
             except RuntimeError as error:
-                wx.EndBusyCursor()
+                wx.EndBusyCursor()  # @UndefinedVariable
                 message = str(error)
                 dial = wx.MessageDialog(None, message, 'Error', wx.OK | wx.ICON_ERROR)  # @UndefinedVariable
                 dial.ShowModal()
                 return
             except:
-                wx.EndBusyCursor()
+                wx.EndBusyCursor()  # @UndefinedVariable
                 self.unknown_exception()
-
         elif self.options.scenario == 'advanced':
             wx.BeginBusyCursor()  # @UndefinedVariable
 
@@ -482,17 +482,17 @@ class GUI(model.Background):
                 
                 GUI.logger.info('Done.')
             except RuntimeError as error:
-                wx.EndBusyCursor()
+                wx.EndBusyCursor()  # @UndefinedVariable
                 message = str(error)
                 dial = wx.MessageDialog(None, message, 'Error', wx.OK | wx.ICON_ERROR)  # @UndefinedVariable
                 dial.ShowModal()
                 return
             except MemoryError:
-                wx.EndBusyCursor()
+                wx.EndBusyCursor()  # @UndefinedVariable
                 self.memory_error_feedback()
                 return
             except:
-                wx.EndBusyCursor()
+                wx.EndBusyCursor()  # @UndefinedVariable
                 self.unknown_exception()
                 return
 
@@ -523,16 +523,16 @@ class GUI(model.Background):
                     dial = wx.MessageDialog(None, message, 'Error', wx.OK | wx.ICON_EXCLAMATION)  # @UndefinedVariable
                     dial.ShowModal()
             except RuntimeError as error:
-                wx.EndBusyCursor()
+                wx.EndBusyCursor()  # @UndefinedVariable
                 message = str(error)
                 dial = wx.MessageDialog(None, message, 'Error', wx.OK | wx.ICON_ERROR)  # @UndefinedVariable
                 dial.ShowModal()
             except MemoryError:
-                wx.EndBusyCursor()
+                wx.EndBusyCursor()  # @UndefinedVariable
                 self.memory_error_feedback()
                 return
             except:
-                wx.EndBusyCursor()
+                wx.EndBusyCursor()  # @UndefinedVariable
                 self.unknown_exception()            
             self.reset_status_bar()        
 
@@ -740,6 +740,8 @@ def get_packaged_resource(filename):
     
 def show_gui():
     app = model.Application(GUI, rsrc=GUI_RSRC)
+    if hasattr(app, 'startingDirectory'):
+        os.chdir(app.startingDirectory)
     app.MainLoop()
                 
 if __name__ == '__main__':

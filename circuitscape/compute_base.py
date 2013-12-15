@@ -34,12 +34,22 @@ class ComputeBase(object):
 
 
     @staticmethod
-    def _create_logger(logger_name, log_lvl, log_file, screenprint_log, ext_log_handler):
+    def _create_formatter(log_lvl):
+        if log_lvl == logging.DEBUG:
+            formatter = logging.Formatter('%(asctime)s:%(levelname)s:%(message)s', '%m/%d/%Y %I.%M.%S.%p')
+        else:
+            formatter = logging.Formatter('%(message)s')
+        return formatter
+        
+
+    @staticmethod
+    def _create_logger(logger_name, log_lvl, log_file, screenprint_log, ext_log_handler, formatter=None):
         logger = logging.getLogger(logger_name)
         logger.setLevel(log_lvl)
         
-        formatter = logging.Formatter('%(asctime)s:%(levelname)s:%(message)s', '%m/%d/%Y %I.%M.%S.%p')
-        #bhm formatter = logging.Formatter('%(message)s', '%p')
+        if formatter == None:
+            formatter = ComputeBase._create_formatter(log_lvl)
+
         handlers = []
         
         if ext_log_handler:
@@ -80,10 +90,12 @@ class ComputeBase(object):
 
         log_lvl = getattr(logging, self.options.log_level.upper())
         
-        CSIO.logger = CSState.logger = ComputeBase.logger = ComputeBase._create_logger('circuitscape', log_lvl, self.options.log_file, self.options.screenprint_log, ext_log_handler)
+        formatter = ComputeBase._create_formatter(log_lvl)
+        
+        CSIO.logger = CSState.logger = ComputeBase.logger = ComputeBase._create_logger('circuitscape', log_lvl, self.options.log_file, self.options.screenprint_log, ext_log_handler, formatter)
 
         if self.options.profiler_log_file != self.options.log_file:
-            res_logger = ComputeBase._create_logger('circuitscape_profile', logging.DEBUG, self.options.profiler_log_file, self.options.screenprint_log, ext_log_handler)
+            res_logger = ComputeBase._create_logger('circuitscape_profile', logging.DEBUG, self.options.profiler_log_file, self.options.screenprint_log, ext_log_handler, formatter)
         else:
             res_logger = ComputeBase.logger
 
