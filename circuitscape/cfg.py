@@ -23,7 +23,7 @@ class CSConfig:
             'ground_file_is_resistances': True, 
             'use_unit_currents': False, 
             'use_direct_grounds': False,
-            'remove_src_or_gnd': 'not entered' 
+            'remove_src_or_gnd': 'keepall' 
         }, 
         'Mask file': {
             'mask_file': 'None', 
@@ -64,8 +64,8 @@ class CSConfig:
         }, 
         'Options for pairwise and one-to-all and all-to-one modes': {
             'use_included_pairs': False, 
-            'included_pairs_file': 'None', 
-            'point_file': '(Browse for file with locations of focal points or areas)'
+            'included_pairs_file': '(Browse for a file with pairs to include or exclude)', 
+            'point_file': '(Browse for file with locations of focal points or regions)'
         },
         'Options for reclassification of habitat data': {
             'use_reclass_table': False,
@@ -87,7 +87,7 @@ class CSConfig:
         'source_file':                      'Please enter a current source file',
         'ground_file':                      'Ground point file does not exist!',
         'reclass_file':                     'Please choose a file with reclassification data',
-        'polygon_file':                     'Please enter a short-circuit region file or uncheck this option'            
+        'polygon_file':                     'Please enter a short-circuit region file or uncheck this option in the Options menu'   
     }
 
     def __init__(self, cfgfile=None):

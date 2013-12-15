@@ -16,9 +16,10 @@ except:
 
 import wx
 import wx.lib.newevent
-from PythonCard import dialog, model 
+from PythonCard import dialog, model
 from PythonCard.components import button, checkbox, choice, image, staticline, statictext, textfield, spinner, textarea
 
+from gui_options import show_options_window
 from compute import Compute, CSIO, __version__
 from compute_base import ComputeBase
 from cfg import CSConfig
@@ -32,7 +33,7 @@ class GUILogger(logging.Handler):
         self.dest = dest
         self.level = logging.DEBUG
         self.last_gui_yield_time = time.time()
-
+        
     def flush(self):
         pass
 
@@ -64,14 +65,13 @@ class GUILogger(logging.Handler):
 
 
 class GUI(model.Background): 
-    OPTIONS_SCENARIO            = ['not entered', 'pairwise', 'advanced', 'one-to-all', 'all-to-one']
-    SCENARIO_PAIRWISE_ADVANCED  = [    (0,0),        (1,0),       (0,1),        (1,0),       (1,0)  ]
-    OPTIONS_DATATYPE            = ['not entered', 'raster', 'network']
-    
+    OPTIONS_SCENARIO                        = ['not entered', 'pairwise', 'advanced', 'one-to-all', 'all-to-one']
+    SCENARIO_PAIRWISE_ADVANCED              = [    (0,0),        (1,0),       (0,1),        (1,0),       (1,0)  ]
+    OPTIONS_DATATYPE                        = ['not entered', 'raster', 'network']
+    OPTIONS_REMOVE_SOURCE_GROUND            = ['rmvsrc', 'rmvgnd', 'rmvall', 'keepall']
     OPTIONS_HABITAT_MAP_IS_RESISTANCES      = ['not entered', True, False]
     OPTIONS_CONNECT_USING_AVG_RESISTANCES   = [True, False] 
     OPTIONS_CONNECT_FOUR_NEIGHBORS_ONLY     = [True, False] 
-    # OPTIONS_POINT_FILE_CONTAINS_POLYGONS    = ['not entered', False, True]
     OPTIONS_GROUND_FILE_IS_RESISTANCES      = ['not entered', True, False]
     OPTIONS_LOG_LEVEL                       = ['DEBUG', 'INFO', 'WARN', 'ERROR']
     
@@ -83,7 +83,7 @@ class GUI(model.Background):
     
     def on_initialize(self, event):
         self.state = {}
-        self.state['version'] = __version__
+        self.state['version'] = __version__       
         
         #LOAD LAST self.options
         configFile = 'circuitscape.ini'
@@ -166,43 +166,18 @@ class GUI(model.Background):
         messagetext = str('Version ' + self.state['version'] + '\n\nhttp://www.circuitscape.org/\n\nBrad McRae, Viral B. Shah, and Tanmay K. Mohapatra\n\nCircuitscape (C) 2008-09. Licensed under LGPL.')
         dial = wx.MessageDialog(None, messagetext, 'Circuitscape', wx.OK)  # @UndefinedVariable
         dial.ShowModal()
-
-    def _get_options_set_in_menu_bar(self):
-        self.options.use_unit_currents              = self.menuBar.getChecked('menuOptionsUnitSrcs')
-        self.options.use_direct_grounds             = self.menuBar.getChecked('menuOptionsDirectGnds')
-        self.options.write_cum_cur_map_only         = self.menuBar.getChecked('menuOptionsCumMap')
-        self.options.write_max_cur_maps             = self.menuBar.getChecked('menuOptionsMaxMap')
-        self.options.low_memory_mode                = self.menuBar.getChecked('menuOptionsLowMemory')
-        self.options.log_transform_maps             = self.menuBar.getChecked('menuOptionsLogCurMap')
-        self.options.compress_grids                 = self.menuBar.getChecked('menuOptionsCompressGrids')
-        self.options.print_timings                  = self.menuBar.getChecked('menuOptionsPrintTimings')
-        self.options.preemptive_memory_release      = self.menuBar.getChecked('menuOptionsPreemptGC')
-        self.options.use_mask                       = self.menuBar.getChecked('menuOptionsMask')
-        self.options.use_variable_source_strengths  = self.menuBar.getChecked('menuOptionsVarSrc')
-        self.options.use_included_pairs             = self.menuBar.getChecked('menuOptionsIncludePairs')
-        self.options.connect_four_neighbors_only    = self.menuBar.getChecked('menuOptionsConnectFourN')
-        self.options.connect_using_avg_resistances  = not self.menuBar.getChecked('menuOptionsAvgConductance')
-        self.options.use_polygons                   = self.menuBar.getChecked('menuOptionsUsePolygons')
-
-        rmvgnd = self.menuBar.getChecked('menuOptionsRmvGnd')
-        rmvsrc = self.menuBar.getChecked('menuOptionsRmvSrc')
-        if rmvgnd == True:
-            if rmvsrc == True:
-                self.options.remove_src_or_gnd = 'rmvall'
-            else:
-                self.options.remove_src_or_gnd = 'rmvgnd'
-        elif rmvsrc == True:
-            self.options.remove_src_or_gnd = 'rmvsrc'
-        else:
-            self.options.remove_src_or_gnd = 'keepall'
         
+    def on_menuOptionsMoreOptions_select(self, event):
+        result = show_options_window(self)
+        if result.accepted == True:
+            self.options = result.options
+            self.report_menu_files()
+
     def on_menuFileSave_select(self, event):
         self.components.habitatFile.SetFocus() #Need to force loseFocus on text boxes to make sure they are updated.
         self.components.outFile.SetFocus()
         self.components.calcButton.SetFocus()
         
-        self._get_options_set_in_menu_bar()
-
         wildcard = '*.ini'
         result = dialog.saveFileDialog(self, 'Choose a file name', '', '', wildcard)
         if result.accepted == True:                
@@ -234,14 +209,17 @@ class GUI(model.Background):
                 try:
                     cs = Compute(selection, self)
                 except RuntimeError as error:
+                    wx.EndBusyCursor()
                     message = str(error)
                     dial = wx.MessageDialog(None, message, 'Error', wx.OK | wx.ICON_ERROR)  # @UndefinedVariable
                     dial.ShowModal()
                     return
                 except MemoryError:
+                    wx.EndBusyCursor()
                     self.memory_error_feedback()
                     return
                 except:
+                    wx.EndBusyCursor()
                     self.unknown_exception()
                     return
 
@@ -271,117 +249,6 @@ class GUI(model.Background):
                 self.statusBar.SetStatusText('Batch job took ' + str(hours) +' hours ' + str(mins) + ' minutes to complete.',2)
             else:
                 self.statusBar.SetStatusText('Batch job took ' + str(mins) +' minutes ' + str(secs) + ' seconds to complete.',2)
-
-    ## Options Menu
-    ## Calculation Options
-    def on_menuOptionsConnectFourN_select(self, event):
-        self.menuBar.setChecked('menuOptionsConnectFourN', self.menuBar.getChecked('menuOptionsConnectFourN'))
-        self.options.connect_four_neighbors_only = self.menuBar.getChecked('menuOptionsConnectFourN')
-
-    def on_menuOptionsAvgConductance_select(self, event):
-        self.menuBar.setChecked('menuOptionsAvgConductance', self.menuBar.getChecked('menuOptionsAvgConductance'))        
-        self.options.connect_using_avg_resistances = self.menuBar.getChecked('menuOptionsAvgConductance')           
-
-    def on_menuOptionsUnitSrcs_select(self, event):
-        self.menuBar.setChecked('menuOptionsUnitSrcs', self.menuBar.getChecked('menuOptionsUnitSrcs'))
-
-    def on_menuOptionsDirectGnds_select(self, event):
-        self.menuBar.setChecked('menuOptionsDirectGnds', self.menuBar.getChecked('menuOptionsDirectGnds'))
-
-    def on_menuOptionsRmvGnd_select(self, event):
-        self.menuBar.setChecked('menuOptionsRmvGnd', self.menuBar.getChecked('menuOptionsRmvGnd'))
-
-    def on_menuOptionsRmvSrc_select(self, event):
-        self.menuBar.setChecked('menuOptionsRmvSrc', self.menuBar.getChecked('menuOptionsRmvSrc'))
-
-    ## Mapping Options
-    def on_menuOptionsCompressGrids_select(self, event):
-        self.menuBar.setChecked('menuOptionsCompressGrids', self.menuBar.getChecked('menuOptionsCompressGrids'))
-
-    def on_menuOptionsLogCurMap_select(self, event):
-        self.menuBar.setChecked('menuOptionsLogCurMap', self.menuBar.getChecked('menuOptionsLogCurMap'))
-
-    def on_menuOptionsCumMap_select(self, event):
-        self.menuBar.setChecked('menuOptionsCumMap', self.menuBar.getChecked('menuOptionsCumMap'))
-
-    def on_menuOptionsMaxMap_select(self, event):
-        self.menuBar.setChecked('menuOptionsMaxMap', self.menuBar.getChecked('menuOptionsMaxMap'))
-
-    ## Other Options
-    def on_menuOptionsPrintTimings_select(self, event):
-        self.menuBar.setChecked('menuOptionsPrintTimings', self.menuBar.getChecked('menuOptionsPrintTimings'))
-
-    def on_menuOptionsPreemptGC_select(self, event):
-        self.menuBar.setChecked('menuOptionsPreemptGC', self.menuBar.getChecked('menuOptionsPreemptGC'))
-
-    def on_menuOptionsLowMemory_select(self, event):
-        self.menuBar.setChecked('menuOptionsLowMemory', self.menuBar.getChecked('menuOptionsLowMemory'))
-
-    def on_menuOptionsMask_select(self, event):
-        self.menuBar.setChecked('menuOptionsMask', self.menuBar.getChecked('menuOptionsMask'))
-
-        if self.menuBar.getChecked('menuOptionsMask') == True:
-            wildcard = "ASCII Raster (*.asc)|*.asc|All Files (*.*)|*.*"
-            result = dialog.fileDialog(self, 'Select Raster Mask.  All cells with NODATA or non-positive-integer values will be dropped from resistance map. ', '', '', wildcard) 
-            if result.accepted == True: 
-                file_name = result.paths[0]
-                self.options.mask_file = file_name
-                self.options.use_mask = True
-            else:
-                self.menuBar.setChecked('menuOptionsMask', False)
-                self.options.use_mask = False
-        else:
-            self.options.use_mask = False
-        self.report_menu_files()
-
-    def on_menuOptionsUsePolygons_select(self, event):
-        self.menuBar.setChecked('menuOptionsUsePolygons', self.menuBar.getChecked('menuOptionsUsePolygons'))
-        if self.menuBar.getChecked('menuOptionsUsePolygons') == True:
-            wildcard = "ASCII Raster (*.asc)|*.asc|All Files (*.*)|*.*"
-            result = dialog.fileDialog(self, 'Select Short-Circuit Region Raster', '', '', wildcard)             
-            if result.accepted == True: 
-                file_name = result.paths[0]
-                self.options.polygon_file = file_name
-                self.options.use_polygons = True
-            else:
-                self.menuBar.setChecked('menuOptionsUsePolygons', False)
-                self.options.use_polygons = False
-        else:
-            self.options.use_polygons = False
-        self.report_menu_files()      
-            
-    def on_menuOptionsVarSrc_select(self, event):
-        self.menuBar.setChecked('menuOptionsVarSrc', self.menuBar.getChecked('menuOptionsVarSrc'))
-        if self.menuBar.getChecked('menuOptionsVarSrc') == True:
-            wildcard = "Tab-delimited text list (*.txt)|*.txt|All Files (*.*)|*.*" 
-            result = dialog.fileDialog(self, 'Select List of Source Strengths', '', '', wildcard ) 
-            if result.accepted == True: 
-                file_name = result.paths[0]
-                self.options.variable_source_file = file_name
-                self.options.use_variable_source_strengths = True
-            else:
-                self.menuBar.setChecked('menuOptionsVarSrc', False)
-                self.options.use_variable_source_strengths = False
-        else:
-            self.options.use_variable_source_strengths = False
-        self.report_menu_files()                 
-                
-    def on_menuOptionsIncludePairs_select(self, event):
-        self.menuBar.setChecked('menuOptionsIncludePairs', self.menuBar.getChecked('menuOptionsIncludePairs'))
-        if self.menuBar.getChecked('menuOptionsIncludePairs') == True:
-            wildcard = "Tab-delimited text list (*.txt)|*.txt|All Files (*.*)|*.*" 
-            result = dialog.fileDialog(self, 'Select Matrix of Focal Node Pairs to Include/Exclude ', '', '', wildcard ) 
-            if result.accepted==True: 
-                file_name = result.paths[0]
-                self.options.included_pairs_file = file_name
-                self.options.use_included_pairs = True
-            else:
-                self.menuBar.setChecked('menuOptionsIncludePairs', False)
-                self.options.use_included_pairs = False
-        else:
-            self.options.use_included_pairs = False
-        self.report_menu_files() 
-                 
 
 
     ##CHOICE BOXES
@@ -425,19 +292,23 @@ class GUI(model.Background):
 
     def on_curMapBox_mouseClick(self, event):   
         self.options.write_cur_maps = event.GetSelection() 
-   
+
     def on_voltMapBox_mouseClick(self, event):   
         self.options.write_volt_maps = event.GetSelection() 
 
     def on_logRusageBox_mouseClick(self, event):
         self.options.print_rusages = event.GetSelection()
+
+    def on_printTimingsBox_mouseClick(self, event):   
+        self.options.print_timings  = event.GetSelection()
     
 ##BROWSE BUTTONS
+
     def on_habitatBrowse_mouseClick(self, event):
         if self.options.data_type == 'network':
             wildcard = "Tab-delimited text list (*.txt)|*.txt|All Files (*.*)|*.*" 
         else:
-            wildcard = "ASCII Raster (*.asc)|*.asc|All Files (*.*)|*.*" 
+            wildcard = "ASCII Raster (*.asc or *.txt)|*.asc;*.txt|All Files (*.*)|*.*" 
         result = dialog.fileDialog(self, 'Select Raster Habitat Map or Network/Graph File', '', '', wildcard) 
         if result.accepted == True: 
             file_name = result.paths[0]
@@ -445,7 +316,7 @@ class GUI(model.Background):
             self.options.habitat_file = file_name
       
     def on_srcTargetBrowse_mouseClick(self, event):
-        wildcard = "Tab-delimited text list (*.txt) or ASCII Raster (*.asc)|*.txt;*.asc|All Files (*.*)|*.*" 
+        wildcard = "Tab-delimited text list or ASCII Raster (*.txt or *.asc)|*.txt;*.asc|All Files (*.*)|*.*" 
         result = dialog.fileDialog(self, 'Select Source/Target File', '', '', wildcard) 
         if result.accepted == True:        
             file_name = result.paths[0]
@@ -453,7 +324,7 @@ class GUI(model.Background):
             self.options.point_file = file_name
 
     def on_currentSrcBrowse_mouseClick(self, event):
-        wildcard = "Tab-delimited text list (*.txt) or ASCII Raster (*.asc)|*.txt;*.asc|All Files (*.*)|*.*" 
+        wildcard = "Tab-delimited text list or ASCII Raster (*.txt or *.asc)|*.txt;*.asc|All Files (*.*)|*.*" 
         result = dialog.fileDialog(self, 'Select Source/Target File', '', '', wildcard) 
         if result.accepted == True:        
             file_name = result.paths[0]
@@ -469,7 +340,7 @@ class GUI(model.Background):
             self.options.output_file = file_name
 
     def on_gndBrowse_mouseClick(self, event):
-        wildcard = "Tab-delimited text list (*.txt) or ASCII Raster (*.asc)|*.txt;*.asc|All Files (*.*)|*.*" 
+        wildcard = "Tab-delimited text list or ASCII Raster (*.txt or *.asc)|*.txt;*.asc|All Files (*.*)|*.*" 
         result = dialog.fileDialog(self, 'Select Ground File', '', '', wildcard ) 
         if result.accepted == True:        
             file_name = result.paths[0]
@@ -520,9 +391,7 @@ class GUI(model.Background):
             dial = wx.MessageDialog(None, message, 'Not all options entered', wx.OK | wx.ICON_EXCLAMATION)  # @UndefinedVariable
             dial.ShowModal()
             return
-        
-        self._get_options_set_in_menu_bar()
-                                 
+                                        
         #save selected options in local directory
         configFile = 'circuitscape.ini'
         self.options.write(configFile)
@@ -582,19 +451,23 @@ class GUI(model.Background):
                     dial = wx.MessageDialog(None, message, 'Error', wx.OK | wx.ICON_EXCLAMATION)  # @UndefinedVariable
                     dial.ShowModal()
             except MemoryError:
+                wx.EndBusyCursor()
                 self.memory_error_feedback()
                 return
             except RuntimeError as error:
+                wx.EndBusyCursor()
                 message = str(error)
                 dial = wx.MessageDialog(None, message, 'Error', wx.OK | wx.ICON_ERROR)  # @UndefinedVariable
                 dial.ShowModal()
                 return
             except:
+                wx.EndBusyCursor()
                 self.unknown_exception()
 
         elif self.options.scenario == 'advanced':
+            wx.BeginBusyCursor()  # @UndefinedVariable
+
             try:
-                wx.BeginBusyCursor()  # @UndefinedVariable
                 self.statusBar.SetStatusText('',1)
                 self.statusBar.SetStatusText('',2) 
                 _voltages, solver_failed = cs.compute()
@@ -609,14 +482,17 @@ class GUI(model.Background):
                 
                 GUI.logger.info('Done.')
             except RuntimeError as error:
+                wx.EndBusyCursor()
                 message = str(error)
                 dial = wx.MessageDialog(None, message, 'Error', wx.OK | wx.ICON_ERROR)  # @UndefinedVariable
                 dial.ShowModal()
                 return
             except MemoryError:
+                wx.EndBusyCursor()
                 self.memory_error_feedback()
                 return
             except:
+                wx.EndBusyCursor()
                 self.unknown_exception()
                 return
 
@@ -647,13 +523,16 @@ class GUI(model.Background):
                     dial = wx.MessageDialog(None, message, 'Error', wx.OK | wx.ICON_EXCLAMATION)  # @UndefinedVariable
                     dial.ShowModal()
             except RuntimeError as error:
+                wx.EndBusyCursor()
                 message = str(error)
                 dial = wx.MessageDialog(None, message, 'Error', wx.OK | wx.ICON_ERROR)  # @UndefinedVariable
                 dial.ShowModal()
             except MemoryError:
+                wx.EndBusyCursor()
                 self.memory_error_feedback()
                 return
             except:
+                wx.EndBusyCursor()
                 self.unknown_exception()            
             self.reset_status_bar()        
 
@@ -764,37 +643,12 @@ class GUI(model.Background):
         self.components.curMapBox.checked                   = self.options.write_cur_maps
         self.components.voltMapBox.checked                  = self.options.write_volt_maps
         self.components.logRusageBox.checked                = self.options.print_rusages
-
-        self.menuBar.setChecked('menuOptionsUnitSrcs',          self.options.use_unit_currents)
-        self.menuBar.setChecked('menuOptionsCumMap',            self.options.write_cum_cur_map_only)
-        self.menuBar.setChecked('menuOptionsMaxMap',            self.options.write_max_cur_maps)
-        self.menuBar.setChecked('menuOptionsLowMemory',         self.options.low_memory_mode)
-
-        self.menuBar.setChecked('menuOptionsLogCurMap',         self.options.log_transform_maps)
-        self.menuBar.setChecked('menuOptionsCompressGrids',     self.options.compress_grids)
-        self.menuBar.setChecked('menuOptionsPrintTimings',      self.options.print_timings)
-        self.menuBar.setChecked('menuOptionsPreemptGC',         self.options.preemptive_memory_release)
-        self.menuBar.setChecked('menuOptionsUnitSrcs',          self.options.use_unit_currents)
-        self.menuBar.setChecked('menuOptionsDirectGnds',        self.options.use_direct_grounds)
-        self.menuBar.setChecked('menuOptionsMask',              self.options.use_mask)
-        self.menuBar.setChecked('menuOptionsUsePolygons',       self.options.use_polygons)
-        self.menuBar.setChecked('menuOptionsUnitSrcs',          self.options.use_unit_currents)
-        self.menuBar.setChecked('menuOptionsVarSrc',            self.options.use_variable_source_strengths)
-        self.menuBar.setChecked('menuOptionsIncludePairs',      self.options.use_included_pairs)
-
-        self.menuBar.setChecked('menuOptionsConnectFourN',      self.options.connect_four_neighbors_only)
-        self.menuBar.setChecked('menuOptionsAvgConductance',    not self.options.connect_using_avg_resistances)
-
-        self.menuBar.setChecked('menuOptionsRmvGnd',            self.options.remove_src_or_gnd in ['rmvall', 'rmvgnd'])
-        self.menuBar.setChecked('menuOptionsRmvSrc',            self.options.remove_src_or_gnd in ['rmvall', 'rmvsrc'])
+        self.components.printTimingsBox.checked             = self.options.print_timings
+        
+        self.report_menu_files()
         
     def enable_disable_network_widgets(self, networkEnabled):        
-        rasterEnabled = not networkEnabled
-        self.menuBar.setEnabled('menuOptionsConnectFourN',      rasterEnabled)
-        self.menuBar.setEnabled('menuOptionsAvgConductance',    rasterEnabled)
-        self.menuBar.setEnabled('menuOptionsUsePolygons',       rasterEnabled)
-        self.menuBar.setEnabled('menuOptionsMask',              rasterEnabled)
-        
+        rasterEnabled = not networkEnabled       
         self.components.scenarioChoice.enabled = rasterEnabled
         self.components.scenarioChoice.visible = rasterEnabled # The two scenario choice menus are on top of one another. Only the relevant one is visible.
         self.components.scenarioChoiceNetwork.enabled = networkEnabled
@@ -808,21 +662,10 @@ class GUI(model.Background):
         self.components.gndFile.enabled             = advancedEnabled
         self.components.gndBrowse.enabled           = advancedEnabled
 
-        self.menuBar.setEnabled('menuOptionsUnitSrcs',      advancedEnabled)
-        self.menuBar.setEnabled('menuOptionsDirectGnds',    advancedEnabled)  
-        self.menuBar.setEnabled('menuOptionsRmvGnd',        advancedEnabled)   
-        self.menuBar.setEnabled('menuOptionsRmvSrc',        advancedEnabled)
-        
         self.components.useGroundConductancesBox.enabled     = advancedEnabled
         self.components.srcTargetFile.enabled               = pairwiseEnabled
         self.components.srcTargetBrowse.enabled             = pairwiseEnabled
         
-        self.menuBar.setEnabled('menuOptionsCumMap',        pairwiseEnabled)    
-        self.menuBar.setEnabled('menuOptionsMaxMap',        pairwiseEnabled)
-        self.menuBar.setEnabled('menuOptionsLowMemory',     pairwiseEnabled and is_pairwise_scenario)
-        self.menuBar.setEnabled('menuOptionsIncludePairs',  pairwiseEnabled and is_pairwise_scenario) 
-        self.menuBar.setEnabled('menuOptionsVarSrc',        pairwiseEnabled and not is_pairwise_scenario)
-
         self.components.parallelSpin.enabled = is_pairwise_scenario and self.options.parallelize == True
 
         foreColor = GUI.COLOR_ENABLED if pairwiseEnabled else GUI.COLOR_DISABLED
@@ -863,27 +706,25 @@ class GUI(model.Background):
 
     def report_menu_files(self):
         self.components.logMessages.clear()
-        menu_files_exist = False
+        msg = ''
         if self.options.data_type != 'network':
             if self.options.use_mask == True:
-                self.components.logMessages.appendText('Mask file set to ' + str(self.options.mask_file) + '.\n')
-                menu_files_exist = True
+                msg = ' '*20 + 'Mask file set to ' + str(self.options.mask_file) + '.\n'
             if self.options.use_polygons == True:
-                self.components.logMessages.appendText('Short-circuit region file set to ' + str(self.options.polygon_file) + '.\n')
-                menu_files_exist = True
+                msg = msg + ' '*20 + 'Short-circuit region file set to ' + str(self.options.polygon_file) + '.\n'
             if (self.options.use_variable_source_strengths == True) and (self.options.scenario == 'one-to-all' or self.options.scenario == 'all-to-one'):
-                self.components.logMessages.appendText('Variable source strength file set to ' + str(self.options.variable_source_file) + '.\n')
-                menu_files_exist = True
+                msg = msg + ' '*20 + 'Variable source strength file set to ' + str(self.options.variable_source_file) + '.\n'
         if self.options.use_included_pairs == True and self.options.scenario == 'pairwise':
-            self.components.logMessages.appendText('Include/exclude file set to ' + str(self.options.included_pairs_file) + '.\n')
-            menu_files_exist = True
-        if menu_files_exist == True:
-            self.components.logMessages.appendText('These inputs can be changed in the Options menu.\n')
-        
+            msg = msg + ' '*20 + 'Include/exclude file set to ' + str(self.options.included_pairs_file) + '.\n'
+        if len(msg) > 1:
+            self.components.logMessages.appendText(' '*20 + '-'*150 + '\n')
+            self.components.logMessages.appendText(msg)
+            self.components.logMessages.appendText(' '*20 + '-'*42 + 'These inputs can be changed in the Options menu' + '-'*42 +'\n\n')
+
     def reset_status_bar(self):
         if self.options.data_type == 'network':
             self.enable_disable_network_widgets(True)        
-            statustext=str('V ' + self.state['version']+' BETA NETWORK MODE')            
+            statustext=str('V ' + self.state['version']+' NETWORK MODE')            
         else:
             statustext=str('Version ' + self.state['version'] + ' Ready.')
             self.enable_disable_network_widgets(False)            
