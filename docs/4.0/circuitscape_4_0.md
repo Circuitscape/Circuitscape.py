@@ -577,14 +577,13 @@ In both cases above, results are written out onto files which can be read back.
 
 #6\. Input file formats
 
-##ASCII file format
+##ASCII raster format
 
-All input maps can all be stored in Arc/Info ASCII grid format, as exported by
+Raster input maps should be stored in Arc/Info ASCII grid format, as exported by
 standard GIS packages (see examples in examples directory; these may be viewed
-with standard text editors).  ASCII grids must be saved with a ".asc"
-extension.  For focal nodes, the value stored in each grid location refers to
-the focal node ID, and a single ID can occupy more than one cell in the grid
-if the "focal regions" option is selected (ID's must be positive).  For
+with standard text editors). For focal nodes, the value stored in each grid location
+refers to the focal node ID, and a single ID can occupy more than one cell in the 
+grid if the "focal regions" option is selected (ID's must be positive).  For
 current sources, the grid value specifies the source strength in amps.  For
 grounds, the grid value specifies either the resistance or conductance of the
 resistor tying each ground node to ground, depending on user choice.  
@@ -666,9 +665,57 @@ In the four-neighbor case, region 3 would be completely isolated.
 
 ##Text list file format
 
-Focal nodes, current sources, and grounds can also be stored as text lists
-(these must be saved with a ".txt" extension).  For each node referenced in a
-text list, a value and X and Y coordinates are specified as shown below.
+For network/graph operations, resistor networks, focal nodes, current sources, and 
+grounds should be stored as text lists (saved with a ".txt" extension). To specify 
+a network of resistors, three columns are used. The first and second columns give 
+the node IDs being connected by a resistor, and the third column gives the resistance
+value.  For example, the simple circuit:
+
+<img height="164" src="images/NetworkFig1.png" width="528">
+
+with all resistances set to 1 can be defined by the following text list:
+
+```
+0	1	1
+1	2	1
+1	3	1
+2	4	1
+3	4	1
+```
+
+This file can be found in the examples directory (network_graph.txt).
+
+For advanced mode, current sources and grounds are also stored as text lists.  The 
+above circuit can be expanded to include a current source and grounds with two extra 
+input files.  For example, we can add a 1 Amp current source at node 0 with a file 
+that looks like this:
+
+```
+0	1
+```
+
+To tie node 4 directly to ground (i.e. to connect it to ground with a wire that has a
+resistance of 0 Ohms) and connect the remaining nodes to ground with 100-ohm resistors, 
+we can use a file that looks like this:
+
+```
+0	100
+1	100
+2	100
+3	100
+4	0
+```
+
+These files are also included in the examples directory. The resulting circuit would look
+like this:
+
+
+<img height="164" src="images/NetworkFig2.png" width="528">
+
+
+For **raster** operations, you can also store focal nodes, current sources, and grounds 
+as text lists (saved with a ".txt" extension).  For each node referenced in a text 
+list, a value and X and Y coordinates are specified as shown below.
 
 ````
     Value1 X1 Y1
