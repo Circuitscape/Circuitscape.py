@@ -108,7 +108,7 @@ class ComputeBase(object):
         if hours>0:
             ComputeBase.logger.debug('Job took ' + str(hours) +' hours ' + str(mins) + ' minutes to complete.')
         else:
-            ComputeBase.logger.debug('Job took ' + str(mins) +' minutes ' + str(secs) + ' seconds to complete.')
+            ComputeBase.logger.info('Job took ' + str(mins) +' minutes ' + str(secs) + ' seconds to complete.')
 
     def _on_low_memory(self):
         """Runs circuitscape in low memory mode. Not incredibly helpful it seems."""

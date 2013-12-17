@@ -74,7 +74,7 @@ class CSConfig:
         'Logging Options': {
             'profiler_log_file': None,      # file to log timing and rusage profiling results 
             'log_file': None,               # file to log regular log messages
-            'log_level': 'DEBUG',           # one of FATAL, ERROR, WARN, INFO, DEBUG
+            'log_level': 'INFO',           # one of FATAL, ERROR, WARN, INFO, DEBUG
             'screenprint_log': False        # whether to print logs to console (stdout)
         }
     }

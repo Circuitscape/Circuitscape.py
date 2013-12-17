@@ -42,7 +42,7 @@ class GUILogger(logging.Handler):
             msg = self.format(record)
             msg = msg.strip('\r')
             status_msg = None
-            if ('\n' not in msg): # dispay simple info messages in the status bar
+            if ('\n' not in msg and 'elapsed' not in msg): # dispay simple info messages in the status bar
                 plain_msg = logging._defaultFormatter.format(record)
                 if (record.levelname == 'INFO'):
                     status_msg = (plain_msg, 1)
@@ -89,7 +89,7 @@ class GUI(model.Background):
         configFile = 'circuitscape.ini'
         self.options = self.LoadOptions(configFile) 
         self.options.version = self.state['version']
-        self.options.log_level = 'DEBUG'
+        self.options.log_level = 'INFO'
         
         ##Set all objects to reflect options
         self.components.Image1.file = get_packaged_resource('cs_logo.jpg')
@@ -445,7 +445,7 @@ class GUI(model.Background):
                 else:
                     msg = 'Pairwise resistances (-1 indicates disconnected node pair):'
                 GUI.logger.info(msg + "\n" + np.array_str(resistances, 300))
-                GUI.logger.info('Done.')
+                GUI.logger.info('Done.\n')
                 
                 if solver_failed == True:
                     message = 'At least one solve failed.  Failure is coded as -777 in output resistance matrix.'
@@ -480,7 +480,7 @@ class GUI(model.Background):
                     dial = wx.MessageDialog(None, message, 'Error', wx.OK | wx.ICON_EXCLAMATION)  # @UndefinedVariable
                     dial.ShowModal()
                 
-                GUI.logger.info('Done.')
+                GUI.logger.info('Done.\n')
             except RuntimeError as error:
                 wx.EndBusyCursor()  # @UndefinedVariable
                 message = str(error)
@@ -516,7 +516,7 @@ class GUI(model.Background):
                 else:
                     msg = 'Resistances (-1 indicates disconnected node):'
                 GUI.logger.info(msg + '\n' + np.array_str(resistances, 300))
-                GUI.logger.info('Done.')
+                GUI.logger.info('Done.\n')
                 
                 if solver_failed == True:
                     message = 'At least one solve failed.  Failure is coded as -777 in output node/resistance list.'
