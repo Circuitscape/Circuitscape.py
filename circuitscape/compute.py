@@ -396,7 +396,11 @@ class Compute(ComputeBase):
             resistances = -1 * np.ones((numpoints, numpoints), dtype='float64')
             
             num_points_solved = 0
-            num_points_to_solve = numpoints*(numpoints-1)/2
+#             num_points_to_solve = numpoints*(numpoints-1)/2
+            num_points_to_solve = 0
+            for (pt1_idx, pt2_idx) in fp.point_pair_idxs():
+                if pt2_idx != -1:
+                    num_points_to_solve += 1
             
             for (pt1_idx, pt2_idx) in fp.point_pair_idxs():
                 if pt2_idx == -1:
@@ -467,10 +471,17 @@ class Compute(ComputeBase):
         Compute.logger.debug('Graph has ' + str(g_habitat.num_nodes) + ' nodes, ' + str(numpoints) + ' focal nodes and '+ str(g_habitat.num_components)+ ' components.')
         resistances = -1 * np.ones((numpoints, numpoints), dtype = 'float64')         #Inf creates trouble in python 2.5 on Windows. Use -1 instead.
         
-        if use_resistance_calc_shortcut==True:
-            num_points_to_solve = numpoints
-        else:
-            num_points_to_solve = numpoints*(numpoints-1)/2
+#         if use_resistance_calc_shortcut==True:
+#             num_points_to_solve = numpoints
+#         else:
+#             num_points_to_solve = numpoints*(numpoints-1)/2
+        
+        num_points_to_solve = 0
+        for c in range(1, int(g_habitat.num_components+1)):
+            if fp.exists_points_in_component(c, g_habitat):
+                for (pt1_idx, pt2_idx) in fp.point_pair_idxs_in_component(c, g_habitat):
+                    if pt2_idx != -1:
+                        num_points_to_solve += 1
         
         num_points_solved = 0
         for c in range(1, int(g_habitat.num_components+1)):
