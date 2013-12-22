@@ -139,7 +139,7 @@ GUI_RSRC = {'application':{'type':'Application',
     'position':(29, 345), 
     'font':{'style': 'bold', 'faceName': u'Lucida Grande', 'family': 'sansSerif', 'size': 11}, 
     'foregroundColor':(0, 0, 160, 255), 
-    'text':'Parallel processors to use: ', 
+    'text':'Number of parallel processors to use: ', 
     },
 
 {'type':'Spinner', 
