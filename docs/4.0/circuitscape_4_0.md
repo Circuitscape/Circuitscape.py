@@ -44,7 +44,7 @@ Circuitscape can be run from a stand-alone interface or from an ArcGIS toolbox:
 
 **Fig. X.** Stand-alone interface (supports raster and network analyses).
 
-<img src="images/ArcGISInterface.png" alt="ArcGIS Toolbox" style="width: 
+<img src="images/ArcGISInterface.PNG" alt="ArcGIS Toolbox" style="width: 
 400px;"/>
 
 **Fig. X.** ArcGIS Toolbox (for raster-based analyses only). The toolbox also 
@@ -203,7 +203,7 @@ can be calculated at each node.
 
 ### Illustrations of analyses with raster data 
 
-![](images/Fig1_RasterInputs.png) 
+![](images/Fig1_RasterInputs.PNG) 
 
 **Fig. 1.** Example raster input files for **pairwise and one-to-all modes**. 
 Input files in this example include a **habitat map** specifying per-cell 
@@ -214,7 +214,7 @@ zero resistance. Cells with the same region ID are considered perfectly
 connected and are collapsed into a single node, even if they are not 
 contiguous. 
 
-![](images/Fig2_RasterPairwise.png) **Fig. 2.** Schematic describing 
+![](images/Fig2_RasterPairwise.PNG) **Fig. 2.** Schematic describing 
 **pairwise** mode analyses that would result from the input files shown in 
 Fig. 1. Three sets of pairwise calculations-- involving focal nodes 1 and 2, 
 nodes 1 and 3, and nodes 2 and 3--would be conducted. For each pair, one node 
@@ -223,7 +223,7 @@ that focal region nodes become short- circuit regions when they are activated
 (e.g., node 1 in scenario 1), but these regions are not present when the nodes 
 are not activated (e.g., node 1 in scenario 3). 
 
-![](images/Fig3_RasterOneToAll.png) 
+![](images/Fig3_RasterOneToAll.PNG) 
 
 **Fig. 3.** Schematic describing **one-to-all mode** analyses that would 
 result from the input files shown in Fig. 1. Three sets of calculations-- 
@@ -233,7 +233,7 @@ connected to ground. The all-to-one mode is similar, with arrow directions
 reversed; that is, one node is connected to ground while the remaining nodes 
 are connected to 1-amp current sources. 
 
-![](images/Fig4_RasterAdvancedInputs.png) 
+![](images/Fig4_RasterAdvancedInputs.PNG) 
 
 **Fig. 4.** Example raster input files for **advanced mode**, which requires 
 independent **current source and ground files**. Note that current sources in 
