@@ -186,7 +186,7 @@ nodes in the circuit) between which we want to perform calculations.
 
 ![](images/SimpleNetworkWithSourceGround.png) 
 
-![](images/SimpleNetworkcurrentFlow.png) 
+![](images/SimpleNetworkCurrentFlow.png) 
 
 **Fig X.** In pairwise mode, Circuitscape will iterate across pairs of nodes 
 in a focal node list. If node 0 and node 4 are in the focal node list, then 
