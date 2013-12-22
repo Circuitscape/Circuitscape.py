@@ -36,6 +36,7 @@ def load_config(test_name):
     #print test_name
     configFile = os.path.join(TESTS_CFG, test_name + '.ini')
     cs = cscape.Compute(configFile, EXT_LOGGER)
+    cs.logger.info("Running test: " + test_name)
     _out_dir, out_file = os.path.split(cs.options.output_file)
     cs.options.output_file = os.path.join(TESTS_OUT, out_file)
     return cs

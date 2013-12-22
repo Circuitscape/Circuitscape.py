@@ -594,6 +594,18 @@ class CSIO:
             if (ncols1 != ncols) or (nrows1 != nrows) or (abs(xllcorner1 - xllcorner) > cellsize/3) or (abs(yllcorner1 - yllcorner) > cellsize/3) or (cellsize1 != cellsize):
                 return False
         return True
-                
-                
-                
+
+    @staticmethod
+    def problem_size(data_type, habitat_file):
+        # TODO: enhance to consider other parameters and be more accurate
+        if data_type == 'network':
+            graph_list = CSIO.load_graph(habitat_file)
+            max_node = int(max(max(graph_list[:,0]), max(graph_list[:,2])))
+            return max_node * max_node
+        else:
+            (ncols, nrows, _xllcorner, _yllcorner, _cellsize, _nodata, _filetype) = CSIO._ascii_grid_read_header(habitat_file)
+            return ncols * nrows
+        
+            
+        
+
