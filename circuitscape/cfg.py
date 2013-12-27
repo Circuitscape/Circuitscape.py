@@ -130,6 +130,19 @@ class CSConfig:
                 result[option] = val
         return result
     
+    def are_all_paths_relative(self):
+        defaults = {}
+        for olist in CSConfig.DEFAULTS.values(): 
+            defaults.update(olist)
+            
+        for name in CSConfig.FILE_PATH_PROPS:
+            if not ((name in self.options) and (self.options[name] != defaults[name]) and (self.options[name] != None)):
+                continue
+            
+            if os.path.isabs(self.options[name]):
+                return False
+        return True
+    
     def write(self, cfg_filename, is_filename_template=False):
         if is_filename_template:
             out_base, _out_extn = os.path.splitext(cfg_filename)
