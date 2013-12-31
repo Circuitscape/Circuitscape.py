@@ -45,14 +45,14 @@ graphs) with any set of connections between nodes the user specifies.
 Circuitscape can be run from a stand-alone interface or from an ArcGIS toolbox:
 
 <p align="center">
-<img src="images/image16.png" alt="GUI" style="width: 600px;"/>
+<img src="images/image16.png" alt="GUI" width="600px;"/>
 </p>
 
 **Fig. ?.** Stand-alone interface (supports raster and network analyses).
 
 
 <p align="center">
-<img src="images/ArcGISInterface.png" alt="ArcGIS Toolbox" style="width: 
+<img src="images/ArcGISInterface.png" alt="ArcGIS Toolbox" width=" 
 400px;"/>
 </p>
 
@@ -105,7 +105,7 @@ higher values denoting greater resistance to movement) or conductances (the
 reciprocal of resistance; higher values indicate greater ease of movement). 
 
 <p align="center">
-<img src="images/SimpleNetworkAndRaster.png" style="width: 400px;"/> 
+<img src="images/SimpleNetworkAndRaster.png" width=" 400px;"/> 
 </p>
 
 **Fig. ?.** Simple illustrations of network and raster data types used by 
@@ -124,7 +124,7 @@ assigned zero resistance (infinite conductance) using a separate "short-circuit
 region" file. These collections of cells are collapsed into a single node. 
 
 <p align="center">
-<img src="images/RasterWithResistors.png" style="width: 400px;"/> 
+<img src="images/RasterWithResistors.png" width=" 400px;"/> 
 </p>
 
 **Fig. ?.** Raster grids are converted to 
@@ -190,7 +190,7 @@ resistor:
 
 
 <p align="center">
-<img src="images/SimpleNetworkWithNumbers2.png" style="width: 400px;"/> 
+<img src="images/SimpleNetworkWithNumbers2.png" width=" 400px;"/> 
 </p>
 
 **Fig. X.** Example network. This network would be input as a **text list** 
@@ -202,7 +202,7 @@ For **pairwise analysis** we would also supply a list of focal nodes
 nodes in the circuit) between which we want to perform calculations. 
 
 <p align="center">
-<img src="images/SimpleNetworkCurrentFlow.png" style="width: 400px;"/> 
+<img src="images/SimpleNetworkCurrentFlow.png" width=" 400px;"/> 
 </p> 
 
 **Fig X.** In pairwise mode, Circuitscape will iterate across pairs of nodes 
@@ -220,11 +220,11 @@ and adding multiple grounds with different resistances. Current sources and
 grounds are entered in separate files. 
 
 <p align="center">
-<img src="images/AdvancedNetwork.png" style="width: 400px;"/> 
+<img src="images/AdvancedNetwork.png" width=" 400px;"/> 
 </p> 
 
 <p align="center">
-<img src="images/AdvancedNetworkFlows.png" style="width: 400px;"/> 
+<img src="images/AdvancedNetworkFlows.png" width=" 400px;"/> 
 </p> 
 
 **Fig. X.** In advanced mode, any node can be tied to a current source or to 
@@ -237,7 +237,7 @@ voltages can be calculated at each node. Circuit above is from McRae et al.
 ### Illustrations of analyses with raster data 
 
 <p align="center">
-<img src="images/Fig1_RasterInputs.png" style="width: 600px;"/> 
+<img src="images/Fig1_RasterInputs.png" width=" 600px;"/> 
 </p> 
 
 **Fig. ?.** Example raster input files for **pairwise and one-to-all modes**. 
@@ -250,7 +250,7 @@ connected and are collapsed into a single node, even if they are not
 contiguous. 
 
 <p align="center">
-<img src="images/Fig2_RasterPairwise.png" style="width: 600px;"/> 
+<img src="images/Fig2_RasterPairwise.png" width=" 600px;"/> 
 </p> 
 
 **Fig. ?.** Schematic describing **pairwise** mode analyses that would result 
@@ -262,7 +262,7 @@ regions when they are activated (e.g., node 1 in scenario 1), but these regions
 are not present when the nodes are not activated (e.g., node 1 in scenario 3). 
 
 <p align="center">
-<img src="images/Fig3_RasterOneToAll.png" style="width: 600px;"/> 
+<img src="images/Fig3_RasterOneToAll.png" width=" 600px;"/> 
 </p>  
 
 **Fig. ?.** Schematic describing **one-to-all mode** analyses that would 
@@ -274,7 +274,7 @@ reversed; that is, one node is connected to ground while the remaining nodes
 are connected to 1-amp current sources. 
 
 <p align="center">
-<img src="images/Fig4_RasterAdvancedInputs.png" style="width: 600px;"/> 
+<img src="images/Fig4_RasterAdvancedInputs.png" width=" 600px;"/> 
 </p>  
 
 **Fig. ?.** Example raster input files for **advanced mode**, which requires 
@@ -284,7 +284,7 @@ ground with differing levels of resistance. This example also includes an
 optional grid with five short-circuit regions. 
 
 <p align="center">
-<img src="images/Fig5_RasterEffectiveConfiguration.png" style="width: 600px;"/> 
+<img src="images/Fig5_RasterEffectiveConfiguration.png" width=" 600px;"/> 
 </p>  
 
 **Fig. 5.** The first two panels show the "effective" configuration resulting 
@@ -537,7 +537,7 @@ can be modified using standard text editors.
 
 ##The Options window 
 
-<img src="images/OptionsWindow.png" alt="ArcGIS Toolbox" style="width: 
+<img src="images/OptionsWindow.png" alt="ArcGIS Toolbox" width=" 
 400px;"/> 
 
 Fig X. The options window gives access to less-frequently-used options. 
@@ -885,7 +885,7 @@ columns give the node IDs being connected by a resistor, and the third column
 gives the resistance value. For example, the simple circuit: 
 
 <p align="center">
-<img src="images/SimpleNetworkWithNumbers2.png" style="width: 400px;"/> 
+<img src="images/SimpleNetworkWithNumbers2.png" width=" 400px;"/> 
 </p>  
 
 can be defined by the following text list:
@@ -929,7 +929,7 @@ would look like this (from McRae et al. 2008):
 
 
 <p align="center">
-<img src="images/AdvancedNetwork.png" style="width: 600px;"/> 
+<img src="images/AdvancedNetwork.png" width=" 600px;"/> 
 </p>  
 
 For **raster** operations, you can also store focal nodes, current sources, 
