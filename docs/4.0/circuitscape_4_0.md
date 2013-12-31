@@ -105,7 +105,7 @@ higher values denoting greater resistance to movement) or conductances (the
 reciprocal of resistance; higher values indicate greater ease of movement). 
 
 <p align="center">
-<img src="images/SimpleNetworkAndRaster.png" width=" 400px;"/> 
+<img src="images/SimpleNetworkAndRaster.png" width="400px;"/> 
 </p>
 
 **Fig. ?.** Simple illustrations of network and raster data types used by 
@@ -124,8 +124,9 @@ assigned zero resistance (infinite conductance) using a separate "short-circuit
 region" file. These collections of cells are collapsed into a single node. 
 
 <p align="center">
-<img src="images/RasterWithResistors.png" width=" 400px;"/> 
+<img src ="images/RasterWithResistors.png" width="400px;"/> 
 </p>
+
 
 **Fig. ?.** Raster grids are converted to 
 electrical networks. Each cell becomes a node (represented by a dot), and 
@@ -188,10 +189,10 @@ indicating successful solves.
 For network data types, any node can be connected to any other node by a 
 resistor: 
 
-
 <p align="center">
 <img src="images/SimpleNetworkWithNumbers2.png" width=" 400px;"/> 
 </p>
+
 
 **Fig. X.** Example network. This network would be input as a **text list** 
 specifying resistances between each pair of connected nodes (0-1, 1-2, 1-3, 
