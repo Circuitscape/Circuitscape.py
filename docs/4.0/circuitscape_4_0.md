@@ -105,7 +105,7 @@ higher values denoting greater resistance to movement) or conductances (the
 reciprocal of resistance; higher values indicate greater ease of movement). 
 
 <p align="center">
-<img src="images/SimpleNetworkAndRaster.png" style="width: 600px;"/> 
+<img src="images/SimpleNetworkAndRaster.png" style="width: 400px;"/> 
 </p>
 
 **Fig. ?.** Simple illustrations of network and raster data types used by 
@@ -124,7 +124,7 @@ assigned zero resistance (infinite conductance) using a separate "short-circuit
 region" file. These collections of cells are collapsed into a single node. 
 
 <p align="center">
-<img src="images/RasterWithResistors.png" style="width: 600px;"/> 
+<img src="images/RasterWithResistors.png" style="width: 400px;"/> 
 </p>
 
 **Fig. ?.** Raster grids are converted to 
@@ -190,7 +190,7 @@ resistor:
 
 
 <p align="center">
-<img src="images/SimpleNetworkWithNumbers2.png" style="width: 600px;"/> 
+<img src="images/SimpleNetworkWithNumbers2.png" style="width: 400px;"/> 
 </p>
 
 **Fig. X.** Example network. This network would be input as a **text list** 
@@ -202,7 +202,7 @@ For **pairwise analysis** we would also supply a list of focal nodes
 nodes in the circuit) between which we want to perform calculations. 
 
 <p align="center">
-<img src="images/SimpleNetworkCurrentFlow.png" style="width: 600px;"/> 
+<img src="images/SimpleNetworkCurrentFlow.png" style="width: 400px;"/> 
 </p> 
 
 **Fig X.** In pairwise mode, Circuitscape will iterate across pairs of nodes 
@@ -220,11 +220,11 @@ and adding multiple grounds with different resistances. Current sources and
 grounds are entered in separate files. 
 
 <p align="center">
-<img src="images/AdvancedNetwork.png" style="width: 600px;"/> 
+<img src="images/AdvancedNetwork.png" style="width: 400px;"/> 
 </p> 
 
 <p align="center">
-<img src="images/AdvancedNetworkFlows.png" style="width: 600px;"/> 
+<img src="images/AdvancedNetworkFlows.png" style="width: 400px;"/> 
 </p> 
 
 **Fig. X.** In advanced mode, any node can be tied to a current source or to 
@@ -884,8 +884,9 @@ specify a network of resistors, three columns are used. The first and second
 columns give the node IDs being connected by a resistor, and the third column 
 gives the resistance value. For example, the simple circuit: 
 
-
-<img height="164" src="images/simpleNetworkWithNumbers2.png" width="528">
+<p align="center">
+<img src="images/SimpleNetworkWithNumbers2.png" style="width: 400px;"/> 
+</p>  
 
 can be defined by the following text list:
 
