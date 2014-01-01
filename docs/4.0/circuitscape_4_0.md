@@ -105,7 +105,7 @@ higher values denoting greater resistance to movement) or conductances (the
 reciprocal of resistance; higher values indicate greater ease of movement). 
 
 <p align="center">
-<img src="images/SimpleNetworkAndRaster.png" width="400px;"/> 
+<img src="images/SimpleNetworkAndRaster.png" width="800px;"/> 
 </p>
 
 **Fig. ?.** Simple illustrations of network and raster data types used by 
@@ -124,7 +124,7 @@ assigned zero resistance (infinite conductance) using a separate "short-circuit
 region" file. These collections of cells are collapsed into a single node. 
 
 <p align="center">
-<img src ="images/RasterWithResistors.png" width="400px;"/> 
+<img src ="images/RasterWithResistors.png" width="600px;"/> 
 </p>
 
 
@@ -194,7 +194,7 @@ resistor:
 </p>
 
 
-**Fig. X.** Example network. This network would be input as a **text list** 
+**Fig. ?.** Example network. This network would be input as a **text list** 
 specifying resistances between each pair of connected nodes (0-1, 1-2, 1-3, 
 2-3, and 2-4; see the "Input file formats" section below). 
 
@@ -206,7 +206,7 @@ nodes in the circuit) between which we want to perform calculations.
 <img src="images/SimpleNetworkCurrentFlow.png" width=" 400px;"/> 
 </p> 
 
-**Fig X.** In pairwise mode, Circuitscape will iterate across pairs of nodes 
+**Fig ?.** In pairwise mode, Circuitscape will iterate across pairs of nodes 
 in a focal node list. If node 0 and node 4 are in the focal node list, then 
 one of the iterations will look like the above, with a 1 amp current source 
 connected to one node and the other grounded. Current will flow across the 
@@ -228,7 +228,7 @@ grounds are entered in separate files.
 <img src="images/AdvancedNetworkFlows.png" width=" 400px;"/> 
 </p> 
 
-**Fig. X.** In advanced mode, any node can be tied to a current source or to 
+**Fig. ?.** In advanced mode, any node can be tied to a current source or to 
 ground, either directly or via resistors with any value (top panel). Currents 
 passing through all nodes and links can then be calculated (bottom panel), and 
 voltages can be calculated at each node. Circuit above is from McRae et al. 
@@ -394,7 +394,7 @@ using a separate short-circuit region file as described below.
 ###Focal node location and data type 
 
 This file specifies locations of nodes between which effective resistance and 
-current flow are to be calculated (See Figs. ?? and ??). **Each 
+current flow are to be calculated (See Figs. ? and ?). **Each 
 focal node should have a unique positive integer ID.** Files may be text lists 
 specifying coordinates or appropriate raster grid formats. When a grid is used, it must 
 have the same cell size and extent as the resistance grid. The value stored in 
@@ -478,13 +478,13 @@ regardless of which node is the source
 and which is the ground due to symmetry). For the advanced modeling mode, a 
 single map will be written showing current densities at each cell resulting 
 from the current source and ground configurations in the input files. These 
-files can be displayed in a GIS as in Fig. ??.  Such maps can 
+files can be displayed in a GIS as in Fig. ?.  Such maps can 
 be used to identify areas which contribute most to connectivity between focal 
 points (McRae et al. 2008). 
 
 ![](images/image24.png) 
 
-Fig. 6. Current map used to predict important connectivity areas between core 
+Fig. ?. Current map used to predict important connectivity areas between core 
 habitat patches (green polygons, entered as focal regions) for mountain lions. 
 Warmer colors indicate areas with higher current density. "Pinch points," or 
 areas where connectivity is most tenuous, are shown in yellow. Quantile 
@@ -549,7 +549,7 @@ To access this window via the menu bar, click on Options>> More settings & input
 ####Connect raster cells to FOUR neighbors instead of EIGHT 
 
 For raster operations, Circuitscape creates a graph (network) by connecting 
-cells to their four (Fig. X) or eight immediate neighbors. The default is 
+cells to their four (Fig. ?) or eight immediate neighbors. The default is 
 eight (four cardinal and four diagonal neighbors), but check this box if you 
 want to connect cells to their four cardinal neighbors only. 
 
@@ -663,35 +663,14 @@ directory.
 
 ####Read file with focal node pairs to include/exclude 
 
-When checked, a dialog will open to select a 
+This option allows users to only perform calculations on a subset of focal node
+pairs. Users can either identify pairs to include in calculations, or pairs to 
+exclude, as specified in the first line of the file.
 
-??------CHANGE--------??
+This affects all modes except the Advanced Mode.  Files should be in 
+tab-delimited text with a .txt extension. See formatting information in the 
+*Input file formats* section below.
 
- matrix 
-identifying which pairs of focal nodes to connect. The file specifies minimum 
-and maximum values in the matrix to consider a pair connected. This can be 
-useful when used with a distance matrix to only run analyses between points 
-separated by a minimum distance, or by a distance equal to or less than a 
-maximum distance. Note: any focal node not in the matrix will be dropped from 
-analyses. Entries on the diagonal are ignored. For example, in the following 
-matrix, only pairs with entries between 2 and 50 are connected. Pairs (1,2), 
-(2,4), and (3,4) will not be analyzed. Focal node 5 will be dropped entirely: 
-
-
-```
-min        2  
-max        50  
-0      1      2      3       4      5  
-1      0      100    6.67    7      1  
-2      100    0      11      1      60
-3      6.67   11     0      -1      100  
-4      7      1      -1      0      0
-5      1      60     100     0      0
-```
-
-This affects all modes except the Advanced Mode.  Files should be in tab-
-delimited text with a .txt extension. See example file
-"matrix_of_pairs_to_include_and_exclude.txt" in the examples directory.
 
 ###The Log Window
 
@@ -777,7 +756,7 @@ When working with networks, text lists are used for all input files.
 
 For raster analyses using the ArcGIS toolbox, resistance grids and other inputs 
 can be in a number of raster formats. For raster analyses using the stand-alone 
-Circuitscape interface (Fig. 1) or calling Circuitscape from the command line 
+Circuitscape interface (Fig. ?) or calling Circuitscape from the command line 
 or from other programs, resistance grids should 
 be in ASCII raster format, and focal node, current source, and ground files 
 can be in either raster or text list format.  
@@ -930,14 +909,13 @@ would look like this (from McRae et al. 2008):
 
 
 <p align="center">
-<img src="images/AdvancedNetwork.png" width=" 600px;"/> 
+<img src="images/AdvancedNetwork.png" width="500px;"/> 
 </p>  
 
 For **raster** operations, you can also store focal nodes, current sources, 
 and grounds as text lists (saved with a ".txt" extension). For each node 
 referenced in a text list, a value and X and Y coordinates are specified as 
 shown below. 
-
 
 
 ````
@@ -971,7 +949,28 @@ the value field references either the resistance or conductance of the resistor
 tying each ground node to ground, as set in the Options window.
 
 ##Include/exclude file format
-???Describe format???
+
+This file will be loaded when the 'Read file with focal node pairs to 
+include/exclude' option is checked. Users can either specify pairs to include
+in calculations, or pairs to exclude, as specified in the first line of the 
+file. For example, if there are  five focal nodes, numbered 1-5, and the 
+following list is entered, only pairs (1,2), (1,3), and (1,5) will be analyzed:
+
+```
+mode	include
+1		2
+1		3
+1		5
+```
+
+Similarly, if the first line in the above file read:
+
+```
+mode 	exclude
+```
+
+all pairs except (1,2), (1,3), and (1,5) would be analyzed. 
+
 
 #9\. Output files
 
