@@ -555,7 +555,7 @@ class CSIO:
     
     @staticmethod
     @print_rusage
-    def write_currents(outfile_template, branch_currents, node_currents, fileadd):
+    def write_currents(outfile_template, branch_currents, node_currents, fileadd, options):
         """Writes currents from network operations.
         
            Inputs are arrays with node names.
@@ -564,11 +564,13 @@ class CSIO:
         
         if fileadd != '':
             fileadd = ('_' + fileadd)
+        elif options.scenario != 'advanced':
+            fileadd = '_cum' #For backward compatibility
         if branch_currents != None:
             filename = out_base + '_branch_currents' + fileadd + '.txt'
             np.savetxt(filename, branch_currents, fmt='%.10g')
         filename = out_base + '_node_currents' + fileadd + '.txt'
-        np.savetxt(filename, node_currents, fmt='%.10g')      
+        np.savetxt(filename, node_currents, fmt='%.10g') 
 
     @staticmethod
     @print_rusage

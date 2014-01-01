@@ -2,7 +2,7 @@ import sys, time, logging, copy
 import numpy as np
 from scipy.sparse.linalg import cg
 from scipy import sparse
-from scipy.sparse.csgraph import connected_components
+from scipy.sparse.csgraph import connected_components, _validation #_validation is for py2exe
 
 from cfg import CSConfig
 from state import CSState
@@ -769,7 +769,7 @@ class Output:
             if write:                
                 # Append node names and convert to array format
                 node_currents_array = Output._append_names_to_node_currents(node_currents, node_map)                
-                CSIO.write_currents(self.options.output_file, branch_currents_array, node_currents_array, name)
+                CSIO.write_currents(self.options.output_file, branch_currents_array, node_currents_array, name, self.options)
                 
             if remove:
                 self.rm_c_map(name)
@@ -788,7 +788,7 @@ class Output:
             else:
                 current_map = self.current_maps[name]                                                                                
     
-            if self.options.set_focal_node_currents_to_zero==True:
+            if (self.options.set_focal_node_currents_to_zero==True) and (local_src is not None) and (local_dst is not None):
                 # set source and target node currents to zero
                 focal_node_pair_map = np.where(node_map == local_src+1, 0, 1)
                 focal_node_pair_map = np.where(node_map == local_dst+1, 0, focal_node_pair_map)                                                
@@ -796,8 +796,12 @@ class Output:
                 del focal_node_pair_map
             
             if write:
+                if name=='' and self.scenario != 'advanced': 
+                    curMapName = 'cum_curmap' #For backward compatibility- ArcGIS
+                else:
+                    curMapName = 'curmap'
                 fileadd = name if (name=='') else ('_'+name)
-                CSIO.write_aaigrid('curmap', fileadd, self._log_transform(current_map), self.options, self.state)
+                CSIO.write_aaigrid(curMapName, fileadd, self._log_transform(current_map), self.options, self.state)
             if remove:
                 self.rm_c_map(name)
             elif accumulate:

@@ -71,7 +71,7 @@ def test_sg(ut, test_name):
 
     if test_name != 'sgVerify12': #This module tests the resistance shortcut which is only calculated when maps are not written.
         compare_results(ut, test_name, 'curmap_1_2.asc', False)
-        compare_results(ut, test_name, 'curmap.asc', False)
+        compare_results(ut, test_name, 'cum_curmap.asc', False)
         compare_results(ut, test_name, 'voltmap_1_2.asc', False)
             
         if os.path.isfile('.//verify//output//' + test_name + '_curmap_max.asc'):
@@ -87,9 +87,9 @@ def test_network_sg(ut, test_name):
     resistances_saved = np.loadtxt(os.path.join(TESTS_BASELINE, test_name + '_resistances_3columns.txt'))
     ut.assertEquals(approxEqual(resistances_saved, resistances_computed), True)
     
-    compare_results(ut, test_name, 'node_currents.txt', False)
+    compare_results(ut, test_name, 'node_currents_cum.txt', False)
     compare_results(ut, test_name, 'voltages_0_1.txt', False)
-    compare_results(ut, test_name, 'branch_currents.txt', False)
+    compare_results(ut, test_name, 'branch_currents_cum.txt', False)
 
     if test_name != 'sgNetworkVerify2': #need to replace this test.  Rounding error creates non-zero branch currents on some platforms and not others.
         compare_results(ut, test_name, 'branch_currents_0_1.txt', False)
@@ -114,7 +114,7 @@ def test_one_to_all(ut, test_name):
     ut.assertEquals(approxEqual(resistances_saved, resistances_computed), True)
 
     compare_results(ut, test_name, 'curmap_1.asc', False)
-    compare_results(ut, test_name, 'curmap.asc', False)
+    compare_results(ut, test_name, 'cum_curmap.asc', False)
     compare_results(ut, test_name, 'voltmap_1.asc', False)
    
     
@@ -124,7 +124,7 @@ def test_all_to_one(ut, test_name):
     _resistances_computed, _solver_failed = cs.compute()
 
     compare_results(ut, test_name, 'curmap_1.asc', False)
-    compare_results(ut, test_name, 'curmap.asc', False)
+    compare_results(ut, test_name, 'cum_curmap.asc', False)
     compare_results(ut, test_name, 'voltmap_1.asc', False)
 
         

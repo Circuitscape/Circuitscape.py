@@ -87,7 +87,7 @@ class Compute(ComputeBase):
             ind = np.lexsort((full_node_currents[:, 1], full_node_currents[:, 0]))
             full_node_currents = full_node_currents[ind]
 
-            CSIO.write_currents(self.options.output_file, full_branch_currents, full_node_currents, '')
+            CSIO.write_currents(self.options.output_file, full_branch_currents, full_node_currents, '',self.options)
             
         return result1, solver_failed
 
@@ -528,7 +528,7 @@ class Compute(ComputeBase):
                         Compute.logger.info('solving focal node ' + str(num_points_solved) + ' of '+ str(num_points_to_solve))
                     else:
                         Compute.logger.info('solving focal pair ' + str(num_points_solved) + ' of '+ str(num_points_to_solve))
-            
+                
                 local_src = fp.get_graph_node_idx(pt2_idx, local_node_map)
                 if None == local_dst:
                     local_dst = fp.get_graph_node_idx(pt1_idx, local_node_map)
