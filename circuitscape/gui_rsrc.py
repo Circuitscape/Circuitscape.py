@@ -144,7 +144,7 @@ GUI_RSRC = {'application':{'type':'Application',
 
 {'type':'Spinner', 
     'name':'parallelSpin', 
-    'position':(230, 343), 
+    'position':(305, 343), 
     'size':(48, 21), 
     'font':{'faceName': u'Lucida Grande', 'family': 'sansSerif', 'size': 11}, 
     'max':100, 

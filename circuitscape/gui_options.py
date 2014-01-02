@@ -29,6 +29,8 @@ class OptionsWindow(model.CustomDialog):
         self.components.unitSrcsBox.checked         = self.childOptions.use_unit_currents
         self.components.directGndsBox.checked       = self.childOptions.use_direct_grounds
         
+        if self.childOptions.remove_src_or_gnd == 'not entered':
+            self.childOptions.remove_src_or_gnd = 'keepall' # For backward compatibility- 'not entered' was old default
         idx = self.parent.OPTIONS_REMOVE_SOURCE_GROUND.index(self.childOptions.remove_src_or_gnd)
         self.components.rmvSrcGndChoice.SetSelection(idx) 
 

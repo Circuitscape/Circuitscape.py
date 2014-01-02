@@ -1,10 +1,15 @@
+# import sys
+# if sys.modules.has_key('wx'):
+    # print 'wx0'
 import os, sys, traceback, logging, time, multiprocessing, tempfile
 import numpy as np
 
 import wxversion
+# print wxversion.getInstalled()
+
 try:
     #wxversion.select(['2.9', '2.8', '2.7'])
-    wxversion.select('2.8')
+    wxversion.select('2.8') 
 except:
     try:
         wxversion.select('2.9')
@@ -564,16 +569,16 @@ class GUI(model.Background):
         try:
             dial = wx.MessageDialog(None, 'An unknown error occurred.  Please see message in terminal.', 'Error', wx.OK | wx.ICON_ERROR)  # @UndefinedVariable
             dial.ShowModal()
-            e_type, value, tb = sys.exc_info()
-            info = traceback.extract_tb(tb)
-            print 'full traceback:'
-            print info
-            print '***************'
-            filename, lineno, function, _text = info[-1] # last line only
-            print "\n %s:%d: %s: %s (in %s)" % (filename, lineno, e_type.__name__, str(value), function)
+            traceback.print_exc()
         finally:
             e_type = value = tb = None # clean up
  
+
+
+
+
+
+
     def memory_error_feedback(self):
         GUI.logger.error('Circuitscape ran out of memory. Please see user guide for information about memory requirements.')
         message='Circuitscape ran out of memory. \nPlease see user guide for information about memory requirements.'
