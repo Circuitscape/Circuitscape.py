@@ -221,7 +221,7 @@ and adding multiple grounds with different resistances. Current sources and
 grounds are entered in separate files. 
 
 <p align="center">
-<img src="images/AdvancedNetwork.png" width=" 400px;"/> 
+<img src="images/AdvancedNetwork.png" width=" 430px;"/> 
 </p> 
 
 <p align="center">
