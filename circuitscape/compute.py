@@ -477,17 +477,26 @@ class Compute(ComputeBase):
 #             num_points_to_solve = numpoints*(numpoints-1)/2
         
         num_points_to_solve = 0
+        max_parallel = 0
         for c in range(1, int(g_habitat.num_components+1)):
             if not fp.exists_points_in_component(c, g_habitat):
                 continue
             
+            num_parallel = 0
             for (pt1_idx, pt2_idx) in fp.point_pair_idxs_in_component(c, g_habitat):
                 if pt2_idx == -1:
                     if (use_resistance_calc_shortcut==True):
+                        max_parallel = max(max_parallel, num_parallel)
+                        num_parallel = 0
                         break
                     else:
+                        max_parallel = max(max_parallel, num_parallel)
+                        num_parallel = 0
                         continue
+                num_parallel += 1
                 num_points_to_solve += 1
+        
+        Compute.logger.info('max parallel possible = ' + str(max_parallel) + ', will parallelize = ' + str(parallelize))
         
         num_points_solved = 0
         for c in range(1, int(g_habitat.num_components+1)):
