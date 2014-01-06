@@ -1,4 +1,4 @@
-import time, os, gc
+import time, os, gc, sys
 
 
 class ResourceLogger:
@@ -45,7 +45,7 @@ class ResourceLogger:
     def do_pre():
         ResourceLogger.print_res_spaces +=  2
         ResourceLogger.t1.append(time.time())
-        if ResourceLogger.print_rusages:
+        if ResourceLogger.print_rusages and not sys.platform.startswith('win'): # resource not available for Windows
             ResourceLogger.rusage1 = resource.getrusage(resource.RUSAGE_SELF)
             if ResourceLogger.proc:
                 ResourceLogger.mem1.append(ResourceLogger.proc.get_ext_memory_info())
@@ -56,7 +56,7 @@ class ResourceLogger:
         t2 = time.time()
         ResourceLogger.print_res_spaces -=  2
         
-        if ResourceLogger.print_rusages:
+        if ResourceLogger.print_rusages and not sys.platform.startswith('win'): # resource not available for Windows
             cpu_diffs = []
             mem_diffs = []
             io_diffs = []

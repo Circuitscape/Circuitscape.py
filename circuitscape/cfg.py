@@ -149,7 +149,10 @@ class CSConfig:
             cfg_filename = out_base + '.ini'
             out_dir = os.path.split(cfg_filename)[0]
             if not os.path.isdir(out_dir):
-                raise RuntimeError('Output directory ' + out_dir + ' does not exist!')    
+                try:
+                    os.makedirs(out_dir)
+                except:
+                    raise RuntimeError('Cannot create output directory: ' + out_dir + '.')    
 
         config = ConfigParser.ConfigParser()
         for section in CSConfig.DEFAULTS.keys():

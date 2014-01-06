@@ -38,6 +38,7 @@ class OptionsWindow(model.CustomDialog):
         self.components.compressGridsBox.checked    = self.childOptions.compress_grids
         self.components.logCurMapBox.checked        = self.childOptions.log_transform_maps
         self.components.cumMapBox.checked           = self.childOptions.write_cum_cur_map_only
+        self.components.zeroCurrentsBox.checked     = self.childOptions.set_focal_node_currents_to_zero
         self.components.maxMapBox.checked           = self.childOptions.write_max_cur_maps
         
         ## Other Inputs        
@@ -64,6 +65,7 @@ class OptionsWindow(model.CustomDialog):
         self.components.connectFourNBox.enabled     = rasterEnabled
         self.components.avgConductanceBox.enabled   = rasterEnabled
         self.components.cumMapBox.enabled           = pairwise_enabled 
+        self.components.zeroCurrentsBox.enabled     = pairwise_enabled and rasterEnabled
         self.components.maxMapBox.enabled           = pairwise_enabled
         self.components.lowMemBox.enabled           = pairwise_enabled and is_pairwise_scenario
         self.components.compressGridsBox.enabled    = rasterEnabled
@@ -156,10 +158,11 @@ class OptionsWindow(model.CustomDialog):
         self.childOptions.use_unit_currents                 = self.components.unitSrcsBox.checked
         self.childOptions.use_direct_grounds                = self.components.directGndsBox.checked
 
-        self.childOptions.compress_grids            = self.components.compressGridsBox.checked
-        self.childOptions.log_transform_maps        = self.components.logCurMapBox.checked
-        self.childOptions.write_cum_cur_map_only    = self.components.cumMapBox.checked
-        self.childOptions.write_max_cur_maps        = self.components.maxMapBox.checked
+        self.childOptions.compress_grids                    = self.components.compressGridsBox.checked
+        self.childOptions.log_transform_maps                = self.components.logCurMapBox.checked
+        self.childOptions.write_cum_cur_map_only            = self.components.cumMapBox.checked
+        self.childOptions.set_focal_node_currents_to_zero   = self.components.zeroCurrentsBox.checked
+        self.childOptions.write_max_cur_maps                = self.components.maxMapBox.checked
 
         self.childOptions.preemptive_memory_release = self.components.releaseMemBox.checked
         self.childOptions.low_memory_mode = self.components.lowMemBox.checked

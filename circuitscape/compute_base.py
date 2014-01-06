@@ -94,7 +94,7 @@ class ComputeBase(object):
         
         CSIO.logger = CSState.logger = ComputeBase.logger = ComputeBase._create_logger('circuitscape', log_lvl, self.options.log_file, self.options.screenprint_log, ext_log_handler, formatter)
 
-        if self.options.profiler_log_file != self.options.log_file:
+        if (self.options.profiler_log_file != self.options.log_file) and (self.options.profiler_log_file is not None):
             res_logger = ComputeBase._create_logger('circuitscape_profile', logging.DEBUG, self.options.profiler_log_file, self.options.screenprint_log, ext_log_handler, formatter)
         else:
             res_logger = ComputeBase.logger
