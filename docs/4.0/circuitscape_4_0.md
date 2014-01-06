@@ -260,7 +260,8 @@ reversed; that is, one node is connected to ground while the remaining nodes
 are connected to 1-amp current sources. 
 
 <p align="center"> <img src="images/Fig4_RasterAdvancedInputs.png" width=" 
-600px;"/> </p> 
+600px;"/> 
+</p> 
 
 **Fig. 11.** Example raster input files for **advanced mode**, which requires 
 independent **current source and ground files**. Note that current sources in 
@@ -269,7 +270,8 @@ ground with differing levels of resistance. This example also includes an
 optional grid with five short-circuit regions. 
 
 <p align="center"> <img src="images/Fig5_RasterEffectiveConfiguration.png" 
-width=" 600px;"/> </p> 
+width=" 600px;"/> 
+</p> 
 
 **Fig. 12.** The first two panels show the "effective" configuration resulting 
 from the input files in Fig. 11. Because current source C and grounds D and E 
