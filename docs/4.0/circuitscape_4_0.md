@@ -50,7 +50,8 @@ toolbox:
 **Fig. 1.** Stand-alone interface (supports raster and network analyses). 
 
 <p align="center"> <img src="images/ArcGISInterface.png" alt="ArcGIS Toolbox" 
-width=" 400px;"/> </p> 
+width=" 400px;"/> 
+</p> 
 
 **Fig. 2.** ArcGIS Toolbox (for raster-based analyses only). The toolbox also 
 includes utilities to put raster and feature class inputs into a common 
@@ -100,7 +101,8 @@ or impedes movement. Networks and raster maps can be coded in resistances
 movement). 
 
 <p align="center"> <img src="images/SimpleNetworkAndRaster.png" 
-width="800px;"/> </p> 
+width="800px;"/> 
+</p> 
 
 **Fig. 3.** Simple illustrations of network and raster data types used by 
 Circuitscape. The program can operate on networks of nodes (left panel) or 
@@ -183,7 +185,8 @@ For network data types, any node can be connected to any other node by a
 resistor: 
 
 <p align="center"> <img src="images/SimpleNetworkWithNumbers2.png" width=" 
-400px;"/> </p> 
+400px;"/> 
+</p> 
 
 **Fig. 5.** Example network. This network would be input as a **text list** 
 specifying resistances between each pair of connected nodes (0-1, 1-2, 1-3, 
@@ -194,7 +197,8 @@ For **pairwise analysis** we would also supply a list of focal nodes
 nodes in the circuit) between which we want to perform calculations. 
 
 <p align="center"> <img src="images/SimpleNetworkCurrentFlow.png" width=" 
-400px;"/> </p> 
+400px;"/> 
+</p> 
 
 **Fig 6.** In pairwise mode, Circuitscape will iterate across pairs of nodes 
 in a focal node list. If node 0 and node 4 are in the focal node list, then 
@@ -214,7 +218,8 @@ grounds are entered in separate files.
 </p> 
 
 <p align="center"> <img src="images/AdvancedNetworkFlows.png" width=" 
-400px;"/> </p> 
+400px;"/> 
+</p> 
 
 **Fig. 7.** In advanced mode, any node can be tied to a current source or to 
 ground, either directly or via resistors with any value (top panel). Currents 
