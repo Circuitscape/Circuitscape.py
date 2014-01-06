@@ -23,61 +23,55 @@ running large grids (> 1 million cells).
 
 Circuitscape is an open-source program that uses circuit theory to model 
 connectivity in heterogeneous landscapes. Its most common applications include 
-modeling movement and gene flow of plants and animals, as well as identifying areas
-important for connectivity conservation. Circuit theory complements commonly-used
-connectivity models because of its connections to random walk theory and
-its ability to simultaneously evaluate contributions of multiple dispersal 
-pathways. Landscapes are represented as conductive surfaces, with low 
-resistances assigned to landscape features types that are most permeable to 
-movement or best promote gene flow, and high resistances assigned to movement
-barriers.  Effective resistances, current flow, and voltages calculated
-across the landscapes can then be related to ecological processes, such as
-individual movement and gene flow.  More detail about the underlying model, its
-parameterization, and potential applications in ecology, evolution, and
-conservation planning can be found in McRae (2006) and McRae et al. (2008).
+modeling movement and gene flow of plants and animals, as well as identifying 
+areas important for connectivity conservation. Circuit theory complements 
+commonly-used connectivity models because of its connections to random walk 
+theory and its ability to simultaneously evaluate contributions of multiple 
+dispersal pathways. Landscapes are represented as conductive surfaces, with 
+low resistances assigned to landscape features types that are most permeable 
+to movement or best promote gene flow, and high resistances assigned to 
+movement barriers. Effective resistances, current flow, and voltages 
+calculated across the landscapes can then be related to ecological processes, 
+such as individual movement and gene flow. More detail about the underlying 
+model, its parameterization, and potential applications in ecology, evolution, 
+and conservation planning can be found in McRae (2006) and McRae et al. 
+(2008). 
 
 Circuitscape was originally designed to analyze connectivity across raster 
-grids. With version 4.0, Circuitscape can now analyze arbitrary networks (i.e., 
-graphs) with any set of connections between nodes the user specifies.
+grids. With version 4.0, Circuitscape can now analyze arbitrary networks 
+(i.e., graphs) with any set of connections between nodes the user specifies. 
 
+Circuitscape can be run from a stand-alone interface or from an ArcGIS 
+toolbox: 
 
+<p align="center"> <img src="images/image16.png" alt="GUI" width="600px;"/> 
+</p> 
 
-Circuitscape can be run from a stand-alone interface or from an ArcGIS toolbox:
+**Fig. 1.** Stand-alone interface (supports raster and network analyses). 
 
-<p align="center">
-<img src="images/image16.png" alt="GUI" width="600px;"/>
-</p>
-
-**Fig. 1.** Stand-alone interface (supports raster and network analyses).
-
-
-<p align="center">
-<img src="images/ArcGISInterface.png" alt="ArcGIS Toolbox" width=" 
-400px;"/>
-</p>
+<p align="center"> <img src="images/ArcGISInterface.png" alt="ArcGIS Toolbox" 
+width=" 400px;"/> </p> 
 
 **Fig. 2.** ArcGIS Toolbox (for raster-based analyses only). The toolbox also 
 includes utilities to put raster and feature class inputs into a common 
 coordinate system. More utilities for creating core habitat areas and 
-resistance layers are in development.
+resistance layers are in development. 
 
+###Before You Start 
 
-###Before You Start
-
-
-Whatever software you use, connectivity modeling involves a great deal of
-research, data compilation, GIS analyses, and careful interpretation of
-results. Defining areas to connect, parameterizing resistance models, and
-other modeling decisions you will need to make are not trivial. Before diving
-in, we strongly recommend that users first acquaint themselves with the
-process and challenges of connectivity modeling by consulting published
-resources. Good places to start include overviews on the 
-[Corridor Design](http://www.corridordesign.org/) and 
-[Connecting Landscapes](http://connectinglandscapes.org/) websites. Spear et 
-al. (2010), Beier et al. (2011) and Zeller et al. (2012) offer helpful 
-advice on resistance mapping and connectivity analysis in general. Before using
-this software, users should acquaint themselves with the use of circuit theory
-for modeling connectivity (summarized in McRae et al. 2008).   
+Whatever software you use, connectivity modeling involves a great deal of 
+research, data compilation, GIS analyses, and careful interpretation of 
+results. Defining areas to connect, parameterizing resistance models, and 
+other modeling decisions you will need to make are not trivial. Before diving 
+in, we strongly recommend that users first acquaint themselves with the 
+process and challenges of connectivity modeling by consulting published 
+resources. Good places to start include overviews on the [Corridor 
+Design](http://www.corridordesign.org/) and [Connecting 
+Landscapes](http://connectinglandscapes.org/) websites. Spear et al. (2010), 
+Beier et al. (2011) and Zeller et al. (2012) offer helpful advice on 
+resistance mapping and connectivity analysis in general. Before using this 
+software, users should acquaint themselves with the use of circuit theory for 
+modeling connectivity (summarized in McRae et al. 2008). 
 
 Lastly, users interested in mapping important connectivity areas may wish to 
 consider [Linkage Mapper](https://code.google.com/p/linkage-mapper/), which 
@@ -92,47 +86,46 @@ Landscapes](http://connectinglandscapes.org/) websites.
 Circuitscape may be called through its own graphical user interface, from the 
 Circuitscape for ArcGIS Toolbox, or from the command line. Users supply 
 Circuitscape with resistance data and the program calculates effective 
-resistances and/or creates maps of current flow and voltages across 
-landscapes and networks. 
+resistances and/or creates maps of current flow and voltages across landscapes 
+and networks. 
 
 ### Two data types: network and raster 
 
 Circuitscape reads either a network of nodes connected by links or a raster 
 grid of resistances (Fig. 3). Links and raster cells are attributed with 
-resistance values that reflect the degree to which the landscape facilitates or 
-impedes movement. Networks and raster maps can be coded in resistances (with 
-higher values denoting greater resistance to movement) or conductances (the 
-reciprocal of resistance; higher values indicate greater ease of movement). 
+resistance values that reflect the degree to which the landscape facilitates 
+or impedes movement. Networks and raster maps can be coded in resistances 
+(with higher values denoting greater resistance to movement) or conductances 
+(the reciprocal of resistance; higher values indicate greater ease of 
+movement). 
 
-<p align="center">
-<img src="images/SimpleNetworkAndRaster.png" width="800px;"/> 
-</p>
+<p align="center"> <img src="images/SimpleNetworkAndRaster.png" 
+width="800px;"/> </p> 
 
 **Fig. 3.** Simple illustrations of network and raster data types used by 
 Circuitscape. The program can operate on networks of nodes (left panel) or 
 raster grids (right panel). Raster grid cells can have any resistance value. 
-Here, cells with zero resistance ("short-circuit regions," which can be used to 
-represent contiguous habitat patches) are shown in white, cells with a 
+Here, cells with zero resistance ("short-circuit regions," which can be used 
+to represent contiguous habitat patches) are shown in white, cells with a 
 resistance of 1 are shown in gray, and a cell with infinite resistance (coded 
-as NODATA) is shown in black.  
+as NODATA) is shown in black. 
 
 For rasters, every grid cell with finite resistance is represented as a node 
 in a graph, connected to either its four first-order or eight first- and 
 second-order neighboring cells. Cells with infinite resistance (zero 
 conductance) are dropped. Habitat patches, or collections of cells, can be 
-assigned zero resistance (infinite conductance) using a separate "short-circuit 
-region" file. These collections of cells are collapsed into a single node. 
+assigned zero resistance (infinite conductance) using a separate 
+"short-circuit region" file. These collections of cells are collapsed into a 
+single node. 
 
-<p align="center">
-<img src ="images/RasterWithResistors.png" width="600px;"/> 
-</p>
+<p align="center"> <img src ="images/RasterWithResistors.png" width="600px;"/> 
+</p> 
 
-
-**Fig. 4.** Raster grids are converted to 
-electrical networks. Each cell becomes a node (represented by a dot), and 
-adjacent cells are connected to their four or eight neighbors by resistors. 
-Here, the two short-circuit regions have each been collapsed into a single node. 
-The infinite resistance cell is dropped entirely from the network.
+**Fig. 4.** Raster grids are converted to electrical networks. Each cell 
+becomes a node (represented by a dot), and adjacent cells are connected to 
+their four or eight neighbors by resistors. Here, the two short-circuit 
+regions have each been collapsed into a single node. The infinite resistance 
+cell is dropped entirely from the network. 
 
 ### Calculation modes 
 
@@ -141,16 +134,16 @@ Circuitscape operates in one of four modes: **pairwise**, **advanced**,
 for both raster and network data types. The one-to-all and all-to-one modes 
 are available for raster data only. 
 
-In the **pairwise** mode, connectivity is calculated between all pairs of focal 
-nodes (points or regions between which connectivity is to be modeled) supplied 
-to the program in a single input file. For each pair of focal nodes, one node 
-will arbitrarily be connected to a 1-amp current source, while the other will 
-be connected to ground. Effective resistances will be calculated iteratively 
-between all pairs of focal nodes, and, if selected, maps of current and 
-voltage will be produced. If there are *n* focal nodes, there will be *n*(*n* 
-\- 1)/2 calculations **unless** you're using focal points (only one cell per 
-focal node) and not mapping currents or voltages. In the latter case, we can do 
-it in *n* calculations **(much faster)**. 
+In the **pairwise** mode, connectivity is calculated between all pairs of 
+focal nodes (points or regions between which connectivity is to be modeled) 
+supplied to the program in a single input file. For each pair of focal nodes, 
+one node will arbitrarily be connected to a 1-amp current source, while the 
+other will be connected to ground. Effective resistances will be calculated 
+iteratively between all pairs of focal nodes, and, if selected, maps of 
+current and voltage will be produced. If there are *n* focal nodes, there will 
+be *n*(*n* \- 1)/2 calculations **unless** you're using focal points (only one 
+cell per focal node) and not mapping currents or voltages. In the latter case, 
+we can do it in *n* calculations **(much faster)**. 
 
 The **advanced** mode offers much greater flexibility in defining sources and 
 targets for current flow. The user defines any number of current sources and 
@@ -159,16 +152,16 @@ activated simultaneously. Sources represent points or areas from which current
 flows, whereas grounds represent nodes where current exits the system. 
 
 Source nodes can have different strengths (i.e. inject more or less current 
-into the network or grid), and ground nodes can be tied to ground with 
-any resistance. Current sources and grounds are supplied in separate input 
-files.  
+into the network or grid), and ground nodes can be tied to ground with any 
+resistance. Current sources and grounds are supplied in separate input files. 
 
-Two other modes are available for raster data types only. The **one-to-all **mode is 
-similar to the pairwise mode, and takes the same input files. However, instead 
-of iterating across all focal node *pairs*, this mode iterates across all 
-focal nodes. In each iteration, one focal node is connected to a 1-amp current 
-source, while all remaining focal nodes are connected to ground. If there are 
-*n* focal nodes, there will be *n* calculations. 
+Two other modes are available for raster data types only. The **one-to-all 
+**mode is similar to the pairwise mode, and takes the same input files. 
+However, instead of iterating across all focal node *pairs*, this mode 
+iterates across all focal nodes. In each iteration, one focal node is 
+connected to a 1-amp current source, while all remaining focal nodes are 
+connected to ground. If there are *n* focal nodes, there will be *n* 
+calculations. 
 
 The **all-to-one **mode is similar to the one-to-all mode, and takes the same 
 input files. However, in this mode Circuitscape connects one focal node to 
@@ -177,22 +170,20 @@ the process for each focal node; if there are *n* focal nodes, there will be
 *n* calculations. 
 
 Circuitscape can generate maps showing the current density and voltage at each 
-node or cell under each configuration (and current flow for each link/resistor
-in networks). Additionally, Circuitscape writes a file reporting 
-effective resistances between all pairs of focal nodes in the pairwise mode, 
-and between each node and ground in the one-to-all mode. Resistances in the 
-all-to-one mode are undefined, so a file is written with zeros 
-indicating successful solves. 
+node or cell under each configuration (and current flow for each link/resistor 
+in networks). Additionally, Circuitscape writes a file reporting effective 
+resistances between all pairs of focal nodes in the pairwise mode, and between 
+each node and ground in the one-to-all mode. Resistances in the all-to-one 
+mode are undefined, so a file is written with zeros indicating successful 
+solves. 
 
 ### Illustrations of analyses with network data 
 
 For network data types, any node can be connected to any other node by a 
 resistor: 
 
-<p align="center">
-<img src="images/SimpleNetworkWithNumbers2.png" width=" 400px;"/> 
-</p>
-
+<p align="center"> <img src="images/SimpleNetworkWithNumbers2.png" width=" 
+400px;"/> </p> 
 
 **Fig. 5.** Example network. This network would be input as a **text list** 
 specifying resistances between each pair of connected nodes (0-1, 1-2, 1-3, 
@@ -202,17 +193,16 @@ For **pairwise analysis** we would also supply a list of focal nodes
 (containing at least two node numbers, but as many as five, the number of 
 nodes in the circuit) between which we want to perform calculations. 
 
-<p align="center">
-<img src="images/SimpleNetworkCurrentFlow.png" width=" 400px;"/> 
-</p> 
+<p align="center"> <img src="images/SimpleNetworkCurrentFlow.png" width=" 
+400px;"/> </p> 
 
 **Fig 6.** In pairwise mode, Circuitscape will iterate across pairs of nodes 
 in a focal node list. If node 0 and node 4 are in the focal node list, then 
 one of the iterations will look like the above, with a 1 amp current source 
 connected to one node and the other grounded. Current will flow across the 
 network from the source to the ground. Branch currents, node currents, node 
-voltages, and effective resistances between node pairs can be written for 
-each iteration. 
+voltages, and effective resistances between node pairs can be written for each 
+iteration. 
 
 More complexity can be added by running in **advanced mode**, which allows any 
 number of sources and grounds to be activated simultaneously. For example, we 
@@ -220,13 +210,11 @@ could modify the circuit above by adding a single, fixed source at node zero
 and adding multiple grounds with different resistances. Current sources and 
 grounds are entered in separate files. 
 
-<p align="center">
-<img src="images/AdvancedNetwork.png" width=" 430px;"/> 
+<p align="center"> <img src="images/AdvancedNetwork.png" width=" 430px;"/> 
 </p> 
 
-<p align="center">
-<img src="images/AdvancedNetworkFlows.png" width=" 400px;"/> 
-</p> 
+<p align="center"> <img src="images/AdvancedNetworkFlows.png" width=" 
+400px;"/> </p> 
 
 **Fig. 7.** In advanced mode, any node can be tied to a current source or to 
 ground, either directly or via resistors with any value (top panel). Currents 
@@ -234,11 +222,9 @@ passing through all nodes and links can then be calculated (bottom panel), and
 voltages can be calculated at each node. Circuit above is from McRae et al. 
 (2008). 
 
-
 ### Illustrations of analyses with raster data 
 
-<p align="center">
-<img src="images/Fig1_RasterInputs.png" width=" 600px;"/> 
+<p align="center"> <img src="images/Fig1_RasterInputs.png" width=" 600px;"/> 
 </p> 
 
 **Fig. 8.** Example raster input files for **pairwise and one-to-all modes**. 
@@ -250,21 +236,20 @@ zero resistance. Cells with the same region ID are considered perfectly
 connected and are collapsed into a single node, even if they are not 
 contiguous. 
 
-<p align="center">
-<img src="images/Fig2_RasterPairwise.png" width=" 600px;"/> 
+<p align="center"> <img src="images/Fig2_RasterPairwise.png" width=" 600px;"/> 
 </p> 
 
 **Fig. 9.** Schematic describing **pairwise** mode analyses that would result 
 from the input files shown in Fig. 8. Three sets of pairwise calculations-- 
 involving focal nodes 1 and 2, nodes 1 and 3, and nodes 2 and 3--would be 
-conducted. For each pair, one node would be connected to a 1-amp current source, 
-and the other to ground. Note that focal region nodes become short-circuit 
-regions when they are activated (e.g., node 1 in scenario 1), but these regions 
-are not present when the nodes are not activated (e.g., node 1 in scenario 3). 
+conducted. For each pair, one node would be connected to a 1-amp current 
+source, and the other to ground. Note that focal region nodes become 
+short-circuit regions when they are activated (e.g., node 1 in scenario 1), 
+but these regions are not present when the nodes are not activated (e.g., node 
+1 in scenario 3). 
 
-<p align="center">
-<img src="images/Fig3_RasterOneToAll.png" width=" 600px;"/> 
-</p>  
+<p align="center"> <img src="images/Fig3_RasterOneToAll.png" width=" 600px;"/> 
+</p> 
 
 **Fig. 10.** Schematic describing **one-to-all mode** analyses that would 
 result from the input files shown in Fig. 8. Three sets of calculations-- 
@@ -274,9 +259,8 @@ connected to ground. The all-to-one mode is similar, with arrow directions
 reversed; that is, one node is connected to ground while the remaining nodes 
 are connected to 1-amp current sources. 
 
-<p align="center">
-<img src="images/Fig4_RasterAdvancedInputs.png" width=" 600px;"/> 
-</p>  
+<p align="center"> <img src="images/Fig4_RasterAdvancedInputs.png" width=" 
+600px;"/> </p> 
 
 **Fig. 11.** Example raster input files for **advanced mode**, which requires 
 independent **current source and ground files**. Note that current sources in 
@@ -284,9 +268,8 @@ this example have different "strengths," and ground nodes are connected to
 ground with differing levels of resistance. This example also includes an 
 optional grid with five short-circuit regions. 
 
-<p align="center">
-<img src="images/Fig5_RasterEffectiveConfiguration.png" width=" 600px;"/> 
-</p>  
+<p align="center"> <img src="images/Fig5_RasterEffectiveConfiguration.png" 
+width=" 600px;"/> </p> 
 
 **Fig. 12.** The first two panels show the "effective" configuration resulting 
 from the input files in Fig. 11. Because current source C and grounds D and E 
@@ -302,10 +285,10 @@ present.
 
 ## Windows and Mac OS X executables (most users) 
 
-Download and run the appropriate setup package (either 32- or 64-bit, depending 
-on your operating system). This will install Circuitscape and create an 
-"examples" directory in the installation directory with example input files on 
-Windows. Mac users should download this directory separately. 
+Download and run the appropriate setup package (either 32- or 64-bit, 
+depending on your operating system). This will install Circuitscape and create 
+an "examples" directory in the installation directory with example input files 
+on Windows. Mac users should download this directory separately. 
 
 ## ArcGIS Toolbox (Windows only) 
 
@@ -383,40 +366,41 @@ values indicate greater ease of movement).
 
 Note that zero and infinite values for conductances and resistances represent 
 special cases. Infinite resistances are coded as NODATA values (see file 
-format description in the *Input file formats* section below) in input resistance 
-grids, or as zero or NODATA in input conductance grids; these are treated as 
-complete barriers, and are disconnected from all other cells. For raster 
-analyses, cells with zero resistance (infinite conductance) can be specified 
-using a separate short-circuit region file as described below. 
+format description in the *Input file formats* section below) in input 
+resistance grids, or as zero or NODATA in input conductance grids; these are 
+treated as complete barriers, and are disconnected from all other cells. For 
+raster analyses, cells with zero resistance (infinite conductance) can be 
+specified using a separate short-circuit region file as described below. 
 
 ## Pairwise, one-to-all, and all-to-one mode options 
 
 ###Focal node location and data type 
 
 This file specifies locations of nodes between which effective resistance and 
-current flow are to be calculated (See Figs. 6 and 9). **Each 
-focal node should have a unique positive integer ID.** Files may be text lists 
-specifying coordinates or appropriate raster grid formats. When a grid is used, it must 
+current flow are to be calculated (See Figs. 6 and 9). **Each focal node 
+should have a unique positive integer ID.** Files may be text lists specifying 
+coordinates or appropriate raster grid formats. When a grid is used, it must 
 have the same cell size and extent as the resistance grid. The value stored in 
-each grid cell location refers to the focal node ID. Cells 
-that do not contain focal nodes should be coded with NODATA values. When a text 
-list is used, the value field references the focal node ID. Examples are in the 
-examples directory (located where Circuitscape is installed) and can also be found on the Circuitscape 
-downloads page.  
+each grid cell location refers to the focal node ID. Cells that do not contain 
+focal nodes should be coded with NODATA values. When a text list is used, the 
+value field references the focal node ID. Examples are in the examples 
+directory (located where Circuitscape is installed) and can also be found on 
+the Circuitscape downloads page. 
 
 For raster analyses, focal nodes may occur at points (single cells on the 
 resistance grid) or across regions (Fig. 8). For the latter, a single ID would 
 occupymore than one cell in a grid or more than one pair of coordinates in a 
 text list (and falling within more than one cell in the underlying resistance 
-grid). Cells within a 
-single region would then be collapsed into a single node, as they are when 
-short-circuit region files are used (see below). The difference is that a 
-focal region will be "burned in" to the resistance grid only for pairwise 
-calculations that include that focal node. As with short-circuit regions, 
-focal regions need not be made up of contiguous cells. For large grids or 
-large numbers of focal nodes, focal regions may require more computation time. 
-When calculating resistances on large raster grids and not creating voltage 
-or current maps, focal points will run much more quickly. 
+grid). Cells within a single region would then be collapsed into a single 
+node, as they are when short-circuit region files are used (see below). The 
+difference is that a focal region will be "burned in" to the resistance grid 
+only for pairwise calculations that include that focal node. As with 
+short-circuit regions, focal regions need not be made up of contiguous cells. 
+For large grids or large numbers of focal nodes, focal regions may require 
+more computation time. When calculating resistances on large raster grids and 
+not creating voltage or current maps, focal points will run much more quickly. 
+
+
 
 ###Number of parallel processors to use 
 
@@ -429,13 +413,13 @@ would like to devote to Circuitscape runs.
 ###Current source file 
 
 This file specifies locations and strengths, in amps, of current sources 
-(Figs. 7 and 11). Either a raster or a text list may be used. Rasters must have 
-the same cell size, projection, and extent as the resistance grid, and cells 
-that do not contain current sources should be coded with NODATA values. Note: 
-current sources may be positive or negative (i.e., they may inject current into 
-the grid or pull current out. Similarly, grounds may either serve as a sink for 
-current or may contribute current if there are negative current sources in the 
-grid). Examples are in the examples directory. 
+(Figs. 7 and 11). Either a raster or a text list may be used. Rasters must 
+have the same cell size, projection, and extent as the resistance grid, and 
+cells that do not contain current sources should be coded with NODATA values. 
+Note: current sources may be positive or negative (i.e., they may inject 
+current into the grid or pull current out. Similarly, grounds may either serve 
+as a sink for current or may contribute current if there are negative current 
+sources in the grid). Examples are in the examples directory. 
 
 ###Ground point file 
 
@@ -453,7 +437,8 @@ examples directory.
 The default (unchecked) setting is to specify resistances to ground. Checking 
 this box means that your ground point file specifies connections to ground in 
 terms of conductance instead. To tie cells directly to ground, use resistances 
-as the data type and set values in the corresponding ground point file to zero.
+as the data type and set values in the corresponding ground point file to 
+zero. 
 
 ## Output options 
 
@@ -467,30 +452,28 @@ appropriate suffixes and extensions.
 ###Create current maps 
 
 When checked, current maps will be generated for every pair of focal nodes in 
-the pairwise mode, or 
-for the current source and ground configuration specified in the advanced 
-mode. Current maps have the same dimension as the original input files, with 
-values at each node (cell) representing the amount of current flowing through 
-the node. In the pairwise mode, a current map file will be created for each 
-focal node pair, and a cumulative (additive) file will be also written. 
-(Note that for a given pair of focal nodes, current maps are identical 
-regardless of which node is the source 
-and which is the ground due to symmetry). For the advanced modeling mode, a 
-single map will be written showing current densities at each cell resulting 
-from the current source and ground configurations in the input files. These 
-files can be displayed in a GIS as in Fig. 13.  Such maps can 
-be used to identify areas which contribute most to connectivity between focal 
-points (McRae et al. 2008). 
+the pairwise mode, or for the current source and ground configuration 
+specified in the advanced mode. Current maps have the same dimension as the 
+original input files, with values at each node (cell) representing the amount 
+of current flowing through the node. In the pairwise mode, a current map file 
+will be created for each focal node pair, and a cumulative (additive) file 
+will be also written. (Note that for a given pair of focal nodes, current maps 
+are identical regardless of which node is the source and which is the ground 
+due to symmetry). For the advanced modeling mode, a single map will be written 
+showing current densities at each cell resulting from the current source and 
+ground configurations in the input files. These files can be displayed in a 
+GIS as in Fig. 13. Such maps can be used to identify areas which contribute 
+most to connectivity between focal points (McRae et al. 2008). 
 
 ![](images/image24.png) 
 
-Fig. 13. Current map used to predict important connectivity areas between core 
-habitat patches (green polygons, entered as focal regions) for mountain lions. 
-Warmer colors indicate areas with higher current density. "Pinch points," or 
-areas where connectivity is most tenuous, are shown in yellow. Quantile 
-classification schemes or "histogram equalize" stretches tend to work well for
-current maps when using ArcGIS. Research Collaborators: Brett Dickson and Rick 
-Hopkins, Live Oak Associates. 
+**Fig. 13.** Current map used to predict important connectivity areas between 
+core habitat patches (green polygons, entered as focal regions) for mountain 
+lions. Warmer colors indicate areas with higher current density. "Pinch 
+points," or areas where connectivity is most tenuous, are shown in yellow. 
+Quantile classification schemes or "histogram equalize" stretches tend to work 
+well for current maps when using ArcGIS. Research Collaborators: Brett Dickson 
+and Rick Hopkins, Live Oak Associates. 
 
 ###Create voltage maps 
 
@@ -499,7 +482,6 @@ be observed for each focal node pair if one node were connected to a 1 amp
 current source and the other to ground. For the advanced modeling mode, 
 voltage maps specify voltages at each cell resulting from the current source 
 and ground configurations in the input files. 
-
 
 
 ##The File menu 
@@ -531,20 +513,20 @@ fails, see the log Window for details.
 ####File >> Run in batch mode 
 
 Using the batch mode, you can specify any number of configurations to run by 
-loading configuration (.ini) files  saved in a single directory. This can be useful 
-for running large numbers of analyses. The configuration files can be created 
-in the user interface and saved under "Save settings" as described above, and 
-can be modified using standard text editors. 
+loading configuration (.ini) files saved in a single directory. This can be 
+useful for running large numbers of analyses. The configuration files can be 
+created in the user interface and saved under "Save settings" as described 
+above, and can be modified using standard text editors. 
 
 ##The Options window 
 
-<img src="images/OptionsWindow.png" alt="ArcGIS Toolbox" width=" 
-400px;"/> 
+<img src="images/OptionsWindow.png" alt="ArcGIS Toolbox" width=" 400px;"/> 
 
-Fig 14. The options window gives access to less-frequently-used options. 
-To access this window via the menu bar, click on Options>> More settings & inputs. 
+**Fig. 14.** The options window gives access to less-frequently-used options. 
+To access this window via the menu bar, click on Options>> More settings & 
+inputs. 
 
-###Calculation Options
+###Calculation Options 
 
 ####Connect raster cells to FOUR neighbors instead of EIGHT 
 
@@ -676,30 +658,31 @@ tab-delimited text with a .txt extension. See formatting information in the
 
 ####Level
 
-The default level (INFO) sends a moderate amount of information on the program's
-progress to the terminal window.  DEBUG gives more, and the other options give 
-less.
+The default level (INFO) sends a moderate amount of information on the 
+program's progress to the terminal window. DEBUG gives more, and the other 
+options give less. 
 
 ####Log completion times 
 
-Writes names of operations and completion times for each to the terminal window.
+Writes names of operations and completion times for each to the terminal 
+window. 
 
-####Send to log file
+####Send to log file 
 
-Information printed to the screen will also be saved in a log file in the output
-directory.
+Information printed to the screen will also be saved in a log file in the 
+output directory. 
 
-#5\. Using the Circuitscape for ArcGIS Toolbox (Windows only)
+#5\. Using the Circuitscape for ArcGIS Toolbox (Windows only) 
 
-The ArcGIS toolbox can facilitate raster Circuitscape analyses.  It allows you 
+The ArcGIS toolbox can facilitate raster Circuitscape analyses. It allows you 
 to run Circuitscape from ArcMap or ArcCatalog, using ESRI grids or raster file 
-geodatabases as inputs (no need to export to ASCII). Toolbox options correspond 
-to those in the stand-alone user interface described above. The toolbox also 
-has utilities to convert shapefiles and feature classes to raster focal node 
-files. You must have the Circuitscape executable installed to use the toolbox. 
+geodatabases as inputs (no need to export to ASCII). Toolbox options 
+correspond to those in the stand-alone user interface described above. The 
+toolbox also has utilities to convert shapefiles and feature classes to raster 
+focal node files. You must have the Circuitscape executable installed to use 
+the toolbox. 
 
-
-#6\. Running Circuitscape from the command line
+#6\. Running Circuitscape from the command line 
 
 On Linux machines, running Circuitscape from the command line can be useful, 
 especially when running over a network. Whether Circuitscape is called from 
@@ -765,24 +748,22 @@ by the external program.
 
 #8\. Input file formats
 
-When working with networks, text lists are used for all input files.
+When working with networks, text lists are used for all input files. 
 
-For raster analyses using the ArcGIS toolbox, resistance grids and other inputs 
-can be in a number of raster formats. For raster analyses using the stand-alone 
-Circuitscape interface (Fig. 1) or calling Circuitscape from the command line 
-or from other programs, resistance grids should 
-be in ASCII raster format, and focal node, current source, and ground files 
-can be in either raster or text list format.  
- 
+For raster analyses using the ArcGIS toolbox, resistance grids and other 
+inputs can be in a number of raster formats. For raster analyses using the 
+stand-alone Circuitscape interface (Fig. 1) or calling Circuitscape from the 
+command line or from other programs, resistance grids should be in ASCII 
+raster format, and focal node, current source, and ground files can be in 
+either raster or text list format. 
 
-##ESRI Raster formats (when using the Circuitscape for ArcGIS Toolbox)
+##ESRI Raster formats (when using the Circuitscape for ArcGIS Toolbox) 
 
 When using the Circuitscape for ArcGIS Toolbox, you can use ESRI grids, raster 
-file geodatabases, ASCII rasters, and other raster formats supported by ArcGIS. 
-It's a good idea to have your input files in the same projection. The toolbox 
-includes a utility to convert vector focal node files to raster, and to put all 
-input files in one projection with the same raster extent.   
-
+file geodatabases, ASCII rasters, and other raster formats supported by 
+ArcGIS. It's a good idea to have your input files in the same projection. The 
+toolbox includes a utility to convert vector focal node files to raster, and 
+to put all input files in one projection with the same raster extent. 
 
 ##ASCII raster format (when using standalone user interface or calling directly).
 
@@ -1055,18 +1036,20 @@ addressed by any one process, limiting solvable landscapes to approximately
 2-6 million cells, depending on the properties of the grid.  Larger grids can
 be solved on 64-bit systems with large amounts of RAM.
 
-There are several ways to increase the solvable grid size.  These include
-closing all other programs (especially those that require lots of RAM such as
-ArcGIS), setting impermeable areas of your resistance map to NODATA, using focal
-points instead of regions in pairwise mode, connecting cells to their four
-neighbors only, and not creating current maps.  Also, the one-to-all and all-
-to-one modes typically use less memory (and run more quickly) than the
-pairwise mode.  In particular, the all-to-one mode can be an alternative
-to the pairwise mode when the goal is to produce a cumulative map of important
-connectivity areas among multiple source/target patches.  Still, coarsening your
-grids (using larger cell sizes) may be necessary; doing so often produces
-results that are qualitatively similar to those obtained with smaller cell
-sizes.  See McRae et al. 2008 for details of effects of using coarser grids.
+There are several ways to increase the solvable grid size. These include 
+closing all other programs (especially those that require lots of RAM such as 
+ArcGIS), setting impermeable areas of your resistance map to NODATA, using 
+focal points instead of regions in pairwise mode, connecting cells to their 
+four neighbors only, and not creating current maps. Also, the one-to-all and 
+all- to-one modes typically use less memory (and run more quickly) than the 
+pairwise mode. In particular, the all-to-one mode can be an alternative to the 
+pairwise mode when the goal is to produce a cumulative map of important 
+connectivity areas among multiple source/target patches. Still, coarsening 
+your grids (using larger cell sizes) may be necessary; doing so often produces 
+results that are qualitatively similar to those obtained with smaller cell 
+sizes. See McRae et al. 2008 for details of effects of using coarser grids. 
+
+
 
 
 #11\. Further Reading
