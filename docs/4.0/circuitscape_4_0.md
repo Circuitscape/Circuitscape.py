@@ -710,8 +710,8 @@ the user interface. The file may also be edited directly in a standard text
 editor. 
 
 To call Circuitscape from the command line in Linux, use the command 
-```python 
-csrun.py [config file]
+```
+python csrun.py [config file]
 ```
 where `[config file]` is the name (and path, if the 
 file is in a different directory) of the configuration (.ini) file. 
