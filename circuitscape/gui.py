@@ -384,12 +384,15 @@ class GUI(model.Background):
         self.components.calcButton.SetFocus()
         
         out_base, _out_ext = os.path.splitext(self.options.output_file)
-        if self.options.log_file == None:
-            self.options.log_file = out_base + '.log'
 
-        if (self.options.profiler_log_file == None) and (self.options.print_timings or self.options.print_rusages):
-            self.options.profiler_log_file = out_base + '_rusages.log'
-        
+        #if (self.options.log_file == None) or (not os.path.exists(self.options.log_file)): 
+        self.options.log_file = out_base + '.log' # For now, just write log file to output directory.
+
+        if (self.options.print_rusages and not sys.platform.startswith('win')) or (self.options.print_timings): 
+            self.options.profiler_log_file = out_base + '_rusages.log' #For now, always write log file to output directory.
+        else:
+            self.options.profiler_log_file = None
+
         #Check to see if all inputs are chosen
         (all_options_entered, message) = self.options.check()
         
@@ -647,7 +650,7 @@ class GUI(model.Background):
         self.components.useConductancesBox.checked          = not self.options.habitat_map_is_resistances
         self.components.curMapBox.checked                   = self.options.write_cur_maps
         self.components.voltMapBox.checked                  = self.options.write_volt_maps
-        self.components.logRusageBox.checked                = self.options.print_rusages
+        self.components.logRusageBox.checked                = self.options.print_rusages and not sys.platform.startswith('win')
         self.components.printTimingsBox.checked             = self.options.print_timings
         
         self.report_menu_files()
@@ -672,7 +675,7 @@ class GUI(model.Background):
         self.components.srcTargetBrowse.enabled             = pairwiseEnabled
         
         self.components.parallelSpin.enabled = is_pairwise_scenario and self.options.parallelize == True
-
+        self.components.logRusageBox.enabled = not sys.platform.startswith('win') # Resource module not availble on windows
         foreColor = GUI.COLOR_ENABLED if pairwiseEnabled else GUI.COLOR_DISABLED
         self.components.pairwiseOptionsTitle.foregroundColor    = \
             self.components.srcTargetFileText.foregroundColor       = foreColor

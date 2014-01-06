@@ -247,7 +247,7 @@ GUI_RSRC = {'application':{'type':'Application',
     'position':(574, 382), 
     'size':(220, 20), 
     'font':{'faceName': u'Lucida Grande', 'family': 'sansSerif', 'size': 11}, 
-    'label':'Resource usage information', 
+    'label':'Log resource usage info', 
     },
 
 {'type':'Button', 
