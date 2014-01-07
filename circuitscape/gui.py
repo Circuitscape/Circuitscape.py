@@ -9,15 +9,18 @@ import wxversion
 
 try:
     #wxversion.select(['2.9', '2.8', '2.7'])
-    wxversion.select('2.8') 
+    wxversion.select('2.8')
 except:
     try:
-        wxversion.select('2.9')
+        wxversion.select('3.0')
     except:
         try:
-            wxversion.select('2.7')
+            wxversion.select('2.9')
         except:
-            pass
+            try:
+                wxversion.select('2.7')
+            except:
+                pass
 
 import wx
 import wx.lib.newevent
@@ -30,7 +33,8 @@ from compute_base import ComputeBase
 from cfg import CSConfig
 from gui_rsrc import GUI_RSRC
 
-wxLogEvent, EVT_WX_LOG_EVENT = wx.lib.newevent.NewEvent()
+wxLogEvent, EVT_WX_LOG_EVENT = wx.lib.newevent.NewEvent()   # @UndefinedVariable
+wxver = wx.VERSION[0] + 0.1*(wx.VERSION[1])                 # @UndefinedVariable
 
 class GUILogger(logging.Handler):
     def __init__(self, dest=None):
@@ -178,15 +182,25 @@ class GUI(model.Background):
             self.options = result.options
             self.report_menu_files()
 
+    def save_file_dlg(self, title, wildcard):
+        file_name = None
+        if wxver >= 2.9:  # use wx dialogs directly as python card save dialogs are broken after wx 2.9
+            dlg = wx.FileDialog(self, title, '', '', wildcard, wx.FD_SAVE | wx.FD_OVERWRITE_PROMPT) # @UndefinedVariable
+            if dlg.ShowModal() != wx.ID_CANCEL: # @UndefinedVariable
+                file_name = dlg.GetPath()
+        else:
+            result = dialog.saveFileDialog(self, 'Choose a file name', '', '', wildcard)
+            if result.accepted == True:
+                file_name = result.paths[0]
+        return file_name
+        
     def on_menuFileSave_select(self, event):
         self.components.habitatFile.SetFocus() #Need to force loseFocus on text boxes to make sure they are updated.
         self.components.outFile.SetFocus()
         self.components.calcButton.SetFocus()
         
-        wildcard = '*.ini'
-        result = dialog.saveFileDialog(self, 'Choose a file name', '', '', wildcard)
-        if result.accepted == True:                
-            options_file_name = result.paths[0]
+        options_file_name = self.save_file_dlg('Choose a file name', '*.ini')
+        if options_file_name != None:                
             try:
                 self.options.write(options_file_name, True)
             except RuntimeError as ex:
@@ -339,9 +353,8 @@ class GUI(model.Background):
            
     def on_outBrowse_mouseClick(self, event):
         wildcard = "OUT Files (*.out)|*.out|All Files (*.*)|*.*"
-        result = dialog.saveFileDialog(self, 'Choose a Base Output File Name', '', '', wildcard)
-        if result.accepted == True:
-            file_name = result.paths[0]
+        file_name = self.save_file_dlg('Choose a Base Output File Name', wildcard)
+        if file_name != None:
             self.components.outFile.text = file_name
             self.options.output_file = file_name
 
