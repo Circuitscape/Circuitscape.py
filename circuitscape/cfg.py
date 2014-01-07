@@ -148,7 +148,7 @@ class CSConfig:
             out_base, _out_extn = os.path.splitext(cfg_filename)
             cfg_filename = out_base + '.ini'
             out_dir = os.path.split(cfg_filename)[0]
-            if not os.path.isdir(out_dir):
+            if (len(out_dir) > 0) and (not os.path.isdir(out_dir)):
                 try:
                     os.makedirs(out_dir)
                 except:
