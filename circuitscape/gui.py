@@ -1,7 +1,7 @@
 # import sys
 # if sys.modules.has_key('wx'):
     # print 'wx0'
-import os, sys, traceback, logging, time, multiprocessing, tempfile
+import os, sys, traceback, logging, time, multiprocessing, tempfile, StringIO
 import numpy as np
 
 import wxversion
@@ -585,7 +585,10 @@ class GUI(model.Background):
         try:
             dial = wx.MessageDialog(None, 'An unknown error occurred.  Please see message in terminal.', 'Error', wx.OK | wx.ICON_ERROR)  # @UndefinedVariable
             dial.ShowModal()
-            traceback.print_exc()
+            strio = StringIO.StringIO()
+            traceback.print_exc(file=strio)
+            GUI.logger.error(strio.getvalue())
+            strio.close()
         finally:
             e_type = value = tb = None # clean up
  
@@ -602,12 +605,16 @@ class GUI(model.Background):
         dial.ShowModal()
         try:
             e_type, value, tb = sys.exc_info()
+            strio = StringIO.StringIO()
             info = traceback.extract_tb(tb)
-            print 'full traceback:'
-            print info
-            print '***************'
+            strio.write('full traceback:\n')
+            for stack_line in info:
+                strio.write(str(stack_line) + '\n')
+            strio.write('\n***************\n')
             filename, lineno, function, _text = info[-1] # last line only
-            print "\n %s:%d: %s: %s (in %s)" % (filename, lineno, e_type.__name__, str(value), function)
+            strio.write("\n %s:%d: %s: %s (in %s)\n" % (filename, lineno, e_type.__name__, str(value), function))
+            GUI.logger.error(strio.getvalue())
+            strio.close()
         finally:
             e_type = value = tb = None # clean up
 
