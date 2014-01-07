@@ -1,13 +1,13 @@
-import time, os, gc, sys
+import time, os, gc
 
 
 class ResourceLogger:
     print_timings = False
     print_rusages = False    
     print_res_spaces = 0
-    psutil_available = True
-    resource_available = True
-    print_nz_only = True
+    psutil_available = False
+    resource_available = False
+    print_nz_only = False
 
     rlogger = None
     proc = None
@@ -16,6 +16,7 @@ class ResourceLogger:
     t1 = []
     mem1 = []
     io1 = []
+    rusage1 = []
 
     @staticmethod
     def init_rusage(print_t=False, print_r=False, logger=None):
@@ -45,8 +46,12 @@ class ResourceLogger:
     def do_pre():
         ResourceLogger.print_res_spaces +=  2
         ResourceLogger.t1.append(time.time())
-        if ResourceLogger.print_rusages and not sys.platform.startswith('win'): # resource not available for Windows
-            ResourceLogger.rusage1 = resource.getrusage(resource.RUSAGE_SELF)
+        if ResourceLogger.print_rusages:
+            if ResourceLogger.resource_available:
+                ResourceLogger.rusage1.append(resource.getrusage(resource.RUSAGE_SELF))
+            elif ResourceLogger.proc:
+                ResourceLogger.rusage1.append(ResourceLogger.proc.get_cpu_times())
+                
             if ResourceLogger.proc:
                 ResourceLogger.mem1.append(ResourceLogger.proc.get_ext_memory_info())
                 ResourceLogger.io1.append(ResourceLogger.proc.get_io_counters() if ResourceLogger.proc_has_io_counters else psutil.disk_io_counters())
@@ -56,14 +61,24 @@ class ResourceLogger:
         t2 = time.time()
         ResourceLogger.print_res_spaces -=  2
         
-        if ResourceLogger.print_rusages and not sys.platform.startswith('win'): # resource not available for Windows
+        if ResourceLogger.print_rusages: # resource not available for Windows
             cpu_diffs = []
             mem_diffs = []
             io_diffs = []
-            rusage = resource.getrusage(resource.RUSAGE_SELF)
-            ResourceLogger.append_diff(cpu_diffs, 'user',       rusage.ru_utime - ResourceLogger.rusage1.ru_utime)
-            ResourceLogger.append_diff(cpu_diffs, 'system',     rusage.ru_stime - ResourceLogger.rusage1.ru_stime)
-            ResourceLogger.append_diff(cpu_diffs, 'elapsed',    t2-ResourceLogger.t1.pop())
+            
+            if ResourceLogger.resource_available:
+                rusage1 = ResourceLogger.rusage1.pop()
+                rusage2 = resource.getrusage(resource.RUSAGE_SELF)
+                ResourceLogger.append_diff(cpu_diffs, 'user',       rusage2.ru_utime - rusage1.ru_utime)
+                ResourceLogger.append_diff(cpu_diffs, 'system',     rusage2.ru_stime - rusage1.ru_stime)
+                ResourceLogger.append_diff(cpu_diffs, 'elapsed',    t2-ResourceLogger.t1.pop())
+            elif ResourceLogger.proc:
+                rusage1 = ResourceLogger.rusage1.pop()
+                rusage2 = ResourceLogger.proc.get_cpu_times()
+                for attr in ['user', 'system']:
+                    if hasattr(rusage1, attr):
+                        ResourceLogger.append_diff(cpu_diffs, attr, getattr(rusage2, attr) - getattr(rusage1, attr))
+                ResourceLogger.append_diff(cpu_diffs, 'elapsed',    t2-ResourceLogger.t1.pop())                
             
             if ResourceLogger.proc:
                 mem1 = ResourceLogger.mem1.pop()
@@ -76,14 +91,14 @@ class ResourceLogger:
                 for attr in ['read_count', 'write_count', 'read_bytes', 'write_bytes']:
                     if hasattr(io1, attr):
                         ResourceLogger.append_diff(io_diffs, attr, getattr(io2, attr) - getattr(io1, attr))
-            else:
-                ResourceLogger.append_diff(mem_diffs, 'maxrss', rusage.ru_maxrss - ResourceLogger.rusage1.ru_maxrss)
-                ResourceLogger.append_diff(mem_diffs, 'shared', rusage.ru_ixrss - ResourceLogger.rusage1.ru_ixrss)
-                ResourceLogger.append_diff(mem_diffs, 'heap',   rusage.ru_idrss - ResourceLogger.rusage1.ru_idrss)
-                ResourceLogger.append_diff(mem_diffs, 'stack',  rusage.ru_isrss - ResourceLogger.rusage1.ru_isrss)
+            elif ResourceLogger.resource_available:
+                ResourceLogger.append_diff(mem_diffs, 'maxrss', rusage2.ru_maxrss - rusage1.ru_maxrss)
+                ResourceLogger.append_diff(mem_diffs, 'shared', rusage2.ru_ixrss - rusage1.ru_ixrss)
+                ResourceLogger.append_diff(mem_diffs, 'heap',   rusage2.ru_idrss - rusage1.ru_idrss)
+                ResourceLogger.append_diff(mem_diffs, 'stack',  rusage2.ru_isrss - rusage1.ru_isrss)
                             
-                ResourceLogger.append_diff(io_diffs, 'read_count',  rusage.ru_inblock - ResourceLogger.rusage1.ru_inblock)
-                ResourceLogger.append_diff(io_diffs, 'write_count', rusage.ru_oublock - ResourceLogger.rusage1.ru_oublock)
+                ResourceLogger.append_diff(io_diffs, 'read_count',  rusage2.ru_inblock - rusage1.ru_inblock)
+                ResourceLogger.append_diff(io_diffs, 'write_count', rusage2.ru_oublock - rusage1.ru_oublock)
 
             mem_str = 'mem(' + ' '.join(mem_diffs) + ')'
             io_str = 'io(' + ' '.join(io_diffs) + ')'
@@ -111,11 +126,13 @@ class ResourceLogger:
 
 try:
     import psutil
+    ResourceLogger.psutil_available = True
 except:
     ResourceLogger.psutil_available = False
 
 try:
     import resource
+    ResourceLogger.resource_available = True
 except:
     ResourceLogger.resource_available = False
 
