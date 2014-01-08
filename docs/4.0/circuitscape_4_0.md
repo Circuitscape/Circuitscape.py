@@ -312,10 +312,10 @@ the Python packages repository. You will also need to install several packages
 upon which Circuitscape depends. 
 
 Python can be installed from http://www.python.org/ and the `pip` installer 
-can be installed from http://www.pip-installer.org/en/latest/installing.html. 
+can be installed from http://www.pip-installer.org/. 
 
 Before running Circuitscape, you will also need to install the Numpy, Scipy, 
-PyAMG, wxPython 2.8, and PythonCard Python packages. 
+PyAMG, wxPython and PythonCard Python packages. 
 
 Once these are installed, run the following command to get Circuitscape: 
 
@@ -331,10 +331,16 @@ Circuitscape:
 
 ## Linux 
 
-?Replace below? Would pip work for this? 
+Circuitscape can be installed as a Python package on Linux, following the instructions above.
 
-Instructions to install and run Circuitscape on Linux can be found on the 
-Circuitscape website. 
+Optionally, you may download the following two files from the Circuitscape source repository:
+
+- `setup-unix.sh`
+- `pip_requirements.txt`
+
+And run the command `sh setup-unix.sh` to guide you through the installation process.
+
+
 
 #4. Using Circuitscape with the graphical user interface 
 
