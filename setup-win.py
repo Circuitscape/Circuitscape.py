@@ -8,32 +8,46 @@ Usage:
 import os
 import py2exe
 from distutils.core import setup
-from csversion import CIRCUITSCAPE_VER, CIRCUITSCAPE_AUTHOR, CIRCUITSCAPE_EMAIL
 
-#INCLUDES = []
+from circuitscape import __version__, __author__, __email__
+
 INCLUDES =[]
 PACKAGES = ['PythonCard', 'wx', 'wxversion', 'numpy', 'scipy', 'pyamg', "scipy.io.matlab.streams"]
 
-DATA_FILES = ['cs_gui.rsrc.py', 'verify.py', 'cs_logo.jpg', 'cs_logo.ico',
-              'verify', 'verify/1', 'verify/2', 'verify/3', 'verify/4', 'verify/5', 'verify/6', 'verify/7', 'verify/8']
+DATA_FILES = ['circuitscape/cs_logo.jpg', 'circuitscape/gui_rsrc.py', 'cs_logo.ico'] 
+ 
 OPTIONS = {'includes': PACKAGES}
 
-#Now also compile cs_run.py.  compiling it first ensures that dependencies needed for cs_gui also included.
+# Compile cs_run.py first to ensure that dependencies needed for cs_gui also included.
 setup(
-    console=['cs_run.py'],
+    console=['bin/csrun.py'],
     data_files=DATA_FILES,
     options={'py2exe': OPTIONS},
-    version=CIRCUITSCAPE_VER,
-    author=CIRCUITSCAPE_AUTHOR,
-    author_email=CIRCUITSCAPE_EMAIL
+    version=__version__,
+    author= __author__,
+    author_email=__email__
 )
 setup(
-    console=['cs_gui.py'],
+    console=['bin/csgui.py'],
     data_files=DATA_FILES,
     options={'py2exe': OPTIONS},
-    version=CIRCUITSCAPE_VER,
-    author=CIRCUITSCAPE_AUTHOR,
-    author_email=CIRCUITSCAPE_EMAIL
+    version=__version__,
+    author= __author__,
+    author_email=__email__
 )
 
+import os, shutil
+# Copy subdirectories
+if os.path.exists('dist/circuitscape'): shutil.rmtree('dist/circuitscape')
+if os.path.exists('dist/examples'): shutil.rmtree('dist/examples')
+shutil.copytree('circuitscape/verify', 'dist/circuitscape/verify')
+shutil.copytree('examples', 'dist/examples')
 
+# Rename command line executable for backward compatibility
+try:
+    os.rename('dist/csrun.exe','dist/cs_run.exe')
+except:
+    os.remove('dist/cs_run.exe')
+    os.rename('dist/csrun.exe','dist/cs_run.exe')
+
+# Note: if having pythoncard problems see  http://www.py2exe.org/index.cgi/PythonCardSetup 

@@ -132,8 +132,8 @@ class GUI(model.Background):
             self.components.calcButton.SetFocus()
 
     def on_menuFileVerifyCode_select(self, event):
-        GUI.logger.info('Verifying code (this will take a minute or two)')
-        self.statusBar.SetStatusText('Verifying code (this will take a minute or two)',0)
+        GUI.logger.info('Verifying code (this will take a few seconds)')
+        self.statusBar.SetStatusText('Verifying code (this will a few seconds)',0)
         self.statusBar.SetStatusText('',1)
 
         outdir = None

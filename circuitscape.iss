@@ -7,7 +7,7 @@
 ; (To generate a new GUID, click Tools | Generate GUID inside the IDE.)
 AppId={{E4376ABF-DB0A-41EA-B854-54ED7A20BD38}
 AppName=Circuitscape
-AppVerName=Circuitscape 3.5.8
+AppVerName=Circuitscape 4.0 Beta
 AppPublisher=Circuitscape
 AppPublisherURL=http://www.circuitscape.org/
 AppSupportURL=http://www.circuitscape.org/
@@ -28,17 +28,17 @@ Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{
 Name: "quicklaunchicon"; Description: "{cm:CreateQuickLaunchIcon}"; GroupDescription: "{cm:AdditionalIcons}"; Flags: unchecked
 
 [Files]
-Source: "C:\CIRCUITSCAPE\PyCircuitScape\dist\cs_gui.exe"; DestDir: "{app}"; Flags: ignoreversion
-Source: "C:\CIRCUITSCAPE\PyCircuitScape\dist\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs; Permissions: users-modify
+Source: "dist\csgui.exe"; DestDir: "{app}"; Flags: ignoreversion
+Source: "dist\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs; Permissions: users-modify
 ; BHM added permissions above for 64-bit install 01/17/2011
 ; NOTE: Don't use "Flags: ignoreversion" on any shared system files
 
 [Icons]
-Name: "{group}\Circuitscape"; Filename: "{app}\cs_gui.exe"
-Name: "{commondesktop}\Circuitscape"; Filename: "{app}\cs_gui.exe"; IconFilename: "{app}\cs_logo.ico"; Tasks: desktopicon
-Name: "{userappdata}\Microsoft\Internet Explorer\Quick Launch\Circuitscape"; Filename: "{app}\cs_gui.exe"; IconFilename: "{app}\cs_logo.ico"; Tasks: quicklaunchicon
+Name: "{group}\Circuitscape"; Filename: "{app}\csgui.exe"
+Name: "{commondesktop}\Circuitscape"; Filename: "{app}\csgui.exe"; IconFilename: "{app}\cs_logo.ico"; Tasks: desktopicon
+Name: "{userappdata}\Microsoft\Internet Explorer\Quick Launch\Circuitscape"; Filename: "{app}\csgui.exe"; IconFilename: "{app}\cs_logo.ico"; Tasks: quicklaunchicon
 
 
 [Run]
-Filename: "{app}\cs_gui.exe"; Description: "{cm:LaunchProgram,Circuitscape}"; Flags: nowait postinstall skipifsilent
+Filename: "{app}\csgui.exe"; Description: "{cm:LaunchProgram,Circuitscape}"; Flags: nowait postinstall skipifsilent
 
