@@ -1,9 +1,5 @@
 #CIRCUITSCAPE User Guide 
 
-<p align="center">
-  <img src="images/image24.png"/>
-</p>
-
 **Brad McRae, Viral Shah, and Tanmay Mohapatra**
 
 **Version 4.0 Beta - Updated January 6, 2014**
@@ -232,7 +228,7 @@ voltages can be calculated at each node. Circuit above is from McRae et al.
 <p align="center"> <img src="images/Fig1_RasterInputs.png" width=" 600px;"/> 
 </p> 
 
-**Fig. 8.** Example raster input files for **pairwise and one-to-all modes**. 
+**Fig. 8.** Example raster input files for **pairwise, one-to-all, and all-to-one modes**. 
 Input files in this example include a **resistance map** specifying per-cell 
 resistances or conductances, a **focal node location file** (with two focal 
 regions and one focal point in this case), and an optional **short-circuit 
@@ -312,10 +308,10 @@ the Python packages repository. You will also need to install several packages
 upon which Circuitscape depends. 
 
 Python can be installed from http://www.python.org/ and the `pip` installer 
-can be installed from http://www.pip-installer.org/en/latest/installing.html. 
+can be installed from http://www.pip-installer.org/. 
 
 Before running Circuitscape, you will also need to install the Numpy, Scipy, 
-PyAMG, wxPython 2.8, and PythonCard Python packages. 
+PyAMG, wxPython and PythonCard Python packages. 
 
 Once these are installed, run the following command to get Circuitscape: 
 
@@ -331,10 +327,16 @@ Circuitscape:
 
 ## Linux 
 
-?Replace below? Would pip work for this? 
+Circuitscape can be installed as a Python package on Linux, following the instructions above.
 
-Instructions to install and run Circuitscape on Linux can be found on the 
-Circuitscape website. 
+Optionally, you may download the following two files from the Circuitscape source repository:
+
+- `setup-unix.sh`
+- `pip_requirements.txt`
+
+And run the command `sh setup-unix.sh` to guide you through the installation process.
+
+
 
 #4. Using Circuitscape with the graphical user interface 
 
@@ -484,10 +486,10 @@ and Rick Hopkins, Live Oak Associates.
 
 ###Create voltage maps 
 
-For the pairwise modeling mode, voltage maps specify node voltages that would 
+For the pairwise modeling mode, voltage maps give node voltages that would 
 be observed for each focal node pair if one node were connected to a 1 amp 
 current source and the other to ground. For the advanced modeling mode, 
-voltage maps specify voltages at each cell resulting from the current source 
+voltage maps show voltages at each cell resulting from the current source 
 and ground configurations in the input files. 
 
 
@@ -617,6 +619,16 @@ Values in output current maps will reflect a log10 transform of current
 densities, which can be useful for visualizing them in some GIS packages (e.g.,
 ArcView 3.X). Cells with zero current will be re-coded with NODATA values. 
 
+####Set focal node currents to zero 
+
+When running raster data in pairwise, all-to-one, and one-to all modes, focal
+nodes will have zero current in output maps when they are activated. For 
+pairwise mode, cumulative maps will still show currents flowing through focal 
+regions that results from other pairs being activated. This helps to show 
+current flowing through a focal region as it moves between other focal regions 
+in cumulative current maps. This current passing through a focal region can 
+give an idea of the importance of the focal region for connecting other focal 
+region pairs (for an example, see Fig. 5 in Dickson et al. 2013).
 
 ###Optional Input Files
 
@@ -1064,6 +1076,11 @@ sizes. See McRae et al. 2008 for details of effects of using coarser grids.
 Beier, P., W. Spencer, R. Baldwin, and B.H. McRae. 2011. Best science
 practices for developing regional connectivity maps. Conservation Biology
 25(5): 879-892
+
+Dickson B.G., G.W. Roemer, B.H. McRae, and J.M. Rundall. 2013. Models of 
+regional habitat quality and connectivity for pumas (*Puma concolor*) in the 
+southwestern United States. PLoS ONE 8(12): e81898. 
+doi:10.1371/journal.pone.0081898
 
 McRae, B.H. 2006. Isolation by resistance. Evolution 60:1551-1561.
 
