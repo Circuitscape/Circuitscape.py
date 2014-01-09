@@ -1,0 +1,8 @@
+scipy>=0.11.0
+numpy>=1.6.2
+pyamg>=2.1.0
+psutil>=1.1.3
+
+# manual install required for:
+# PythonCard>=0.8.2
+# wxPython>=2.8

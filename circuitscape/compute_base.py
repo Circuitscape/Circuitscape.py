@@ -741,10 +741,10 @@ class Output:
     
     def accumulate_c_map_with_values(self, name, values):
         if self.is_network:
-            _branch_currents, node_currents, branch_currents_array, node_map = values
+            branch_currents, node_currents, branch_currents_array, node_map = values
             full_branch_currents, full_node_currents, _bca, _np = self.current_maps[name]
-            full_node_currents[node_map] += node_currents            
-            full_branch_currents = full_branch_currents + sparse.csr_matrix((branch_currents_array[:,2], (branch_currents_array[:,0], branch_currents_array[:,1])), shape=full_branch_currents.shape)
+            full_node_currents += node_currents            
+            full_branch_currents = full_branch_currents + branch_currents
             self.current_maps[name] = (full_branch_currents, full_node_currents, branch_currents_array, node_map)
         else:
             self.current_maps[name] += values
@@ -775,8 +775,8 @@ class Output:
                 self.rm_c_map(name)
             elif accumulate:
                 full_branch_currents, full_node_currents, _bca, _np = self.current_maps[name]
-                full_node_currents[node_map] += node_currents            
-                full_branch_currents = full_branch_currents + sparse.csr_matrix((branch_currents_array[:,2], (branch_currents_array[:,0], branch_currents_array[:,1])), shape=full_branch_currents.shape)
+                full_node_currents += node_currents
+                full_branch_currents = full_branch_currents + branch_currents
                 self.current_maps[name] = (full_branch_currents, full_node_currents, branch_currents_array, node_map)
             else:
                 self.current_maps[name] = (branch_currents, node_currents, branch_currents_array, node_map)
