@@ -14,9 +14,10 @@ from circuitscape import __version__, __author__, __email__
 INCLUDES =[]
 PACKAGES = ['PythonCard', 'wx', 'wxversion', 'numpy', 'scipy', 'pyamg', "scipy.io.matlab.streams"]
 
-DATA_FILES = ['circuitscape/cs_logo.jpg', 'circuitscape/gui_rsrc.py', 'circuitscape/cs_logo.ico'] 
+DATA_FILES = ['circuitscape/cs_logo.jpg', 'circuitscape/gui_rsrc.py', 'cs_logo.ico'] 
  
 OPTIONS = {'includes': PACKAGES}
+
 
 # Compile cs_run.py first to ensure that dependencies needed for cs_gui also included.
 setup(
@@ -28,7 +29,12 @@ setup(
     author_email=__email__
 )
 setup(
-    console=['bin/csgui.py'],
+    console = [
+        {
+            "script": "bin/csgui.py",
+            "icon_resources": [(1, "cs_logo.ico")]
+        }
+    ],
     data_files=DATA_FILES,
     options={'py2exe': OPTIONS},
     version=__version__,

@@ -42,7 +42,7 @@ class GUILogger(logging.Handler):
         self.dest = dest
         self.level = logging.DEBUG
         self.last_gui_yield_time = time.time()
-        
+
     def flush(self):
         pass
 
@@ -93,7 +93,7 @@ class GUI(model.Background):
     def on_initialize(self, event):
         self.state = {}
         self.state['version'] = __version__       
-        
+       
         #LOAD LAST self.options
         configFile = 'circuitscape.ini'
         self.options = self.LoadOptions(configFile) 
@@ -101,6 +101,8 @@ class GUI(model.Background):
         self.options.log_level = 'INFO'
         
         ##Set all objects to reflect options
+        _icon = wx.Icon('cs_logo.ico', wx.BITMAP_TYPE_ICO)
+        self.SetIcon(_icon)        
         self.components.Image1.file = get_packaged_resource('cs_logo.jpg')
         self.setWidgets()
         self.components.calcButton.SetFocus()
@@ -137,7 +139,7 @@ class GUI(model.Background):
 
     def on_menuFileVerifyCode_select(self, event):
         GUI.logger.info('Verifying code (this will take a few seconds)')
-        self.statusBar.SetStatusText('Verifying code (this will a few seconds)',0)
+        self.statusBar.SetStatusText('Verifying code (this will take a few seconds)',0)
         self.statusBar.SetStatusText('',1)
 
         outdir = None
@@ -592,11 +594,6 @@ class GUI(model.Background):
         finally:
             e_type = value = tb = None # clean up
  
-
-
-
-
-
 
     def memory_error_feedback(self):
         GUI.logger.error('Circuitscape ran out of memory. Please see user guide for information about memory requirements.')
