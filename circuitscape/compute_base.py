@@ -702,11 +702,12 @@ class HabitatGraph:
 
 class Output:
     """Handles output of current and voltage maps"""
-    def __init__(self, options, state, report_status, g_shape=None):
+    def __init__(self, options, state, report_status, node_names=None):
         self.options = options
         self.state = state
         self.report_status = report_status
-        self.g_shape = g_shape
+        self.node_names = node_names
+        self.nn_sorted = node_names[np.argsort(node_names)] if (None != node_names) else None
         
         self.is_network = (self.options.data_type == 'network')
         self.scenario = self.options.scenario
@@ -741,10 +742,13 @@ class Output:
     
     def accumulate_c_map_with_values(self, name, values):
         if self.is_network:
-            branch_currents, node_currents, branch_currents_array, node_map = values
+            _branch_currents, node_currents, branch_currents_array, node_map = values
             full_branch_currents, full_node_currents, _bca, _np = self.current_maps[name]
-            full_node_currents += node_currents            
-            full_branch_currents = full_branch_currents + branch_currents
+            pos = np.searchsorted(self.nn_sorted, node_map)
+            full_node_currents[pos] += node_currents
+            bc_x = np.searchsorted(self.nn_sorted, branch_currents_array[:,0])
+            bc_y = np.searchsorted(self.nn_sorted, branch_currents_array[:,1])            
+            full_branch_currents = full_branch_currents + sparse.csr_matrix((branch_currents_array[:,2], (bc_x, bc_y)), shape=full_branch_currents.shape)
             self.current_maps[name] = (full_branch_currents, full_node_currents, branch_currents_array, node_map)
         else:
             self.current_maps[name] += values
@@ -775,8 +779,11 @@ class Output:
                 self.rm_c_map(name)
             elif accumulate:
                 full_branch_currents, full_node_currents, _bca, _np = self.current_maps[name]
-                full_node_currents += node_currents
-                full_branch_currents = full_branch_currents + branch_currents
+                pos = np.searchsorted(self.nn_sorted, node_map)
+                full_node_currents[pos] += node_currents
+                bc_x = np.searchsorted(self.nn_sorted, branch_currents_array[:,0])
+                bc_y = np.searchsorted(self.nn_sorted, branch_currents_array[:,1])                
+                full_branch_currents = full_branch_currents + sparse.csr_matrix((branch_currents_array[:,2], (bc_x, bc_y)), shape=full_branch_currents.shape)
                 self.current_maps[name] = (full_branch_currents, full_node_currents, branch_currents_array, node_map)
             else:
                 self.current_maps[name] = (branch_currents, node_currents, branch_currents_array, node_map)
@@ -813,8 +820,9 @@ class Output:
     def alloc_c_map(self, name):
         """Allocate space to store current maps identified by name"""
         if self.is_network:
-            branch_currents = sparse.csr_matrix(self.g_shape)
-            node_currents = np.zeros((self.g_shape[0], 1), dtype='float64')
+            nnodes = len(self.node_names)
+            branch_currents = sparse.csr_matrix((nnodes,nnodes))
+            node_currents = np.zeros((nnodes, 1), dtype='float64')
             self.current_maps[name] = (branch_currents, node_currents, None, None)
         else:
             self.current_maps[name] = np.zeros((self.state.nrows, self.state.ncols), dtype='float64')

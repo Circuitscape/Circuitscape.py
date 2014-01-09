@@ -55,7 +55,7 @@ class Compute(ComputeBase):
             self.state.ground_map = CSIO.read_point_strengths(self.options.ground_file)        
         
         g_habitat = HabitatGraph(g_graph=g_graph, node_names=node_names)
-        out = Output(self.options, self.state, False, (g_habitat.num_nodes, g_habitat.num_nodes))
+        out = Output(self.options, self.state, False, node_names)
         if self.options.write_cur_maps:
             out.alloc_c_map('')
         
