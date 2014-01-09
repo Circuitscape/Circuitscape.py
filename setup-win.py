@@ -14,7 +14,7 @@ from circuitscape import __version__, __author__, __email__
 INCLUDES =[]
 PACKAGES = ['PythonCard', 'wx', 'wxversion', 'numpy', 'scipy', 'pyamg', "scipy.io.matlab.streams"]
 
-DATA_FILES = ['circuitscape/cs_logo.jpg', 'circuitscape/gui_rsrc.py', 'cs_logo.ico'] 
+DATA_FILES = ['circuitscape/cs_logo.jpg', 'circuitscape/gui_rsrc.py', 'circuitscape/cs_logo.ico'] 
  
 OPTIONS = {'includes': PACKAGES}
 
@@ -38,16 +38,16 @@ setup(
 
 import os, shutil
 # Copy subdirectories
-if os.path.exists('dist/circuitscape'): shutil.rmtree('dist/circuitscape')
-if os.path.exists('dist/examples'): shutil.rmtree('dist/examples')
+if os.path.exists('dist/circuitscape'): 
+    shutil.rmtree('dist/circuitscape')
+if os.path.exists('dist/examples'): 
+    shutil.rmtree('dist/examples')
 shutil.copytree('circuitscape/verify', 'dist/circuitscape/verify')
 shutil.copytree('examples', 'dist/examples')
 
 # Rename command line executable for backward compatibility
-try:
-    os.rename('dist/csrun.exe','dist/cs_run.exe')
-except:
+if os.path.exists('dist/cs_run.exe'):
     os.remove('dist/cs_run.exe')
-    os.rename('dist/csrun.exe','dist/cs_run.exe')
+os.rename('dist/csrun.exe','dist/cs_run.exe')
 
 # Note: if having pythoncard problems see  http://www.py2exe.org/index.cgi/PythonCardSetup 
