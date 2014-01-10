@@ -60,7 +60,7 @@ class Compute(ComputeBase):
             out.alloc_c_map('')
         
         Compute.logger.info('Calling solver module.')
-        Compute.logger.debug('Graph has ' + str(g_habitat.num_nodes) + ' nodes and '+ str(g_habitat.num_components)+ ' components.')
+        Compute.logger.info('Graph has ' + str(g_habitat.num_nodes) + ' nodes and '+ str(g_habitat.num_components)+ ' components.')
         if self.options.scenario == 'pairwise':
             (resistances, solver_failed) = self.single_ground_all_pair_resistances(g_habitat, fp, out, True)
             if self.options.write_cur_maps:
@@ -113,7 +113,7 @@ class Compute(ComputeBase):
                     raise RuntimeError('Error reading reclass table.  Please check file format.')
                 for i in range (0,reclass_table.shape[0]):
                     data = np.where(data==reclass_table[i,0], reclass_table[i,1],data)
-                Compute.logger.debug('Reclassified habitat graph using %s'%(self.options.reclass_file,))
+                Compute.logger.info('Reclassified habitat graph using %s'%(self.options.reclass_file,))
             ########################
             
             if self.options.habitat_map_is_resistances == True:
@@ -154,7 +154,7 @@ class Compute(ComputeBase):
         self.load_maps()
         if self.options.screenprint_log == True:        
             num_nodes = (np.where(self.state.g_map > 0, 1, 0)).sum()         
-            Compute.logger.debug('Resistance/conductance map has %d nodes' % (num_nodes,))
+            Compute.logger.info('Resistance/conductance map has %d nodes' % (num_nodes,))
 
         if self.options.scenario == 'pairwise':
             resistances, solver_failed = self.pairwise_module(self.state.g_map, self.state.poly_map, self.state.points_rc)
@@ -166,7 +166,7 @@ class Compute(ComputeBase):
             Compute.logger.info('Calling solver module.')
             g_habitat = HabitatGraph(g_map=self.state.g_map, poly_map=self.state.poly_map, connect_using_avg_resistances=self.options.connect_using_avg_resistances, connect_four_neighbors_only=self.options.connect_four_neighbors_only)
             out = Output(self.options, self.state, False)
-            Compute.logger.debug('Graph has ' + str(g_habitat.num_nodes) + ' nodes and '+ str(g_habitat.num_components)+ ' components.')
+            Compute.logger.info('Graph has ' + str(g_habitat.num_nodes) + ' nodes and '+ str(g_habitat.num_components)+ ' components.')
             voltages, _current_map, solver_failed = self.advanced_module(g_habitat, out, self.state.source_map, self.state.ground_map)
             self.log_complete_job()
             if solver_failed == True:
@@ -233,12 +233,12 @@ class Compute(ComputeBase):
             (strength_map, strengths_rc) = self.get_strength_map(points_rc_unique, self.state.point_strengths)            
 
             g_habitat = HabitatGraph(g_map=g_map, poly_map=poly_map_temp, connect_using_avg_resistances=self.options.connect_using_avg_resistances, connect_four_neighbors_only=self.options.connect_four_neighbors_only)
-            Compute.logger.debug('Graph has ' + str(g_habitat.num_nodes) + ' nodes and '+ str(g_habitat.num_components) + ' components.')
+            Compute.logger.info('Graph has ' + str(g_habitat.num_nodes) + ' nodes and '+ str(g_habitat.num_components) + ' components.')
             component_with_points = g_habitat.unique_component_with_points(unique_point_map)
         else:
             if Compute.logger.isEnabledFor(logging.DEBUG):
                 g_habitat = HabitatGraph(g_map=g_map, poly_map=poly_map, connect_using_avg_resistances=self.options.connect_using_avg_resistances, connect_four_neighbors_only=self.options.connect_four_neighbors_only)
-                Compute.logger.debug('Graph has ' + str(g_habitat.num_nodes) + ' nodes and '+ str(g_habitat.num_components) + ' components.')
+                Compute.logger.info('Graph has ' + str(g_habitat.num_nodes) + ' nodes and '+ str(g_habitat.num_components) + ' components.')
             component_with_points = None
 
         for pt_idx in range(0, point_ids.size): # These are the 'src' nodes, pt_idx.e. the 'one' in all-to-one and one-to-all
@@ -468,7 +468,7 @@ class Compute(ComputeBase):
            
         solver_failed_somewhere = [False]
         
-        Compute.logger.debug('Graph has ' + str(g_habitat.num_nodes) + ' nodes, ' + str(numpoints) + ' focal nodes and '+ str(g_habitat.num_components)+ ' components.')
+        Compute.logger.info('Graph has ' + str(g_habitat.num_nodes) + ' nodes, ' + str(numpoints) + ' focal nodes and '+ str(g_habitat.num_components)+ ' components.')
         resistances = -1 * np.ones((numpoints, numpoints), dtype = 'float64')         #Inf creates trouble in python 2.5 on Windows. Use -1 instead.
         
 #         if use_resistance_calc_shortcut==True:
@@ -496,7 +496,7 @@ class Compute(ComputeBase):
                 num_parallel += 1
                 num_points_to_solve += 1
         
-        Compute.logger.info('max parallel possible = ' + str(max_parallel) + ', will parallelize = ' + str(parallelize))
+        Compute.logger.debug('max parallel possible = ' + str(max_parallel) + ', will parallelize = ' + str(parallelize))
         
         num_points_solved = 0
         for c in range(1, int(g_habitat.num_components+1)):

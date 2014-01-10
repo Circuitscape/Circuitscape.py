@@ -168,6 +168,7 @@ class GUI(model.Background):
         if testsPassed:
             dial = wx.MessageDialog(None, 'All tests passed!', 'Verification complete.', wx.OK)  # @UndefinedVariable
             dial.ShowModal()
+            GUI.logger.info('All tests passed!')
         else:
             dial = wx.MessageDialog(None, 'Errors were found.  Please see terminal or console for details.', 'Verification failed.', wx.OK)  # @UndefinedVariable
             dial.ShowModal()
@@ -177,12 +178,14 @@ class GUI(model.Background):
         messagetext = str('Version ' + self.state['version'] + '\n\nhttp://www.circuitscape.org/\n\nBrad McRae, Viral B. Shah, and Tanmay K. Mohapatra\n\nCircuitscape (C) 2008-09. Licensed under LGPL.')
         dial = wx.MessageDialog(None, messagetext, 'Circuitscape', wx.OK)  # @UndefinedVariable
         dial.ShowModal()
+        self.reset_status_bar()
         
     def on_menuOptionsMoreOptions_select(self, event):
         result = show_options_window(self)
         if result.accepted == True:
             self.options = result.options
             self.report_menu_files()
+        self.reset_status_bar()
 
     def save_file_dlg(self, title, wildcard):
         file_name = None
@@ -194,6 +197,7 @@ class GUI(model.Background):
             result = dialog.saveFileDialog(self, 'Choose a file name', '', '', wildcard)
             if result.accepted == True:
                 file_name = result.paths[0]
+        self.reset_status_bar()
         return file_name
         
     def on_menuFileSave_select(self, event):
@@ -209,6 +213,7 @@ class GUI(model.Background):
                 message = str(ex)
                 dial = wx.MessageDialog(None, message, 'Error writing configuration file', wx.OK | wx.ICON_ERROR)  # @UndefinedVariable
                 dial.ShowModal()
+        self.reset_status_bar()
 
     def on_menuFileRunBatch_select(self, event):
         wildcard = "Options Files (*.ini)|*.ini" 
@@ -414,6 +419,7 @@ class GUI(model.Background):
         if not all_options_entered:
             dial = wx.MessageDialog(None, message, 'Not all options entered', wx.OK | wx.ICON_EXCLAMATION)  # @UndefinedVariable
             dial.ShowModal()
+            self.reset_status_bar()
             return
                                         
         #save selected options in local directory
@@ -424,6 +430,7 @@ class GUI(model.Background):
         except RuntimeError as ex:
             dial = wx.MessageDialog(None, str(ex), 'Error', wx.OK | wx.ICON_ERROR)  # @UndefinedVariable
             dial.ShowModal()
+            self.reset_status_bar()
             return  
                             
         GUI.logger.info('Calling Circuitscape...')
@@ -435,19 +442,23 @@ class GUI(model.Background):
             message = str(error)
             dial = wx.MessageDialog(None, message, 'Error', wx.OK | wx.ICON_ERROR)  # @UndefinedVariable
             dial.ShowModal()
+            self.reset_status_bar()
             return
         except:
             self.unknown_exception()
+            self.reset_status_bar()
             return
 
         try:
             terminate = self.checkHeaders()
             if terminate == True:
+                self.reset_status_bar()
                 return
         except RuntimeError as error:
             message = str(error)
             dial = wx.MessageDialog(None, message, 'Error', wx.OK | wx.ICON_ERROR)  # @UndefinedVariable
             dial.ShowModal()
+            self.reset_status_bar()
             return
 
         if self.options.data_type == 'network':        
@@ -477,12 +488,14 @@ class GUI(model.Background):
             except MemoryError:
                 wx.EndBusyCursor()  # @UndefinedVariable
                 self.memory_error_feedback()
+                self.reset_status_bar()
                 return
             except RuntimeError as error:
                 wx.EndBusyCursor()  # @UndefinedVariable
                 message = str(error)
                 dial = wx.MessageDialog(None, message, 'Error', wx.OK | wx.ICON_ERROR)  # @UndefinedVariable
                 dial.ShowModal()
+                self.reset_status_bar()
                 return
             except:
                 wx.EndBusyCursor()  # @UndefinedVariable
@@ -509,14 +522,17 @@ class GUI(model.Background):
                 message = str(error)
                 dial = wx.MessageDialog(None, message, 'Error', wx.OK | wx.ICON_ERROR)  # @UndefinedVariable
                 dial.ShowModal()
+                self.reset_status_bar()
                 return
             except MemoryError:
                 wx.EndBusyCursor()  # @UndefinedVariable
                 self.memory_error_feedback()
+                self.reset_status_bar()
                 return
             except:
                 wx.EndBusyCursor()  # @UndefinedVariable
                 self.unknown_exception()
+                self.reset_status_bar()
                 return
 
         else:
@@ -550,14 +566,18 @@ class GUI(model.Background):
                 message = str(error)
                 dial = wx.MessageDialog(None, message, 'Error', wx.OK | wx.ICON_ERROR)  # @UndefinedVariable
                 dial.ShowModal()
+                self.reset_status_bar()
             except MemoryError:
                 wx.EndBusyCursor()  # @UndefinedVariable
                 self.memory_error_feedback()
+                self.reset_status_bar()
                 return
             except:
                 wx.EndBusyCursor()  # @UndefinedVariable
-                self.unknown_exception()            
-            self.reset_status_bar()        
+                self.unknown_exception()  
+                self.reset_status_bar()
+                return
+            # self.reset_status_bar()        
 
 
     def checkHeaders(self):
@@ -634,8 +654,10 @@ class GUI(model.Background):
         
         self.components.habitatFile.text = self.options.habitat_file
         self.components.srcTargetFile.text = self.options.point_file       
-        self.components.currentSrcFile.text = self.options.source_file
-        self.components.gndFile.text = self.options.ground_file
+        if self.options.source_file is not None:
+            self.components.currentSrcFile.text = self.options.source_file
+        if self.options.ground_file is not None:
+            self.components.gndFile.text = self.options.ground_file
         self.components.outFile.text = self.options.output_file
        
         idx = GUI.OPTIONS_LOG_LEVEL.index(self.options.log_level)
@@ -747,14 +769,9 @@ class GUI(model.Background):
             self.components.logMessages.appendText(' '*20 + '-'*42 + 'These inputs can be changed in the Options menu' + '-'*42 +'\n\n')
 
     def reset_status_bar(self):
-        if self.options.data_type == 'network':
-            self.enable_disable_network_widgets(True)        
-            statustext=str('V ' + self.state['version']+' NETWORK MODE')            
-        else:
-            statustext=str('Version ' + self.state['version'] + ' Ready.')
-            self.enable_disable_network_widgets(False)            
+        statustext=str('Version ' + self.state['version'] + ' Ready.')
         self.statusBar.SetStatusText(statustext,0)
-        self.statusBar.SetStatusText('', 1)
+        self.statusBar.SetStatusText('Please send feedback to the Circuitscape User Group', 1)
         self.statusBar.SetStatusText('', 2)
 
 def get_packaged_resource(filename):

@@ -285,7 +285,7 @@ class CSIO:
                 pmap = 1-pmap #now zeros are areas to mask out, ones are kept
             
         except: 
-            raise RuntimeError('Error resampling focal node, mask, or short-circuit region locations to match habitat pmap cell size and extent.  We recommend using the "Export to Circuitscape" ArcGIS tool to create ASCII grids with compatible cell size and extent.')   
+            raise RuntimeError('Error resampling focal node, mask, or short-circuit region locations to match resistance map cell size and extent.  We recommend using the "Export to Circuitscape" ArcGIS tool to create ASCII grids with compatible cell size and extent.')   
     
         return pmap
 
