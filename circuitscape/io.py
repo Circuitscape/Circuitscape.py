@@ -519,7 +519,6 @@ class CSIO:
         if is_resistances == True:
             zeros_in_resistance_map = (np.where(cell_map==0, 1, 0)).sum() > 0
             if zeros_in_resistance_map == True: 
-                #FIXME: Should be easy to accomodate zeros in resistance map, just treat them like polygons.
                 raise RuntimeError('Error: zero resistance values are not currently supported for habitat maps.  Use a short-circuit region file instead.')
             g_map = 1 / cell_map  
             g_map = np.where(cell_map == -9999, 0, g_map)

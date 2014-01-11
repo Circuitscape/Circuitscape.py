@@ -34,9 +34,11 @@ class ComputeBase(object):
 
 
     @staticmethod
-    def _create_formatter(log_lvl):
+    def _create_formatter(log_lvl, printDashes=False):      
         if log_lvl == logging.DEBUG:
             formatter = logging.Formatter('%(asctime)s:%(levelname)s:%(message)s', '%m/%d/%Y %I.%M.%S.%p')
+        elif printDashes==True:
+            formatter = logging.Formatter('    --- %(message)s ---')
         else:
             formatter = logging.Formatter('%(message)s')
         return formatter
@@ -84,13 +86,15 @@ class ComputeBase(object):
             ComputeBase._close_handlers(ComputeBase.logger)
             ComputeBase._close_handlers(ResourceLogger.rlogger)
         
+        # For backward compatibility with ArcGIS-based tools. 
+        printDashes = True if (ext_log_handler == 'Screen' and self.options.version == 'unknown') else False
         if ext_log_handler == 'Screen':
             self.options.screenprint_log = True
             ext_log_handler = None
 
         log_lvl = getattr(logging, self.options.log_level.upper())
         
-        formatter = ComputeBase._create_formatter(log_lvl)
+        formatter = ComputeBase._create_formatter(log_lvl, printDashes)
         
         CSIO.logger = CSState.logger = ComputeBase.logger = ComputeBase._create_logger('circuitscape', log_lvl, self.options.log_file, self.options.screenprint_log, ext_log_handler, formatter)
 
