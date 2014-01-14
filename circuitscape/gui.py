@@ -336,7 +336,7 @@ class GUI(model.Background):
             wildcard = "Tab-delimited text list (*.txt)|*.txt|All Files (*.*)|*.*" 
         else:
             wildcard = "ASCII Raster (*.asc or *.txt)|*.asc;*.txt|All Files (*.*)|*.*" 
-        result = dialog.fileDialog(self, 'Select Raster Habitat Map or Network/Graph File', '', '', wildcard) 
+        result = dialog.fileDialog(self, 'Select Raster Resistance Map or Network/Graph File', '', '', wildcard) 
         if result.accepted == True: 
             file_name = result.paths[0]
             self.components.habitatFile.text = file_name
@@ -771,8 +771,9 @@ class GUI(model.Background):
     def reset_status_bar(self):
         statustext=str('Version ' + self.state['version'] + ' Ready.')
         self.statusBar.SetStatusText(statustext,0)
-        self.statusBar.SetStatusText('Please send feedback to the Circuitscape User Group', 1)
-        self.statusBar.SetStatusText('', 2)
+        self.statusBar.SetStatusText('', 1)
+        self.statusBar.SetStatusText('Please send feedback to the Circuitscape User Group', 2)
+        
 
 def get_packaged_resource(filename):
     res_path = os.path.join(os.path.dirname(__file__), filename)

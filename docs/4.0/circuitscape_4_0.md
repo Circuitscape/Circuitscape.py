@@ -982,7 +982,8 @@ Similarly, if the first line in the above file read:
 mode 	exclude
 ```
 
-all pairs except (1,2), (1,3), and (1,5) would be analyzed. 
+all pairs except (1,2), (1,3), and (1,5) would be analyzed. Another example can 
+be found in the examples directory.
 
 
 #9\. Output files

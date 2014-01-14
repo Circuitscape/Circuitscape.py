@@ -113,7 +113,7 @@ class Compute(ComputeBase):
                     raise RuntimeError('Error reading reclass table.  Please check file format.')
                 for i in range (0,reclass_table.shape[0]):
                     data = np.where(data==reclass_table[i,0], reclass_table[i,1],data)
-                Compute.logger.info('Reclassified habitat graph using %s'%(self.options.reclass_file,))
+                Compute.logger.info('Reclassified landscape graph using %s'%(self.options.reclass_file,))
             ########################
             
             if self.options.habitat_map_is_resistances == True:
@@ -132,7 +132,7 @@ class Compute(ComputeBase):
             raise RuntimeError('Error processing graph/network file.  Please check file format')
         
         if zeros_in_resistance_graph == True:
-            raise RuntimeError('Error: zero resistance values are not currently allowed in habitat network/graph input file.')
+            raise RuntimeError('Error: zero resistance values are not currently allowed in network/graph input file.')
         
         return g_graph, node_names
 
@@ -971,7 +971,7 @@ class Compute(ComputeBase):
             
             sum_gmap = (self.state.g_map).sum()
             if sum_gmap==0:
-                raise RuntimeError('All entries in habitat map have been dropped after masking with the mask file.  There is nothing to solve.')             
+                raise RuntimeError('All entries in landscape map have been dropped after masking with the mask file.  There is nothing to solve.')             
         else:
             self.state.mask = []
 
