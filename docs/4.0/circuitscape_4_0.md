@@ -554,12 +554,12 @@ The distinction is particularly important when connecting cells with zero or
 infinite values. When average resistances are used, first-order neighbors 
 connected by resistors with resistance given by: _Rab_ = (_Ra_ \+ _Rb_) / 2, 
 and second-order (diagonal) neighbors are connected by resistors with 
-resistance given by: _Rab_ = √2 \* (_Ra_ \+ _Rb_) / 2, where _Ra_ and _Rb_ are 
+resistance given by: _Rab_ = &radic;2 \* (_Ra_ \+ _Rb_) / 2, where _Ra_ and _Rb_ are 
 the resistances of the neighboring cells. When average conductances are used, 
 first-order neighbors connected by resistors with conductance (the reciprocal 
 of resistance) given by: _Gab_ = (_Ga_ \+ _Gb_) / 2, and second-order 
 (diagonal) neighbors are connected by resistors with resistance given by: 
-_Gab_ = (_Ga_ \+ _Gb_) / (2\*√2), where _Ga_ and _Gb_ are the conductances of 
+_Gab_ = (_Ga_ \+ _Gb_) / (2\*&radic;2), where _Ga_ and _Gb_ are the conductances of 
 the neighboring cells. (As noted above, resistance and conductance are 
 reciprocals of each other, i.e., _Gab_ = 1 / _Rab_.) 
 

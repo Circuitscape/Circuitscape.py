@@ -1,0 +1,1 @@
+Starting from version 4.0, the primary format for circuitscape documentation is markdown. The HTML and PDF format documents are automatically generated from the markdown document during the build process.
