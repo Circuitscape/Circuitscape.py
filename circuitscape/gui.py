@@ -1,7 +1,7 @@
 # import sys
 # if sys.modules.has_key('wx'):
     # print 'wx0'
-import os, sys, traceback, logging, time, multiprocessing, tempfile, StringIO
+import os, sys, traceback, logging, time, multiprocessing, tempfile, StringIO, webbrowser
 import numpy as np
 
 import wxversion
@@ -186,6 +186,13 @@ class GUI(model.Background):
             self.options = result.options
             self.report_menu_files()
         self.reset_status_bar()
+        
+    def on_menuHelpManual_select(self, event):
+        #TODO: change to match release tag
+        webbrowser.open("https://github.com/Circuitscape/Circuitscape/blob/master/docs/4.0/circuitscape_4_0.md")
+
+    def on_menuHelpFeedback_select(self, event):
+        webbrowser.open("http://www.circuitscape.org/Support")
 
     def save_file_dlg(self, title, wildcard):
         file_name = None

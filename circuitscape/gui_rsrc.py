@@ -54,6 +54,20 @@ GUI_RSRC = {'application':{'type':'Application',
                   },
               ]
              },
+             {'type':'Menu',
+             'name':'menuHelp',
+             'label':'&Help',
+             'items': [
+                  {'type':'MenuItem',
+                   'name':'menuHelpManual',
+                   'label':'Circuitscape User Guide',
+                  },
+                  {'type':'MenuItem',
+                   'name':'menuHelpFeedback',
+                   'label':'Discuss / Provide Feedbacks',
+                  },
+              ]
+             },
          ]
      },
          'components': [
