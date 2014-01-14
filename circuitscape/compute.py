@@ -770,7 +770,7 @@ class Compute(ComputeBase):
         if solver_failed==False and self.options.write_volt_maps:
             out.write_v_map(vc_map_id)
             
-        if ((source_id == None) and self.options.write_cur_maps) or ((source_id != None) and (self.options.write_cum_cur_map_only==False)):
+        if (self.options.write_cur_maps) and ((source_id == None) or ((source_id != None) and (self.options.write_cum_cur_map_only==False))):
             out.write_c_map(vc_map_id, node_map=node_map)
             
         if self.options.scenario=='one-to-all':
