@@ -174,7 +174,7 @@ class GUI(model.Background):
             dial.ShowModal()
         self.reset_status_bar()
 
-    def on_menuFileAbout_select(self, event):
+    def on_menuHelpAbout_select(self, event):
         messagetext = str('Version ' + self.state['version'] + '\n\nhttp://www.circuitscape.org/\n\nBrad McRae, Viral B. Shah, and Tanmay K. Mohapatra\n\nCircuitscape (C) 2008-09. Licensed under LGPL.')
         dial = wx.MessageDialog(None, messagetext, 'Circuitscape', wx.OK)  # @UndefinedVariable
         dial.ShowModal()
