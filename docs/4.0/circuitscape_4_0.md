@@ -964,7 +964,9 @@ tying each ground node to ground, as set in the Options window.
 ##Include/exclude file format
 
 This file will be loaded when the 'Read file with focal node pairs to 
-include/exclude' option is checked. Users can either specify pairs to include
+include/exclude' option is checked, and affects all modes except the advanced 
+mode. There are two file formats that can be 
+used. The first is the simplest, and gives a list of pairs to include
 in calculations, or pairs to exclude, as specified in the first line of the 
 file. For example, if there are  five focal nodes, numbered 1-5, and the 
 following list is entered, only pairs (1,2), (1,3), and (1,5) will be analyzed:
@@ -982,8 +984,32 @@ Similarly, if the first line in the above file read:
 mode 	exclude
 ```
 
-all pairs except (1,2), (1,3), and (1,5) would be analyzed. Another example can 
-be found in the examples directory.
+all pairs except (1,2), (1,3), and (1,5) would be analyzed. See example file 
+"list_of_pairs_to_include.txt" in the examples directory.
+
+The second method uses a matrix identifying which pairs of focal nodes to 
+connect.  The file specifies minimum and maximum values in the matrix to 
+consider a pair connected.  This method can be useful when used with a distance 
+matrix to only run analyses between points separated by a minimum distance, or 
+by a distance equal to or less than a maximum distance.  Note: any focal node 
+not in the matrix will be dropped from analyses.  Entries on the diagonal are 
+ignored.  For example, in the following matrix, only pairs with entries between 
+2 and 50 are connected.  Pairs (1,2), (2,4), and (3,4) will not be analyzed.  
+Focal node 5 will be dropped entirely: 
+
+```
+min	2
+max	50
+0     1     2     3     4     5	
+1     0     100   6.67  7     1	
+2     100   0     11    1     60
+3     6.67  11    0     -1    100	
+4     7     1     -1    0     0
+5     1     60     100  0     0
+```
+Make sure to include a zero in the upper-left corner of the matrix.
+
+Files should be in tab-delimited text with a .txt extension. See example file “matrix_of_pairs_to_include_and_exclude.txt” in the examples directory.
 
 
 #9\. Output files
