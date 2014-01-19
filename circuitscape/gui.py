@@ -101,8 +101,9 @@ class GUI(model.Background):
         self.options.log_level = 'INFO'
         
         ##Set all objects to reflect options
-        _icon = wx.Icon('cs_logo.ico', wx.BITMAP_TYPE_ICO)
-        self.SetIcon(_icon)        
+        if sys.platform.startswith('win'):
+            _icon = wx.Icon('cs_logo.ico', wx.BITMAP_TYPE_ICO) # @UndefinedVariable
+            self.SetIcon(_icon)        
         self.components.Image1.file = get_packaged_resource('cs_logo.jpg')
         self.setWidgets()
         self.components.calcButton.SetFocus()
