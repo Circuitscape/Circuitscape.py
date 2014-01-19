@@ -145,11 +145,13 @@ class GUI(model.Background):
         outdir = None
         cwd = os.getcwd()
         try:
-            root_path = os.path.dirname(__file__)
+            # root_path = os.path.dirname(__file__)
+            root_path = os.path.dirname(os.path.realpath(sys.argv[0]))
             outdir = tempfile.mkdtemp()
-            if os.path.exists(root_path):
-                root_path = os.path.split(root_path)[0]
-                os.chdir(root_path)     # otherwise we are running inside a packaged folder and resources are availale at cwd
+            if os.path.exists(os.path.join(root_path,'circuitscape')): # when called from csgui.exe 
+                os.chdir(root_path)     
+            elif os.path.exists(os.path.join(os.path.split(root_path)[0],'circuitscape')): #When called from csgui.py 
+                os.chdir(os.path.split(root_path)[0])     # otherwise we are running inside a packaged folder and resources are availale at cwd
             from verify import cs_verifyall
             testResult = cs_verifyall(out_path=outdir)
             testsPassed = testResult.wasSuccessful()
@@ -783,9 +785,15 @@ class GUI(model.Background):
         
 
 def get_packaged_resource(filename):
-    res_path = os.path.join(os.path.dirname(__file__), filename)
+    # coding: ascii
+    exec_dir = os.path.dirname(os.path.realpath(sys.argv[0]))
+    res_dir = os.path.join(os.path.split(exec_dir)[0],'circuitscape') 
+    res_path = os.path.join(res_dir, filename) # we are running inside packaged app. resources packaged separately, accessible at cwd
     if not os.path.exists(res_path):
-        res_path = filename     # we are running inside packaged app. resources packaged separately, accessible at cwd
+        res_dir = os.path.join(exec_dir,'circuitscape') # called from executable
+        res_path = os.path.join(res_dir, filename) 
+    if not os.path.exists(res_path):
+        res_path = filename
     return res_path
     
 def show_gui():
