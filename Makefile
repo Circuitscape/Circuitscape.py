@@ -1,4 +1,4 @@
-VER=4.0.0-beta
+VER=4.0-beta
 
 # run standard verify routines
 test:
