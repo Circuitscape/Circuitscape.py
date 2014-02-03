@@ -40,5 +40,6 @@ Name: "{userappdata}\Microsoft\Internet Explorer\Quick Launch\Circuitscape"; Fil
 
 
 [Run]
+Filename: "{app}\circuitscape_4_0.pdf"; Description: "View the user guide"; Flags: postinstall shellexec skipifsilent
 Filename: "{app}\csgui.exe"; Description: "{cm:LaunchProgram,Circuitscape}"; Flags: nowait postinstall skipifsilent
 

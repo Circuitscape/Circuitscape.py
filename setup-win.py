@@ -51,6 +51,7 @@ if os.path.exists('dist/examples'):
 shutil.copytree('circuitscape/verify', 'dist/circuitscape/verify')
 shutil.copytree('examples', 'dist/examples')
 shutil.copyfile('circuitscape/cs_logo.jpg','dist/circuitscape/cs_logo.jpg')
+shutil.copyfile('docs/4.0/circuitscape_4_0.pdf', 'dist/circuitscape_4_0.pdf')
 
 # Rename command line executable for backward compatibility
 if os.path.exists('dist/cs_run.exe'):

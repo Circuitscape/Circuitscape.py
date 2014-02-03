@@ -5,9 +5,8 @@
 **Version 4.0 Beta - Updated January 6, 2014**
 
 ***How to cite this document:***
-<br/>McRae, B.H., V.B. Shah, and  T.K. Mohapatra. 2013\.  Circuitscape User 
-Guide.  ONLINE. The Nature Conservancy. Available at: 
-http://www.circuitscape.org.
+<br/>McRae, B.H., V.B. Shah, and T.K. Mohapatra. 2013\.  Circuitscape 4 User 
+Guide. The Nature Conservancy. http://www.circuitscape.org.
 
 **First-time users:** Please see the section on memory management before 
 running large grids (> 1 million cells).
@@ -34,19 +33,18 @@ and conservation planning can be found in McRae (2006) and McRae et al.
 (2008). 
 
 Circuitscape was originally designed to analyze connectivity across raster 
-grids. With version 4.0, Circuitscape can now analyze arbitrary networks 
-(i.e., graphs) with any set of connections between nodes the user specifies. 
-
+grids. With version 4.0, it can now analyze arbitrary networks 
+(graphs) with any set of connections between nodes the user specifies. 
 Circuitscape can be run from a stand-alone interface or from an ArcGIS 
 toolbox: 
 
-<p align="center"> <img src="images/image16.png" alt="GUI" width="600px;"/> 
+<p align="center"> <img src="images/image16.png" alt="GUI" width="500px;"/> 
 </p> 
 
 **Fig. 1.** Stand-alone interface (supports raster and network analyses). 
 
 <p align="center"> <img src="images/ArcGISInterface.png" alt="ArcGIS Toolbox" 
-width=" 400px;"/> 
+width=" 300px;"/> 
 </p> 
 
 **Fig. 2.** ArcGIS Toolbox (for raster-based analyses only). The toolbox also 
@@ -97,7 +95,7 @@ or impedes movement. Networks and raster maps can be coded in resistances
 movement). 
 
 <p align="center"> <img src="images/SimpleNetworkAndRaster.png" 
-width="800px;"/> 
+width="500px;"/> 
 </p> 
 
 **Fig. 3.** Simple illustrations of network and raster data types used by 
@@ -116,7 +114,7 @@ assigned zero resistance (infinite conductance) using a separate
 "short-circuit region" file. These collections of cells are collapsed into a 
 single node. 
 
-<p align="center"> <img src ="images/RasterWithResistors.png" width="600px;"/> 
+<p align="center"> <img src ="images/RasterWithResistors.png" width="400px;"/> 
 </p> 
 
 **Fig. 4.** Raster grids are converted to electrical networks. Each cell 
@@ -125,6 +123,7 @@ their four or eight neighbors by resistors. Here, the two short-circuit
 regions have each been collapsed into a single node. The infinite resistance 
 cell is dropped entirely from the network. 
 
+<div style="page-break-after: always;"></div>
 ### Calculation modes 
 
 Circuitscape operates in one of four modes: **pairwise**, **advanced**, 
@@ -381,6 +380,7 @@ treated as complete barriers, and are disconnected from all other cells. For
 raster analyses, cells with zero resistance (infinite conductance) can be 
 specified using a separate short-circuit region file as described below. 
 
+<div style="page-break-after: always;"></div>
 ## Pairwise, one-to-all, and all-to-one mode options 
 
 ###Focal node location and data type 
@@ -414,8 +414,8 @@ not creating voltage or current maps, focal points will run much more quickly.
 ###Number of parallel processors to use 
 
 On Mac OS X and Linux systems, Circuitscape can run iterations in parallel for
-pairwise, one-to-all, and all-to one modes. Choose how many processors you 
-would like to devote to Circuitscape runs. 
+pairwise mode when focal points, not focal regions, are used. Choose how many 
+processors you would like to devote to Circuitscape runs. 
 
 ## Advanced mode options 
 
@@ -527,9 +527,10 @@ useful for running large numbers of analyses. The configuration files can be
 created in the user interface and saved under "Save settings" as described 
 above, and can be modified using standard text editors. 
 
+<div style="page-break-after: always;"></div>
 ##The Options window 
 
-<img src="images/OptionsWindow.png" alt="ArcGIS Toolbox" width=" 400px;"/> 
+<img src="images/OptionsWindow.png" alt="ArcGIS Toolbox" width=" 300px;"/> 
 
 **Fig. 14.** The options window gives access to less-frequently-used options. 
 To access this window via the menu bar, click on Options>> More settings & 
