@@ -1036,10 +1036,10 @@ eight_neighbor_example.ini from the examples directory).  The first row and
 column contain the focal node IDs:
 
 ````
-  0\.          1\.          2\.          3\.  
-  1\.          0\.          11.93688471  15.03634473
-  2\.          11.93688471  0\.          11.57640568
-  3\.          15.03634473  11.57640568  0\.  
+  0          1            2            3  
+  1          0            11.93688471  15.03634473
+  2          11.93688471  0            11.57640568
+  3          15.03634473  11.57640568  0  
 ````
 
 Here are pairwise resistances written to the output directory for the four
@@ -1047,19 +1047,19 @@ neighbor case, in which focal node 3 was completely isolated (-1 indicates
 infinite resistance):
 
 ````
-  0\.          1\.          2\.          3\.  
-  1\.          0\.          33.55792693  -1
-  2\.          33.55792693  0\ .         -1
-  3\.          -1           -1           0\.      
+  0          1            2            3  
+  1          0            33.55792693  -1
+  2          33.55792693  0            -1
+  3          -1           -1           0      
 ````
 
 For convenience, resistances are also written to a separate file in a 3-column
 format, e.g.:
 
 ````
-  1.      2.       33.55792693           
-  1.      3.       -1
-  2.      3.       -1
+  1      2       33.55792693           
+  1      3       -1
+  2      3       -1
 ````
      
 
