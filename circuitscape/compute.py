@@ -3,7 +3,7 @@ __author__ = 'Brad McRae, Viral B. Shah, and Tanmay Mohapatra'
 __email__ = 'mcrae@circuitscape.org'
 
 
-import time, logging, os, pickle
+import time, logging
 import numpy as np
 from scipy import sparse
 
@@ -18,13 +18,6 @@ class Compute(ComputeBase):
     @print_rusage
     def compute(self):
         """Main function for Circuitscape."""  
-        # Code below provides a back door to network mode, because not incorporated into GUI yet
-#         if self.options.polygon_file == 'NETWORK': 
-#             self.options.data_type='network' #can also be set in .ini file
-#         if self.options.data_type=='network': 
-#             self.options.graph_file = self.options.habitat_file
-#             self.options.focal_node_file = self.options.point_file
-
         self.state.start_time = time.time()
 
         #Test write privileges by writing config file to output directory
@@ -179,8 +172,8 @@ class Compute(ComputeBase):
             return resistance_vector, solver_failed 
             
     
-  
-    def get_overlap_polymap(self, point, point_map, poly_map, new_poly_num): 
+    @staticmethod
+    def get_overlap_polymap(point, point_map, poly_map, new_poly_num): 
         """Creates a map of polygons (aka short-circuit or zero resistance regions) overlapping a focal node."""
         point_poly = np.where(point_map == point, 1, 0) 
         poly_point_overlap = np.multiply(point_poly, poly_map)
@@ -402,35 +395,27 @@ class Compute(ComputeBase):
                 if pt2_idx != -1:
                     num_points_to_solve += 1
             
+            parallelize = self.options.parallelize
+            
+            Compute.logger.debug('parallel: possible=' + str(num_points_to_solve) + ', enforced=' + str(self.options.max_parallel) + ', enabled=' + str(parallelize))
+            
+            if parallelize:
+                self.state.worker_pool_create(self.options.max_parallel, False)
+            
+            solver_failed = [False]
             for (pt1_idx, pt2_idx) in fp.point_pair_idxs():
                 if pt2_idx == -1:
                     continue    # we don't need to do anything special for row end condition
                 
-                if poly_map == []:
-                    poly_map_temp = np.zeros((self.state.nrows, self.state.ncols), int)
-                    new_poly_num = 1
-                else:
-                    poly_map_temp = poly_map
-                    new_poly_num = np.max(poly_map) + 1
-                
-                poly_map_temp = self.get_overlap_polymap(point_ids[pt1_idx], point_map, poly_map_temp, new_poly_num) 
-                poly_map_temp = self.get_overlap_polymap(point_ids[pt2_idx], point_map, poly_map_temp, new_poly_num+1) 
-            
-                # create a subset of points_rc by getting first instance of each point in points_rc
-                fp_subset = fp.get_subset([pt1_idx, pt2_idx])
-                g_habitat = HabitatGraph(g_map=g_map, poly_map=poly_map_temp, connect_using_avg_resistances=self.options.connect_using_avg_resistances, connect_four_neighbors_only=self.options.connect_four_neighbors_only)
-            
                 num_points_solved += 1
-                Compute.logger.info('solving focal pair ' + str(num_points_solved) + ' of '+ str(num_points_to_solve))
+                msg = str(num_points_solved) + ' of ' + str(num_points_to_solve)
+                Compute.logger.info('solving focal pair ' + msg)
+                post_solve = self._post_pairwise_polygon_solve(resistances, pt1_idx, pt2_idx, solver_failed, msg)                
+                self.state.worker_pool_submit(Compute._pairwise_polygon_solve, post_solve, self, g_map, fp, out, poly_map, point_ids, point_map, pt1_idx, pt2_idx)
+
+            self.state.worker_pool_wait()
+            solver_failed = solver_failed[0]
             
-                (pairwise_resistance, solver_failed) = self.single_ground_all_pair_resistances(g_habitat, fp_subset, out, False)
-
-                del poly_map_temp
-                if solver_failed == True:
-                    Compute.logger.warning('Solver failed for at least one focal node pair.  \nPairs with failed solves will be marked with value of -777 \nin output resistance matrix.\n')
-
-                resistances[pt2_idx, pt1_idx] = resistances[pt1_idx, pt2_idx] = pairwise_resistance[0,1]
-
         # Set diagonal to zero
         for i in range(0,resistances.shape[0]): 
             resistances[i, i] = 0
@@ -444,6 +429,38 @@ class Compute(ComputeBase):
 
         return resistances,solver_failed
 
+
+    @staticmethod
+    def _pairwise_polygon_solve(compute, g_map, fp, out, poly_map, point_ids, point_map, pt1_idx, pt2_idx):
+        if poly_map == []:
+            poly_map_temp = np.zeros((compute.state.nrows, compute.state.ncols), int)
+            new_poly_num = 1
+        else:
+            poly_map_temp = poly_map
+            new_poly_num = np.max(poly_map) + 1
+        
+        poly_map_temp = Compute.get_overlap_polymap(point_ids[pt1_idx], point_map, poly_map_temp, new_poly_num) 
+        poly_map_temp = Compute.get_overlap_polymap(point_ids[pt2_idx], point_map, poly_map_temp, new_poly_num+1) 
+    
+        # create a subset of points_rc by getting first instance of each point in points_rc
+        fp_subset = fp.get_subset([pt1_idx, pt2_idx])
+        g_habitat = HabitatGraph(g_map=g_map, poly_map=poly_map_temp, connect_using_avg_resistances=compute.options.connect_using_avg_resistances, connect_four_neighbors_only=compute.options.connect_four_neighbors_only)
+        
+        (pairwise_resistance, solver_failed) = compute.single_ground_all_pair_resistances(g_habitat, fp_subset, out, False)
+
+        del poly_map_temp        
+        return None if solver_failed else pairwise_resistance
+
+    def _post_pairwise_polygon_solve(self, resistances, pt1_idx, pt2_idx, solver_failed, msg):
+        def _post_callback(pairwise_resistance):
+            if None != pairwise_resistance:
+                resistances[pt2_idx, pt1_idx] = resistances[pt1_idx, pt2_idx] = pairwise_resistance[0,1]
+                Compute.logger.info("solved focal pair " + msg)
+            else:
+                resistances[pt2_idx, pt1_idx] = resistances[pt1_idx, pt2_idx] = -777
+                Compute.logger.warning('Solver failed for at least one focal node pair.  \nPairs with failed solves will be marked with value of -777 \nin output resistance matrix.\n')
+                solver_failed[0] = True
+        return _post_callback
 
     @print_rusage
     def single_ground_all_pair_resistances(self, g_habitat, fp, cs, report_status):
@@ -471,11 +488,6 @@ class Compute(ComputeBase):
         Compute.logger.info('Graph has ' + str(g_habitat.num_nodes) + ' nodes, ' + str(numpoints) + ' focal nodes and '+ str(g_habitat.num_components)+ ' components.')
         resistances = -1 * np.ones((numpoints, numpoints), dtype = 'float64')         #Inf creates trouble in python 2.5 on Windows. Use -1 instead.
         
-#         if use_resistance_calc_shortcut==True:
-#             num_points_to_solve = numpoints
-#         else:
-#             num_points_to_solve = numpoints*(numpoints-1)/2
-        
         num_points_to_solve = 0
         max_parallel = 0
         for c in range(1, int(g_habitat.num_components+1)):
@@ -496,7 +508,7 @@ class Compute(ComputeBase):
                 num_parallel += 1
                 num_points_to_solve += 1
         
-        Compute.logger.debug('max parallel possible = ' + str(max_parallel) + ', will parallelize = ' + str(parallelize))
+        Compute.logger.debug('parallel: possible=' + str(max_parallel) + ', enforced=' + str(options.max_parallel) + ', enabled=' + str(parallelize))
         
         num_points_solved = 0
         for c in range(1, int(g_habitat.num_components+1)):
@@ -514,8 +526,7 @@ class Compute(ComputeBase):
             for (pt1_idx, pt2_idx) in fp.point_pair_idxs_in_component(c, g_habitat):
                 if pt2_idx == -1:
                     if parallelize:
-                        self.state.worker_pool_wait()
-                        
+                        self.state.worker_pool_wait()                        
                     self.state.del_amg_hierarchy()
                     
                     if (local_dst != None) and (G_dst_dst != None):
@@ -531,12 +542,12 @@ class Compute(ComputeBase):
                 if parallelize:
                     self.state.worker_pool_create(options.max_parallel, True)
 
+                msg = None
                 if report_status==True:
                     num_points_solved += 1
-                    if use_resistance_calc_shortcut==True:
-                        Compute.logger.info('solving focal node ' + str(num_points_solved) + ' of '+ str(num_points_to_solve))
-                    else:
-                        Compute.logger.info('solving focal pair ' + str(num_points_solved) + ' of '+ str(num_points_to_solve))
+                    msg = str(num_points_solved) + ' of '+ str(num_points_to_solve)
+                    msg = ('focal node ' if use_resistance_calc_shortcut else 'focal pair ') + msg
+                    Compute.logger.info('solving ' + msg)
                 
                 local_src = fp.get_graph_node_idx(pt2_idx, local_node_map)
                 if None == local_dst:
@@ -548,19 +559,18 @@ class Compute(ComputeBase):
                     self.state.create_amg_hierarchy(G, self.options.solver)
 
                 if use_resistance_calc_shortcut:
-                    post_solve = self._post_single_ground_solve(G, fp, cs, resistances, numpoints, pt1_idx, pt2_idx, local_src, local_dst, local_node_map, solver_failed_somewhere, use_resistance_calc_shortcut, voltmatrix)
+                    post_solve = self._post_single_ground_solve(G, fp, cs, resistances, numpoints, pt1_idx, pt2_idx, local_src, local_dst, local_node_map, solver_failed_somewhere, use_resistance_calc_shortcut, voltmatrix, msg=msg)
                 else:
-                    post_solve = self._post_single_ground_solve(G, fp, cs, resistances, numpoints, pt1_idx, pt2_idx, local_src, local_dst, local_node_map, solver_failed_somewhere)
+                    post_solve = self._post_single_ground_solve(G, fp, cs, resistances, numpoints, pt1_idx, pt2_idx, local_src, local_dst, local_node_map, solver_failed_somewhere, msg=msg)
                 
                 if parallelize:
-                    self.state.worker_pool.apply_async(Compute.parallel_single_ground_solver, args=(G, local_src, local_dst, options.solver, self.state.amg_hierarchy), callback=post_solve)
-                    #post_solve(self.state.worker_pool.apply(Compute.parallel_single_ground_solver, args=(G, local_src, local_dst, options.solver, self.state.amg_hierarchy)))
+                    self.state.worker_pool_submit(Compute.single_ground_solver, post_solve, G, local_src, local_dst, options.solver, self.state.amg_hierarchy)
                 else:
                     try:
-                        voltages = Compute.single_ground_solver(G, local_src, local_dst, options.solver, self.state.amg_hierarchy)
+                        result = Compute.single_ground_solver(G, local_src, local_dst, options.solver, self.state.amg_hierarchy)
                     except:
-                        voltages = None
-                    post_solve(voltages)
+                        result = None
+                    post_solve(result)
 
                 if options.low_memory_mode==True or self.state.point_file_contains_polygons==True:
                     self.state.del_amg_hierarchy()
@@ -581,9 +591,12 @@ class Compute(ComputeBase):
         return resistances, solver_failed_somewhere[0]
 
 
-    def _post_single_ground_solve(self, G, fp, cs, resistances, numpoints, pt1_idx, pt2_idx, local_src, local_dst, local_node_map, solver_failed_somewhere, use_resistance_calc_shortcut=False, voltmatrix=None):
+    def _post_single_ground_solve(self, G, fp, cs, resistances, numpoints, pt1_idx, pt2_idx, local_src, local_dst, local_node_map, solver_failed_somewhere, use_resistance_calc_shortcut=False, voltmatrix=None, msg=None):
         def _post_callback(voltages):
             options = self.options
+            
+            if msg != None:
+                self.logger.debug("solved " + msg)
             
             if voltages == None:
                 solver_failed_somewhere[0] = True
@@ -614,46 +627,6 @@ class Compute(ComputeBase):
     
         return _post_callback
 
-    @staticmethod
-    def parallel_single_ground_solver(G, src, dst, solver_type, ml):
-        read_fd, write_fd = os.pipe()
-        child_pid = os.fork()
-        if (0 == child_pid):
-            pid = str(os.getpid())
-            logging.disable(logging.CRITICAL) # disable logging in child to avoid python bug : http://bugs.python.org/issue6721
-            try:
-                os.close(read_fd)
-                write_file = os.fdopen(write_fd, 'w')
-                result = Compute.single_ground_solver(G, src, dst, solver_type, ml)
-            except Exception as e:
-                result = e
-            write_file.write(pickle.dumps(result))
-            write_file.close()
-            os._exit(os.EX_OK)
-        elif (child_pid > 0):
-            pid = str(child_pid)
-            try:
-                #Compute.logger.debug("parallel: waiting for " + pid)
-                os.close(write_fd)
-                read_file = os.fdopen(read_fd)
-                result = read_file.read()
-                voltages = pickle.loads(result)
-                #Compute.logger.debug("parallel: got results from " + pid)
-                if isinstance(voltages, Exception):
-                    Compute.logger.exception("parallel: got error from " + pid + ": " + str(voltages))
-                    voltages = None
-            except:
-                Compute.logger.exception("parallel: exception waiting for results from " + pid)
-                voltages = None
-            finally:
-                read_file.close()
-                #Compute.logger.debug("parallel: waiting for termination of " + pid)
-                os.waitpid(child_pid, 0)
-                #Compute.logger.debug("parallel: terminated " + pid)
-        else:
-            Compute.logger.error("parallel: unable to create new processes")
-            voltages = None
-        return voltages
         
     @staticmethod
     @print_rusage
