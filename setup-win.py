@@ -11,7 +11,9 @@ from distutils.core import setup
 
 from circuitscape import __version__, __author__, __email__
 
-INCLUDES =[]
+# INCLUDES =[]
+INCLUDES =['scipy.sparse.csgraph._validation','pyamg.aggregation.__init__','pyamg.__config__',
+           'pyamg.amg_core','pyamg.aggregation']
 PACKAGES = ['PythonCard', 'wx', 'wxversion', 'numpy', 'scipy', 'pyamg', "scipy.io.matlab.streams"]
 
 DATA_FILES = ['circuitscape/cs_logo.jpg', 'circuitscape/gui_rsrc.py', 'cs_logo.ico'] 
@@ -59,3 +61,4 @@ if os.path.exists('dist/cs_run.exe'):
 os.rename('dist/csrun.exe','dist/cs_run.exe')
 
 # Note: if having pythoncard problems see  http://www.py2exe.org/index.cgi/PythonCardSetup 
+

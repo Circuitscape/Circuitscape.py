@@ -994,3 +994,7 @@ class Compute(ComputeBase):
         return 
  
 
+def dependencies_for_py2exe(): # Force py2exe to include in compilation. Including in setup-win.py insufficient for these modules.
+    from pyamg.aggregation import rootnode
+    from pyamg.gallery import diffusion
+    from pyamg.gallery import mesh

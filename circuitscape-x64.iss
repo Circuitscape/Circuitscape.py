@@ -48,5 +48,6 @@ Name: {app}; Permissions: users-modify
 ; BHM added permissions above for 64-bit Windows 7 install 01/17/2011
 
 [Run]
+Filename: "{app}\circuitscape_4_0.pdf"; Description: "View the user guide"; Flags: postinstall shellexec skipifsilent
 Filename: "{app}\csgui.exe"; Description: "{cm:LaunchProgram,Circuitscape}"; Flags: nowait postinstall skipifsilent
 
