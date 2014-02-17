@@ -49,8 +49,13 @@ class CSIO:
         if is_filename:
             f = CSIO._open_auto_uncompress(f)
         
-        hdr = f.read(10)
-        
+        try:
+            hdr = f.read(10) #FIXME: This is causing errors when point, ground, or source file is changed in gui. Try/except code is temporary
+        except:
+            is_filename = True 
+            f = CSIO._open_auto_uncompress(f)
+            hdr = f.read(10) 
+
         if is_filename:
             f.close()
         else:
@@ -381,9 +386,10 @@ class CSIO:
         filetype = CSIO._guess_file_type(source_filename)
 
         if filetype == CSIO.FILE_TYPE_TXTLIST:  
-            sources_rc = CSIO._txt_list_reader(source_filename, 'int32', habitat_size)
+            sources_rc = CSIO._txt_list_reader(source_filename, 'float64', habitat_size)
             source_map = np.zeros((habitat_size.nrows, habitat_size.ncols), dtype='float64')
-            source_map[sources_rc[:,1], sources_rc[:,2]] = sources_rc[:,0]
+            sources_rc_int = sources_rc.astype('int32')
+            source_map[sources_rc_int[:,1], sources_rc_int[:,2]] = sources_rc[:,0]
         elif filetype == CSIO.FILE_TYPE_AAGRID:
             source_map = CSIO.read_poly_map(source_filename, False, 0, habitat_size, False, "Current source", 'float64')
             source_map = np.where(source_map==-9999, 0, source_map)
@@ -397,9 +403,10 @@ class CSIO:
         filetype = CSIO._guess_file_type(ground_filename)
         
         if filetype == CSIO.FILE_TYPE_TXTLIST:
-            grounds_rc = CSIO._txt_list_reader(ground_filename, 'int32', habitat_size)
+            grounds_rc = CSIO._txt_list_reader(ground_filename, 'float64', habitat_size) 
             ground_map_raw = -9999 * np.ones((habitat_size.nrows, habitat_size.ncols), dtype = 'float64')
-            ground_map_raw[grounds_rc[:,1], grounds_rc[:,2]] = grounds_rc[:,0]
+            grounds_rc_int = grounds_rc.astype('int32')
+            ground_map_raw[grounds_rc_int[:,1], grounds_rc_int[:,2]] = grounds_rc[:,0]
         elif filetype == CSIO.FILE_TYPE_AAGRID:
             ground_map_raw = CSIO.read_poly_map(ground_filename, False, None, habitat_size, False, "Ground", 'float64')
         else:
@@ -431,8 +438,6 @@ class CSIO:
     def read_included_pairs(filename):
         """Reads matrix denoting node pairs to include/exclude from calculations.
         
-        FIXME: matrices are an inconvenient way for users to specify pairs.  Using a 
-        2- or 3-column format would be easier.
         """
         CSIO._check_file_exists(filename)
         filetype = CSIO._guess_file_type(filename)

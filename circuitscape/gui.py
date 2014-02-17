@@ -1,7 +1,7 @@
 # import sys
 # if sys.modules.has_key('wx'):
     # print 'wx0'
-import os, sys, traceback, logging, time, multiprocessing, tempfile, StringIO, webbrowser
+import os, sys, traceback, logging, time, multiprocessing, tempfile, StringIO, webbrowser, string
 import numpy as np
 
 import wxversion
@@ -485,12 +485,13 @@ class GUI(model.Background):
                 self.components.calcButton.SetFocus()
 
                 if solver_failed == True:
-                    msg = 'Pairwise resistances (-1 indicates disconnected focal node pair, -777 indicates failed solve):'
+                    msg = '\nPairwise resistances (-1 indicates disconnected focal node pair, -777 indicates failed solve):'
                 else:
-                    msg = 'Pairwise resistances (-1 indicates disconnected node pair):'
-                GUI.logger.info(msg + "\n" + np.array_str(resistances, 300))
-                GUI.logger.info('Done.\n')
+                    msg = '\nPairwise resistances (-1 indicates disconnected node pair):\n      Node1           Node2      Resistance'
                 
+                resistances3ColumnsStr = self.convertResistances3colStr(resistances)
+                GUI.logger.info(msg + "\n" + resistances3ColumnsStr)
+                GUI.logger.info('Done.\n')
                 if solver_failed == True:
                     message = 'At least one solve failed.  Failure is coded as -777 in output resistance matrix.'
                     dial = wx.MessageDialog(None, message, 'Error', wx.OK | wx.ICON_EXCLAMATION)  # @UndefinedVariable
@@ -557,14 +558,16 @@ class GUI(model.Background):
                 
                 if self.options.scenario == 'all-to-one':
                     if solver_failed == True:
-                        msg = 'Result for each focal node (0 indicates successful calculation, -1 indicates disconnected node, -777 indicates failed solve):'
+                        msg = '\nResult for each focal node (0 indicates successful calculation, -1 indicates disconnected node, -777 indicates failed solve):'
                     else:
-                        msg = 'Result for each focal node (0 indicates successful calculation, -1 indicates disconnected node):'
+                        msg = '\nResult for each focal node (0 indicates successful calculation, -1 indicates disconnected node):'
                 elif solver_failed == True:
-                    msg = 'Resistances (-1 indicates disconnected node, -777 indicates failed solve):'
+                    msg = '\nResistances to ground(-1 indicates disconnected node, -777 indicates failed solve):\n      Node         Resistance'
                 else:
-                    msg = 'Resistances (-1 indicates disconnected node):'
-                GUI.logger.info(msg + '\n' + np.array_str(resistances, 300))
+                    msg = '\nResistances to ground (-1 indicates disconnected node):\n      Node         Resistance'
+                resistanceString = np.array_str(resistances, 300, precision=3)
+                resistanceString2 = self.remove_brackets(resistanceString)
+                GUI.logger.info(msg + '\n' + resistanceString2)
                 GUI.logger.info('Done.\n')
                 
                 if solver_failed == True:
@@ -589,6 +592,32 @@ class GUI(model.Background):
                 return
             # self.reset_status_bar()        
 
+    def convertResistances3colStr(self, resistances):
+        """Converts resistances from matrix to 3-column string for printing."""  
+        numPoints = resistances.shape[0]-1
+        numEntries = numPoints*(numPoints-1)/2
+        resistances3columns = np.zeros((numEntries,3),dtype = 'float64') 
+        x = 0
+        for i in range(1,numPoints):
+            for j in range(i+1,numPoints+1):
+                resistances3columns[x,0] = resistances[i,0]    
+                resistances3columns[x,1] = resistances[0,j]
+                resistances3columns[x,2] = resistances[i,j]
+                x = x+1
+        resistances3ColumnsStr = np.array_str(resistances3columns, 300, precision=3)
+        resistances3ColumnsStr2 = self.remove_brackets(resistances3ColumnsStr)
+        return resistances3ColumnsStr2        
+        
+
+
+    def remove_brackets(self, resistanceString):
+        resistancesStr2 = string.replace(resistanceString,']','')
+        resistancesStr2 = string.replace(resistancesStr2,'[[',' ')
+        resistancesStr2 = string.replace(resistancesStr2,'[','')
+        return resistancesStr2
+
+
+
 
     def checkHeaders(self):
         """Checks to make sure headers (with cell size, number of cols, etc) match for input rasters."""  
@@ -597,13 +626,19 @@ class GUI(model.Background):
         match_files = []
         if self.options.use_polygons == True:
             match_files.append(self.options.polygon_file)
-
-        if os.path.splitext(self.options.point_file)[1] == '.asc':
-            match_files.append(self.options.point_file)
-
+        if 'advanced' not in self.options.scenario.lower():
+            filetype = CSIO._guess_file_type(self.options.point_file)
+            if filetype == CSIO.FILE_TYPE_AAGRID:
+                match_files.append(self.options.point_file)
+        else:
+            filetype = CSIO._guess_file_type(self.options.ground_file)
+            if filetype == CSIO.FILE_TYPE_AAGRID:
+                match_files.append(self.options.ground_file)
+            filetype = CSIO._guess_file_type(self.options.source_file)
+            if filetype == CSIO.FILE_TYPE_AAGRID:
+                match_files.append(self.options.source_file)
         if self.options.use_mask == True:
             match_files.append(self.options.mask_file)
-        
         headers_match = CSIO.match_headers(self.options.habitat_file, match_files)
 
         if headers_match == False:
