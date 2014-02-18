@@ -62,7 +62,7 @@ class GUILogger(logging.Handler):
             wx.PostEvent(self.dest, evt) # @UndefinedVariable
         
             (hours,mins,secs) = ComputeBase.elapsed_time(self.last_gui_yield_time)
-            if (secs > 5) or (mins > 0) or (hours > 0):
+            if (secs > 0) or (mins > 0) or (hours > 0):
                 self.last_gui_yield_time = time.time()
                 wx.SafeYield(None, True)  # @UndefinedVariable
                 wx.GetApp().Yield(True)  # @UndefinedVariable
