@@ -487,9 +487,9 @@ class GUI(model.Background):
                 if solver_failed == True:
                     msg = '\nPairwise resistances (-1 indicates disconnected focal node pair, -777 indicates failed solve):'
                 else:
-                    msg = '\nPairwise resistances (-1 indicates disconnected node pair):\n      Node1           Node2      Resistance'
+                    msg = '\nPairwise resistances (-1 indicates disconnected node pair):\nNode1\tNode2\tResistance'
                 
-                resistances3ColumnsStr = self.convertResistances3colStr(resistances)
+                resistances3ColumnsStr = self.formatResistanceOutput(resistances)
                 GUI.logger.info(msg + "\n" + resistances3ColumnsStr)
                 GUI.logger.info('Done.\n')
                 if solver_failed == True:
@@ -564,10 +564,9 @@ class GUI(model.Background):
                 elif solver_failed == True:
                     msg = '\nResistances to ground(-1 indicates disconnected node, -777 indicates failed solve):\n      Node         Resistance'
                 else:
-                    msg = '\nResistances to ground (-1 indicates disconnected node):\n      Node         Resistance'
-                resistanceString = np.array_str(resistances, 300, precision=3)
-                resistanceString2 = self.remove_brackets(resistanceString)
-                GUI.logger.info(msg + '\n' + resistanceString2)
+                    msg = '\nResistances to ground (-1 indicates disconnected node):\nNode\tResistance'
+                resistanceString = self.formatResistanceOutput(resistances)
+                GUI.logger.info(msg + '\n' + resistanceString)
                 GUI.logger.info('Done.\n')
                 
                 if solver_failed == True:
@@ -592,32 +591,21 @@ class GUI(model.Background):
                 return
             # self.reset_status_bar()        
 
-    def convertResistances3colStr(self, resistances):
+    def formatResistanceOutput(self, resistances):
         """Converts resistances from matrix to 3-column string for printing."""  
+        text = ''
+        if resistances.shape[1] == 2: # One-to-all or all-to-one result
+            numPoints = resistances.shape[0]
+            for i in range(1,numPoints):
+                text = text + str(int(resistances[i,0])) + '\t' + str(int(resistances[i,1])) + '\n'
+            return text
         numPoints = resistances.shape[0]-1
-        numEntries = numPoints*(numPoints-1)/2
-        resistances3columns = np.zeros((numEntries,3),dtype = 'float64') 
-        x = 0
         for i in range(1,numPoints):
             for j in range(i+1,numPoints+1):
-                resistances3columns[x,0] = resistances[i,0]    
-                resistances3columns[x,1] = resistances[0,j]
-                resistances3columns[x,2] = resistances[i,j]
-                x = x+1
-        resistances3ColumnsStr = np.array_str(resistances3columns, 300, precision=3)
-        resistances3ColumnsStr2 = self.remove_brackets(resistances3ColumnsStr)
-        return resistances3ColumnsStr2        
+                text = (text + str(int(resistances[i,0])) +'\t' + str(int(resistances[0,j])) 
+                       +'\t' + str(resistances[i,j]) + '\n')
+        return text
         
-
-
-    def remove_brackets(self, resistanceString):
-        resistancesStr2 = string.replace(resistanceString,']','')
-        resistancesStr2 = string.replace(resistancesStr2,'[[',' ')
-        resistancesStr2 = string.replace(resistancesStr2,'[','')
-        return resistancesStr2
-
-
-
 
     def checkHeaders(self):
         """Checks to make sure headers (with cell size, number of cols, etc) match for input rasters."""  
