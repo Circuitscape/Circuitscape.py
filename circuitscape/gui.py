@@ -470,7 +470,10 @@ class GUI(model.Background):
             dial.ShowModal()
             self.reset_status_bar()
             return
-
+        except:
+            self.unknown_exception()
+            self.reset_status_bar()
+            return
         if self.options.data_type == 'network':        
             GUI.logger.debug('Running in Network (Graph) Mode')
                             
