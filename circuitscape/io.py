@@ -45,16 +45,11 @@ class CSIO:
 
     @staticmethod
     def _guess_file_type(f):
-        is_filename = isinstance(f, str)
+        is_filename = isinstance(f, str) or isinstance(f, unicode)
         if is_filename:
             f = CSIO._open_auto_uncompress(f)
         
-        try:
-            hdr = f.read(10) #FIXME: This is causing errors when point, ground, or source file is changed in gui. Try/except code is temporary
-        except:
-            is_filename = True 
-            f = CSIO._open_auto_uncompress(f)
-            hdr = f.read(10) 
+        hdr = f.read(10)
 
         if is_filename:
             f.close()
