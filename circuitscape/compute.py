@@ -601,8 +601,11 @@ class Compute(ComputeBase):
             if voltages == None:
                 solver_failed_somewhere[0] = True
                 resistances[pt2_idx, pt1_idx] = resistances[pt1_idx, pt2_idx] = -777
+                if use_resistance_calc_shortcut:
+                    resistances[pt2_idx, :] = -777
+                    resistances[:, pt2_idx] = -777
                 return
-            
+                        
             resistances[pt2_idx, pt1_idx] = resistances[pt1_idx, pt2_idx] = voltages[local_src] - voltages[local_dst]
             
             # Write maps to files
@@ -859,14 +862,25 @@ class Compute(ComputeBase):
             R1x = resistances[anchor_point, pointx]
             if R1x!= -1:
                 shortcut_resistances[pointx, anchor_point] = shortcut_resistances[anchor_point, pointx] = R1x
+                # for point2 in range(0, numpoints): # Doing redundant calc as check
                 for point2 in range(pointx, numpoints):
                     R12 = resistances[anchor_point, point2] 
                     if R12!= -1:
-                        shortcut_resistances[anchor_point, point2] = shortcut_resistances[point2, anchor_point] = R12
-                        Vx = voltmatrix[pointx, point2]
-                        R2x = 2*R12*Vx + R1x - R12
-                        shortcut_resistances[point2, pointx] = shortcut_resistances[pointx, point2] = R2x
-
+                        if R1x!= -777:
+                            shortcut_resistances[anchor_point, point2] = shortcut_resistances[point2, anchor_point] = R12
+                            Vx = voltmatrix[pointx, point2]
+                            R2x = 2*R12*Vx + R1x - R12
+                            # prev_result = shortcut_resistances[point2, pointx]
+                            # if point2 < pointx and prev_result != -777:
+                                # pct_diff = 100*(prev_result - R2x)/prev_result 
+                                # if pct_diff > 1: # If two results differ by 1%, can we trust result?
+                                    # print '***************************************************'
+                                    # print 'Warning: there is a difference in results for different shortcut solves. '
+                                    # print 'For point idx values', pointx,point2, 'Percent difference is', pct_diff
+                            if shortcut_resistances[point2, pointx] != -777: # If solver didn't fail for point2's iteration
+                                shortcut_resistances[point2, pointx] = shortcut_resistances[pointx, point2] = R2x
+                        else: # Assume solver failure with point2 means cannot trust result for any pair that includes point2
+                            shortcut_resistances[pointx, :] = shortcut_resistances[:, pointx] = -777
 
     def write_resistances(self, point_ids, resistances):
         """Writes resistance file to disk."""  
