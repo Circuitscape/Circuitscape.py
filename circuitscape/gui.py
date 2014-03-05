@@ -343,9 +343,9 @@ class GUI(model.Background):
 
     def on_habitatBrowse_mouseClick(self, event):
         if self.options.data_type == 'network':
-            wildcard = "Tab-delimited text list (*.txt)|*.txt|All Files (*.*)|*.*" 
+            wildcard = "Tab-delimited text list (*.txt)|*.txt;*.txt.gz|All Files (*.*)|*.*" 
         else:
-            wildcard = "ASCII Raster (*.asc or *.txt)|*.asc;*.txt|All Files (*.*)|*.*" 
+            wildcard = "ASCII Raster (*.asc or *.txt)|*.asc;*.txt;*.txt.gz;*.asc.gz|All Files (*.*)|*.*" 
         result = dialog.fileDialog(self, 'Select Raster Resistance Map or Network/Graph File', '', '', wildcard) 
         if result.accepted == True: 
             file_name = result.paths[0]
@@ -353,7 +353,7 @@ class GUI(model.Background):
             self.options.habitat_file = file_name
       
     def on_srcTargetBrowse_mouseClick(self, event):
-        wildcard = "Tab-delimited text list or ASCII Raster (*.txt or *.asc)|*.txt;*.asc|All Files (*.*)|*.*" 
+        wildcard = "Tab-delimited text list or ASCII Raster (*.txt or *.asc)|*.txt;*.asc;*.txt.gz;*.asc.gz|All Files (*.*)|*.*" 
         result = dialog.fileDialog(self, 'Select Source/Target File', '', '', wildcard) 
         if result.accepted == True:        
             file_name = result.paths[0]
@@ -361,7 +361,10 @@ class GUI(model.Background):
             self.options.point_file = file_name
 
     def on_currentSrcBrowse_mouseClick(self, event):
-        wildcard = "Tab-delimited text list or ASCII Raster (*.txt or *.asc)|*.txt;*.asc|All Files (*.*)|*.*" 
+        if self.options.data_type == 'network':
+            wildcard = "Tab-delimited text list (*.txt)|*.txt;*.txt.gz|All Files (*.*)|*.*" 
+        else:
+            wildcard = "Tab-delimited text list or ASCII Raster (*.txt or *.asc)|*.txt;*.asc;*.txt.gz;*.asc.gz|All Files (*.*)|*.*" 
         result = dialog.fileDialog(self, 'Select Source/Target File', '', '', wildcard) 
         if result.accepted == True:        
             file_name = result.paths[0]
@@ -376,7 +379,10 @@ class GUI(model.Background):
             self.options.output_file = file_name
 
     def on_gndBrowse_mouseClick(self, event):
-        wildcard = "Tab-delimited text list or ASCII Raster (*.txt or *.asc)|*.txt;*.asc|All Files (*.*)|*.*" 
+        if self.options.data_type == 'network':
+            wildcard = "Tab-delimited text list (*.txt)|*.txt;*.txt.gz|All Files (*.*)|*.*" 
+        else:
+            wildcard = "Tab-delimited text list or ASCII Raster (*.txt or *.asc)|*.txt;*.asc;*.txt.gz;*.asc.gz|All Files (*.*)|*.*" 
         result = dialog.fileDialog(self, 'Select Ground File', '', '', wildcard ) 
         if result.accepted == True:        
             file_name = result.paths[0]

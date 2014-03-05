@@ -236,7 +236,7 @@ class Compute(ComputeBase):
 
         for pt_idx in range(0, point_ids.size): # These are the 'src' nodes, pt_idx.e. the 'one' in all-to-one and one-to-all
 
-            Compute.logger.info('solving focal node ' + str(pt_idx+1) + ' of ' + str(point_ids.size))
+            Compute.logger.info('Solving focal node ' + str(pt_idx+1) + ' of ' + str(point_ids.size))
 
             if self.options.use_included_pairs==True: # Done above otherwise    
                 #######################   
@@ -409,7 +409,7 @@ class Compute(ComputeBase):
                 
                 num_points_solved += 1
                 msg = str(num_points_solved) + ' of ' + str(num_points_to_solve)
-                Compute.logger.info('solving focal pair ' + msg)
+                Compute.logger.info('Solving focal pair ' + msg)
                 post_solve = self._post_pairwise_polygon_solve(resistances, pt1_idx, pt2_idx, solver_failed, msg)                
                 self.state.worker_pool_submit(Compute._pairwise_polygon_solve, post_solve, self, g_map, fp, out, poly_map, point_ids, point_map, pt1_idx, pt2_idx)
 
@@ -455,7 +455,7 @@ class Compute(ComputeBase):
         def _post_callback(pairwise_resistance):
             if None != pairwise_resistance:
                 resistances[pt2_idx, pt1_idx] = resistances[pt1_idx, pt2_idx] = pairwise_resistance[0,1]
-                Compute.logger.info("solved focal pair " + msg)
+                Compute.logger.info("Solved focal pair " + msg)
             else:
                 resistances[pt2_idx, pt1_idx] = resistances[pt1_idx, pt2_idx] = -777
                 Compute.logger.warning('Solver failed for at least one focal node pair.  \nPairs with failed solves will be marked with value of -777 \nin output resistance matrix.\n')
@@ -547,7 +547,7 @@ class Compute(ComputeBase):
                     num_points_solved += 1
                     msg = str(num_points_solved) + ' of '+ str(num_points_to_solve)
                     msg = ('focal node ' if use_resistance_calc_shortcut else 'focal pair ') + msg
-                    Compute.logger.info('solving ' + msg)
+                    Compute.logger.info('Solving ' + msg)
                 
                 local_src = fp.get_graph_node_idx(pt2_idx, local_node_map)
                 if None == local_dst:
