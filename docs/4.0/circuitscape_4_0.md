@@ -38,12 +38,12 @@ grids. With version 4.0, it can now analyze arbitrary networks
 Circuitscape can be run from a stand-alone interface or from an ArcGIS 
 toolbox: 
 
-<p align="center"> <img src="images/image16.png" alt="GUI" width="500px;"/> 
+<p align="center"> <img src="https://raw.github.com/Circuitscape/Circuitscape/master/docs/4.0/images/image16.png" alt="GUI" width="500px;"/> 
 </p> 
 
 **Fig. 1.** Stand-alone interface (supports raster and network analyses). 
 
-<p align="center"> <img src="images/ArcGISInterface.png" alt="ArcGIS Toolbox" 
+<p align="center"> <img src="https://raw.github.com/Circuitscape/Circuitscape/master/docs/4.0/images/ArcGISInterface.png" alt="ArcGIS Toolbox" 
 width=" 300px;"/> 
 </p> 
 
@@ -94,7 +94,7 @@ or impedes movement. Networks and raster maps can be coded in resistances
 (the reciprocal of resistance; higher values indicate greater ease of 
 movement). 
 
-<p align="center"> <img src="images/SimpleNetworkAndRaster.png" 
+<p align="center"> <img src="https://raw.github.com/Circuitscape/Circuitscape/master/docs/4.0/images/SimpleNetworkAndRaster.png" 
 width="500px;"/> 
 </p> 
 
@@ -114,7 +114,7 @@ assigned zero resistance (infinite conductance) using a separate
 "short-circuit region" file. These collections of cells are collapsed into a 
 single node. 
 
-<p align="center"> <img src ="images/RasterWithResistors.png" width="400px;"/> 
+<p align="center"> <img src ="https://raw.github.com/Circuitscape/Circuitscape/master/docs/4.0/images/RasterWithResistors.png" width="400px;"/> 
 </p> 
 
 **Fig. 4.** Raster grids are converted to electrical networks. Each cell 
@@ -179,7 +179,7 @@ solves.
 For network data types, any node can be connected to any other node by a 
 resistor: 
 
-<p align="center"> <img src="images/SimpleNetworkWithNumbers2.png" width=" 
+<p align="center"> <img src="https://raw.github.com/Circuitscape/Circuitscape/master/docs/4.0/images/SimpleNetworkWithNumbers2.png" width=" 
 400px;"/> 
 </p> 
 
@@ -191,7 +191,7 @@ For **pairwise analysis** we would also supply a list of focal nodes
 (containing at least two node numbers, but as many as five, the number of 
 nodes in the circuit) between which we want to perform calculations. 
 
-<p align="center"> <img src="images/SimpleNetworkCurrentFlow.png" width=" 
+<p align="center"> <img src="https://raw.github.com/Circuitscape/Circuitscape/master/docs/4.0/images/SimpleNetworkCurrentFlow.png" width=" 
 400px;"/> 
 </p> 
 
@@ -209,10 +209,10 @@ could modify the circuit above by adding a single, fixed source at node zero
 and adding multiple grounds with different resistances. Current sources and 
 grounds are entered in separate files. 
 
-<p align="center"> <img src="images/AdvancedNetwork.png" width=" 430px;"/> 
+<p align="center"> <img src="https://raw.github.com/Circuitscape/Circuitscape/master/docs/4.0/images/AdvancedNetwork.png" width=" 430px;"/> 
 </p> 
 
-<p align="center"> <img src="images/AdvancedNetworkFlows.png" width=" 
+<p align="center"> <img src="https://raw.github.com/Circuitscape/Circuitscape/master/docs/4.0/images/AdvancedNetworkFlows.png" width=" 
 400px;"/> 
 </p> 
 
@@ -224,7 +224,7 @@ voltages can be calculated at each node. Circuit above is from McRae et al.
 
 ### Illustrations of analyses with raster data 
 
-<p align="center"> <img src="images/Fig1_RasterInputs.png" width=" 600px;"/> 
+<p align="center"> <img src="https://raw.github.com/Circuitscape/Circuitscape/master/docs/4.0/images/Fig1_RasterInputs.png" width=" 600px;"/> 
 </p> 
 
 **Fig. 8.** Example raster input files for **pairwise, one-to-all, and all-to-one modes**. 
@@ -236,30 +236,30 @@ zero resistance. Cells with the same region ID are considered perfectly
 connected and are collapsed into a single node, even if they are not 
 contiguous. 
 
-<p align="center"> <img src="images/Fig2_RasterPairwise.png" width=" 600px;"/> 
+<p align="center"> <img src="https://raw.github.com/Circuitscape/Circuitscape/master/docs/4.0/images/Fig2_RasterPairwise.png" width=" 600px;"/> 
 </p> 
 
 **Fig. 9.** Schematic describing **pairwise** mode analyses that would result 
-from the input files shown in Fig. 8. Three sets of pairwise calculations-- 
-involving focal nodes 1 and 2, nodes 1 and 3, and nodes 2 and 3--would be 
+from the input files shown in Fig. 8. Three sets of pairwise calculations,
+involving focal nodes 1 and 2, nodes 1 and 3, and nodes 2 and 3, would be 
 conducted. For each pair, one node would be connected to a 1-amp current 
 source, and the other to ground. Note that focal region nodes become 
 short-circuit regions when they are activated (e.g., node 1 in scenario 1), 
 but these regions are not present when the nodes are not activated (e.g., node 
 1 in scenario 3). 
 
-<p align="center"> <img src="images/Fig3_RasterOneToAll.png" width=" 600px;"/> 
+<p align="center"> <img src="https://raw.github.com/Circuitscape/Circuitscape/master/docs/4.0/images/Fig3_RasterOneToAll.png" width=" 600px;"/> 
 </p> 
 
 **Fig. 10.** Schematic describing **one-to-all mode** analyses that would 
-result from the input files shown in Fig. 8. Three sets of calculations-- 
-involving focal nodes 1, 2, and 3--would be conducted. For each, one node 
+result from the input files shown in Fig. 8. Three sets of calculations, 
+involving focal nodes 1, 2, and 3, would be conducted. For each, one node 
 would be connected to a 1-amp current source, and the other two would be 
 connected to ground. The all-to-one mode is similar, with arrow directions 
 reversed; that is, one node is connected to ground while the remaining nodes 
 are connected to 1-amp current sources. 
 
-<p align="center"> <img src="images/Fig4_RasterAdvancedInputs.png" width=" 
+<p align="center"> <img src="https://raw.github.com/Circuitscape/Circuitscape/master/docs/4.0/images/Fig4_RasterAdvancedInputs.png" width=" 
 600px;"/> 
 </p> 
 
@@ -269,7 +269,7 @@ this example have different "strengths," and ground nodes are connected to
 ground with differing levels of resistance. This example also includes an 
 optional grid with five short-circuit regions. 
 
-<p align="center"> <img src="images/Fig5_RasterEffectiveConfiguration.png" 
+<p align="center"> <img src="https://raw.github.com/Circuitscape/Circuitscape/master/docs/4.0/images/Fig5_RasterEffectiveConfiguration.png" 
 width=" 600px;"/> 
 </p> 
 
@@ -474,7 +474,7 @@ ground configurations in the input files. These files can be displayed in a
 GIS as in Fig. 13. Such maps can be used to identify areas which contribute 
 most to connectivity between focal points (McRae et al. 2008). 
 
-![](images/image24.png) 
+![](https://raw.github.com/Circuitscape/Circuitscape/master/docs/4.0/images/image24.png) 
 
 **Fig. 13.** Current map used to predict important connectivity areas between 
 core habitat patches (green polygons, entered as focal regions) for mountain 
@@ -530,7 +530,7 @@ above, and can be modified using standard text editors.
 <div style="page-break-after: always;"></div>
 ##The Options window 
 
-<img src="images/OptionsWindow.png" alt="ArcGIS Toolbox" width=" 300px;"/> 
+<img src="https://raw.github.com/Circuitscape/Circuitscape/master/docs/4.0/images/OptionsWindow.png" alt="ArcGIS Toolbox" width=" 300px;"/> 
 
 **Fig. 14.** The options window gives access to less-frequently-used options. 
 To access this window via the menu bar, click on Options>> More settings & 
@@ -555,12 +555,12 @@ The distinction is particularly important when connecting cells with zero or
 infinite values. When average resistances are used, first-order neighbors 
 connected by resistors with resistance given by: _Rab_ = (_Ra_ \+ _Rb_) / 2, 
 and second-order (diagonal) neighbors are connected by resistors with 
-resistance given by: _Rab_ = &radic;2 \* (_Ra_ \+ _Rb_) / 2, where _Ra_ and _Rb_ are 
+resistance given by: _Rab_ = sqrt(2) \* (_Ra_ \+ _Rb_) / 2, where _Ra_ and _Rb_ are 
 the resistances of the neighboring cells. When average conductances are used, 
 first-order neighbors connected by resistors with conductance (the reciprocal 
 of resistance) given by: _Gab_ = (_Ga_ \+ _Gb_) / 2, and second-order 
 (diagonal) neighbors are connected by resistors with resistance given by: 
-_Gab_ = (_Ga_ \+ _Gb_) / (2\*&radic;2), where _Ga_ and _Gb_ are the conductances of 
+_Gab_ = (_Ga_ \+ _Gb_) / (2 \* sqrt(2)), where _Ga_ and _Gb_ are the conductances of 
 the neighboring cells. (As noted above, resistance and conductance are 
 reciprocals of each other, i.e., _Gab_ = 1 / _Rab_.) 
 
@@ -879,7 +879,7 @@ columns give the node IDs being connected by a resistor, and the third column
 gives the resistance value. For example, the simple circuit: 
 
 <p align="center">
-<img src="images/SimpleNetworkWithNumbers2.png" width=" 400px;"/> 
+<img src="https://raw.github.com/Circuitscape/Circuitscape/master/docs/4.0/images/SimpleNetworkWithNumbers2.png" width=" 400px;"/> 
 </p>  
 
 can be defined by the following text list:
@@ -923,7 +923,7 @@ would look like this (from McRae et al. 2008):
 
 
 <p align="center">
-<img src="images/AdvancedNetwork.png" width="500px;"/> 
+<img src="https://raw.github.com/Circuitscape/Circuitscape/master/docs/4.0/images/AdvancedNetwork.png" width="500px;"/> 
 </p>  
 
 For **raster** operations, you can also store focal nodes, current sources, 
@@ -952,7 +952,7 @@ map above; coordinates are for cell centroids):
     1    3.5    7.5
     1    2.5    5.5
     2    6.5    4.5
-    …
+    ...
 ````
 
 For focal nodes, the value field references the focal node ID; values must be 
@@ -1115,6 +1115,7 @@ McRae, B.H. 2006. Isolation by resistance. Evolution 60:1551-1561.
 McRae, B.H. and P. Beier. 2007. Circuit theory predicts Gene flow in plant and
 animal populations. Proceedings of the National Academy of Sciences of the USA
 104:19885-19890.
+
 
 McRae, B.H., B.G. Dickson, T.H. Keitt, and V.B. Shah. 2008. Using circuit
 theory to model connectivity in ecology and conservation. Ecology 10:

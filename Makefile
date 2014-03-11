@@ -46,11 +46,13 @@ src: clean
 
 doc:
 	cd docs/4.0; \
-	pandoc -f markdown --smart -o circuitscape_4_0.html circuitscape_4_0.md; \
-	pandoc -o t1.tex circuitscape_4_0.html; \
-	cat t1.tex  | python -c "import sys; map(lambda x: sys.stdout.write(x.replace('√2', '$$\sqrt2$$')), sys.stdin);" > t2.tex; \
-	pandoc --smart -o circuitscape_4_0.pdf t2.tex; \
-	rm -f t1.tex t2.tex circuitscape_4_0.html; \
+    # no-tex-ligatures needed for quotation marks in next line
+    pandoc -f markdown --no-tex-ligatures -o circuitscape_4_0_user_guide.html circuitscape_4_0.md; \ 
+    # removing pdf conversion and sticking with html for now
+	# pandoc -o t1.tex circuitscape_4_0.html; \
+	# cat t1.tex  | python -c "import sys; map(lambda x: sys.stdout.write(x.replace('√2', '$$\sqrt2$$')), sys.stdin);" > t2.tex; \
+	# pandoc --smart -o circuitscape_4_0.pdf t2.tex; \
+	# rm -f t1.tex t2.tex circuitscape_4_0.html; \
 	cd ../..  
 
 clean:

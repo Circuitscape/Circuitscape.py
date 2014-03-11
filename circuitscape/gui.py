@@ -192,10 +192,10 @@ class GUI(model.Background):
         
     def on_menuHelpManual_select(self, event):
         #TODO: change to match release tag
-        webbrowser.open("https://github.com/Circuitscape/Circuitscape/blob/master/docs/4.0/circuitscape_4_0.md")
+        webbrowser.open("http://docs.circuitscape.org/userguide/circuitscape_4_0_user_guide.html?id=Desktop_v" + self.state['version'])
 
     def on_menuHelpFeedback_select(self, event):
-        webbrowser.open("http://www.circuitscape.org/Support")
+        webbrowser.open("http://www.circuitscape.org/Support?id=Desktop_v" + self.state['version'])
 
     def save_file_dlg(self, title, wildcard):
         file_name = None
