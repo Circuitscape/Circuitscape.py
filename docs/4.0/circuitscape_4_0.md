@@ -66,7 +66,9 @@ Landscapes](http://connectinglandscapes.org/) websites. Spear et al. (2010),
 Beier et al. (2011) and Zeller et al. (2012) offer helpful advice on 
 resistance mapping and connectivity analysis in general. Before using this 
 software, users should acquaint themselves with the use of circuit theory for 
-modeling connectivity (summarized in McRae et al. 2008). 
+modeling connectivity (summarized in McRae et al. 2008).
+
+See the [Gnarly Landscape Utilities website](http://www.circuitscape.org/gnarly-landscape-utilities) for tools that can help to automate resistance and core area modeling.  
 
 Lastly, users interested in mapping important connectivity areas may wish to 
 consider [Linkage Mapper](https://code.google.com/p/linkage-mapper/), which 

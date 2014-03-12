@@ -38,7 +38,6 @@ Name: "{group}\Circuitscape"; Filename: "{app}\csgui.exe"
 Name: "{commondesktop}\Circuitscape"; Filename: "{app}\csgui.exe"; IconFilename: "{app}\cs_logo.ico"; Tasks: desktopicon
 Name: "{userappdata}\Microsoft\Internet Explorer\Quick Launch\Circuitscape"; Filename: "{app}\csgui.exe"; IconFilename: "{app}\cs_logo.ico"; Tasks: quicklaunchicon
 
-
 [Run]
 ;Filename: "{app}\circuitscape_4_0.pdf"; Description: "View the user guide"; Flags: postinstall shellexec skipifsilent
 Filename: http://docs.circuitscape.org/userguide/circuitscape_4_0_user_guide.html?id=Win32Install{#Version}; Description: "View the user guide"; Flags: postinstall shellexec skipifsilent
