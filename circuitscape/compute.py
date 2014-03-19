@@ -70,7 +70,7 @@ class Compute(ComputeBase):
         if solver_failed == True:
             Compute.logger.error('Solver failed')
             
-        if self.options.write_cur_maps:
+        elif self.options.write_cur_maps: # Fixme? No currents if solver failed
             full_branch_currents = Output._convert_graph_to_3_col(full_branch_currents, node_names)
             full_node_currents = Output._append_names_to_node_currents(full_node_currents, node_names)
 
@@ -477,7 +477,7 @@ class Compute(ComputeBase):
         if options.low_memory_mode==True or self.state.point_file_contains_polygons==True:
             parallelize = False
         
-        if (self.state.point_file_contains_polygons == True) or (options.write_cur_maps == True) or (options.write_volt_maps == True) or (options.use_included_pairs==True) or (options.data_type=='network'):
+        if (self.state.point_file_contains_polygons == True) or (options.write_cur_maps == True) or (options.write_volt_maps == True) or (options.use_included_pairs==True) or (options.data_type=='network'): #TODO: Can shortcut be used in network mode?
             use_resistance_calc_shortcut = False
         else:     
             use_resistance_calc_shortcut = True # We use this when there are no focal regions.  It saves time when we are also not creating maps
@@ -491,6 +491,7 @@ class Compute(ComputeBase):
         num_points_to_solve = 0
         max_parallel = 0
         for c in range(1, int(g_habitat.num_components+1)):
+            print 'c=',c
             if not fp.exists_points_in_component(c, g_habitat):
                 continue
             

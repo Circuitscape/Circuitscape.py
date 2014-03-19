@@ -489,10 +489,6 @@ class GUI(model.Background):
                 self.statusBar.SetStatusText('',1)
                 self.statusBar.SetStatusText('',2)
                 resistances, solver_failed = cs.compute()
-                wx.EndBusyCursor()  # @UndefinedVariable
-                
-                self.components.calcButton.SetFocus()
-
                 if solver_failed == True:
                     msg = '\nPairwise resistances (-1 indicates disconnected focal node pair, -777 indicates failed solve):'
                 else:
@@ -505,6 +501,8 @@ class GUI(model.Background):
                     message = 'At least one solve failed.  Failure is coded as -777 in output resistance matrix.'
                     dial = wx.MessageDialog(None, message, 'Error', wx.OK | wx.ICON_EXCLAMATION)  # @UndefinedVariable
                     dial.ShowModal()
+                wx.EndBusyCursor()  # @UndefinedVariable
+                self.components.calcButton.SetFocus()
             except MemoryError:
                 wx.EndBusyCursor()  # @UndefinedVariable
                 self.memory_error_feedback()
@@ -612,7 +610,7 @@ class GUI(model.Background):
         for i in range(1,numPoints):
             for j in range(i+1,numPoints+1):
                 text = (text + str(int(resistances[i,0])) +'\t' + str(int(resistances[0,j])) 
-                       +'\t' + str(resistances[i,j]) + '\n')
+                       +'\t' + str(resistances[i,j]) + '\n') #FIXME: fails running sgNetworkVerify3.ini
         return text
         
 

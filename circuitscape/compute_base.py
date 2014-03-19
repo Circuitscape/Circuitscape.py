@@ -777,6 +777,7 @@ class Output:
             if write:                
                 # Append node names and convert to array format
                 node_currents_array = Output._append_names_to_node_currents(node_currents, node_map)                
+                # node_currents_array = Output._append_names_to_node_currents(node_currents, self.nn_sorted)# Fixme: Need something like this for multipe components in network mode?
                 CSIO.write_currents(self.options.output_file, branch_currents_array, node_currents_array, name, self.options)
                 
             if remove:
@@ -1009,7 +1010,7 @@ class Output:
     def _append_names_to_node_currents(node_currents, node_names):
         """Adds names of focal nodes to node current lists."""    
         output_node_currents = np.zeros((len(node_currents),2), dtype='float64')
-        output_node_currents[:,0] = node_names[:]
+        output_node_currents[:,0] = node_names[:] # Fixme: fails in network mode when have multiple components
         try:
             output_node_currents[:,1] = node_currents[:,0]
         except:
