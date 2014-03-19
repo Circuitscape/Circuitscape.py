@@ -491,7 +491,6 @@ class Compute(ComputeBase):
         num_points_to_solve = 0
         max_parallel = 0
         for c in range(1, int(g_habitat.num_components+1)):
-            print 'c=',c
             if not fp.exists_points_in_component(c, g_habitat):
                 continue
             

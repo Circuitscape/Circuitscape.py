@@ -606,11 +606,18 @@ class GUI(model.Background):
             for i in range(1,numPoints):
                 text = text + str(int(resistances[i,0])) + '\t' + str(int(resistances[i,1])) + '\n'
             return text
+
+        if self.options.data_type == 'network': # Already three column
+            numpairs = resistances.shape[0]
+            for i in range(0,numpairs):
+                text = text + str(int(resistances[i,0])) + '\t' + str(int(resistances[i,1])) + '\t' + str(resistances[i,2]) + '\n'
+            return text
+
         numPoints = resistances.shape[0]-1
         for i in range(1,numPoints):
             for j in range(i+1,numPoints+1):
                 text = (text + str(int(resistances[i,0])) +'\t' + str(int(resistances[0,j])) 
-                       +'\t' + str(resistances[i,j]) + '\n') #FIXME: fails running sgNetworkVerify3.ini
+                       +'\t' + str(resistances[i,j]) + '\n') 
         return text
         
 

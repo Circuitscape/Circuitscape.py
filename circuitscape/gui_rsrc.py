@@ -46,7 +46,7 @@ GUI_RSRC = {'application':{'type':'Application',
              'items': [
                   {'type':'MenuItem',
                    'name':'menuOptionsMoreOptions',
-                   'label':'&More settings && inputs...',
+                   'label':'&More settings && inputs...\tAlt+M',
                   },
               ]
              },
