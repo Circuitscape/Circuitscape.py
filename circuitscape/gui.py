@@ -519,6 +519,12 @@ class GUI(model.Background):
                 wx.EndBusyCursor()  # @UndefinedVariable
                 self.unknown_exception()
         elif self.options.scenario == 'advanced':
+            if self.options.write_cur_maps == False and self.options.write_volt_maps == False:
+                message = 'Advanced mode selected but no output maps checked.\nThere is nothing to do.'
+                dial = wx.MessageDialog(None, message, 'Error', wx.OK | wx.ICON_ERROR)  # @UndefinedVariable
+                dial.ShowModal()
+                return
+
             wx.BeginBusyCursor()  # @UndefinedVariable
 
             try:
