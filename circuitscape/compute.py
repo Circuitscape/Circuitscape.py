@@ -59,7 +59,7 @@ class Compute(ComputeBase):
             if self.options.write_cur_maps:
                 full_branch_currents, full_node_currents, _bca, _np = out.get_c_map('')            
             _resistances, resistances_3col = self.write_resistances(fp.point_ids, resistances)
-            result1 = resistances_3col
+            result1 = resistances_3col # Differs from raster mode, where resistance matrix is returned.
         elif self.options.scenario == 'advanced':
             self.options.write_max_cur_maps = False
             voltages, current_map, solver_failed = self.advanced_module(g_habitat, out, self.state.source_map, self.state.ground_map)

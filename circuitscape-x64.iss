@@ -56,5 +56,5 @@ Name: {app}; Permissions: users-modify
 
 [Run]
 ;Filename: "{app}\circuitscape_4_0.pdf"; Description: "View the user guide"; Flags: postinstall shellexec skipifsilent
-Filename: http://docs.circuitscape.org/userguide/circuitscape_4_0_user_guide.html?id=Win64Install{#Version}; Description: "View the user guide"; Flags: postinstall shellexec skipifsilent
+Filename: http://docs.circuitscape.org/circuitscape_4_0_user_guide.html?id=Win64Install{#Version}; Description: "View the user guide"; Flags: postinstall shellexec skipifsilent
 Filename: "{app}\csgui.exe"; Description: "{cm:LaunchProgram,Circuitscape}"; Flags: nowait postinstall skipifsilent
