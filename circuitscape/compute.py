@@ -497,13 +497,11 @@ class Compute(ComputeBase):
             num_parallel = 0
             for (pt1_idx, pt2_idx) in fp.point_pair_idxs_in_component(c, g_habitat):
                 if pt2_idx == -1:
+                    max_parallel = max(max_parallel, num_parallel)
+                    num_parallel = 0
                     if (use_resistance_calc_shortcut==True):
-                        max_parallel = max(max_parallel, num_parallel)
-                        num_parallel = 0
                         break
                     else:
-                        max_parallel = max(max_parallel, num_parallel)
-                        num_parallel = 0
                         continue
                 num_parallel += 1
                 num_points_to_solve += 1
@@ -666,6 +664,10 @@ class Compute(ComputeBase):
             if (component_with_points != None) and (comp != component_with_points):
                 continue
 
+            if component_with_points == None:
+                (G, node_map) = g_habitat.prune_nodes_for_component(comp)
+                G = ComputeBase.laplacian(G)
+
             if self.options.data_type == 'raster':
                 c_map = np.where(g_habitat.component_map == comp, 1, 0)
                 local_source_map = np.multiply(c_map, source_map)
@@ -686,15 +688,16 @@ class Compute(ComputeBase):
                     grounds = np.where(grounds == -9999, 0, _grounds)
                 else:
                     grounds = np.where(grounds == -9999, 0, grounds)
+                    
+                if component_with_points == None:
+                    sources = g_habitat.prune_for_component(comp, sources)
+                    grounds = g_habitat.prune_for_component(comp, grounds)
+                                                            
                 have_sources = (np.where(sources, 1, 0)).sum() > 0
                 have_grounds = (np.where(grounds, 1, 0)).sum() > 0
             
             if not (have_sources and have_grounds):
                 continue
-            
-            if component_with_points == None:
-                (G, node_map) = g_habitat.prune_nodes_for_component(comp)
-                G = ComputeBase.laplacian(G)
                 
             if self.options.data_type == 'raster':
                 (rows, cols) = np.where(local_source_map)
@@ -727,7 +730,7 @@ class Compute(ComputeBase):
 
             solver_called = True
             try:
-                voltages = self.multiple_solver(G, sources, grounds, finitegrounds) 
+                voltages = self.multiple_solver(G, sources, grounds, finitegrounds)
                 del sources, grounds
             except MemoryError:
                 raise MemoryError
@@ -743,11 +746,12 @@ class Compute(ComputeBase):
                 if self.options.write_cur_maps:
                     out.accumulate_c_map(vc_map_id, voltages, G, node_map, finitegrounds, None, None)
         
+        voltages = out.get_v_map(vc_map_id)
         if solver_failed==False and self.options.write_volt_maps:
             out.write_v_map(vc_map_id)
             
         if (self.options.write_cur_maps) and ((source_id == None) or ((source_id != None) and (self.options.write_cum_cur_map_only==False))):
-            out.write_c_map(vc_map_id, node_map=node_map)
+            out.write_c_map(vc_map_id, node_map=g_habitat.node_map)
             
         if self.options.scenario=='one-to-all':
             if solver_failed==False:

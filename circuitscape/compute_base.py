@@ -486,6 +486,12 @@ class HabitatGraph:
         else:
             return HabitatGraph._construct_g_graph(self.g_map, self.node_map, self.connect_using_avg_resistances, self.connect_four_neighbors_only)
     
+    def prune_for_component(self, keep_component, arr):
+        if not self.is_network:
+            raise RuntimeError('Not available in raster mode')
+        indices = np.where(self.components == keep_component)
+        return arr[indices]
+    
     def prune_nodes_for_component(self, keep_component):
         """Removes nodes outside of component being operated on.
         
@@ -494,9 +500,7 @@ class HabitatGraph:
         if self.is_network:
             del_indices = np.where(self.components != keep_component)
             pruned_graph = ComputeBase.deleterowcol(self.g_graph, delrow=del_indices, delcol=del_indices)
-            indices = np.where(self.components == keep_component)
-            nodes_in_component = self.node_map[indices]
-            return (pruned_graph, nodes_in_component)                
+            return (pruned_graph, self.prune_for_component(keep_component, self.node_map))
         else:
             selector = self.component_map == keep_component
             
@@ -856,10 +860,15 @@ class Output:
         """
         if self.report_status==True:
             ComputeBase.logger.info('writing voltage map ' + name)
+            
         if self.is_network:
             if voltages == None:
-                voltages, node_map = self.voltage_maps[name]
-            CSIO.write_voltages(self.options.output_file, voltages, node_map, name)
+                vm = self.voltage_maps[name]
+                nn = self.node_names
+            else:
+                vm = voltages
+                nn = node_map
+            CSIO.write_voltages(self.options.output_file, vm, nn, name)
         else:
             fileadd = name if (name=='') else ('_'+name)
             if voltages == None:
@@ -872,21 +881,25 @@ class Output:
             self.rm_v_map(name)
         elif voltages != None:
             if self.is_network:
-                self.voltage_maps[name] = (voltages, node_map)
+                self.alloc_v_map(name)
+                self.accumulate_v_map(name, voltages, node_map)
             else:
                 self.voltage_maps[name] = vm
 
     def accumulate_v_map(self, name, voltages, node_map):
         """Create and accumulate voltage map into the space identified by name"""
         if self.is_network:
-            self.voltage_maps[name] = (voltages, node_map)
+            idxs = np.asarray([np.nonzero(self.node_names == a)[0][0] for a in node_map])
+            vm = self.voltage_maps[name]
+            vm[idxs] += voltages 
+            self.voltage_maps[name] = vm
         else:
             self.voltage_maps[name] +=  self._create_voltage_map(node_map, voltages)
             
     def alloc_v_map(self, name):
         """Allocate space for a new voltage map with the given name"""
         if self.is_network:
-            self.voltage_maps[name] = None
+            self.voltage_maps[name] = np.zeros(len(self.node_names), dtype='float64')
         else:
             self.voltage_maps[name] = np.zeros((self.state.nrows, self.state.ncols), dtype='float64')
         
