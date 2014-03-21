@@ -466,6 +466,12 @@ class GUI(model.Background):
             return
 
         try:
+            filetype = CSIO._guess_file_type(self.options.habitat_file)
+            if self.options.data_type == 'network': 
+                if filetype != CSIO.FILE_TYPE_TXTLIST:
+                    raise RuntimeError('Error reading network file "' + self.options.habitat_file + '".\nPlease check file format.')
+            elif filetype != CSIO.FILE_TYPE_AAGRID and filetype != CSIO.FILE_TYPE_NPY:
+                    raise RuntimeError('File "' + self.options.habitat_file + '"\ndoes not appear to be a raster. Please check file format.')
             terminate = self.checkHeaders()
             if terminate == True:
                 self.reset_status_bar()
