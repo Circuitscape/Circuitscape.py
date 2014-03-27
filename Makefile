@@ -31,6 +31,7 @@ pypi_register: clean pypi_readme
 # generate mac binary bundle
 mac: clean
 	python setup-mac.py py2app --iconfile circuitscape.icns
+	rm -fr output/Circuitscape-$(VER).dmg
 	hdiutil create -srcfolder ./dist/Circuitscape.app output/Circuitscape-$(VER).dmg
 
 # generate a source bundle
@@ -43,17 +44,21 @@ src: clean
 #
 # Intermediate html format is required to get the correct size of embedded images. 
 # Intermediate tex format is required only to handle unicode symbols in the md file.
+# commented commands below:
+# cd docs/4.0; \
+# no-tex-ligatures needed for quotation marks in next line \
+# pandoc -f markdown --no-tex-ligatures -o circuitscape_4_0_user_guide.html circuitscape_4_0.md; \ 
+# removing pdf conversion and sticking with html for now \
+# pandoc -o t1.tex circuitscape_4_0.html; \
+# cat t1.tex  | python -c "import sys; map(lambda x: sys.stdout.write(x.replace('√2', '$$\sqrt2$$')), sys.stdin);" > t2.tex; \
+# pandoc --smart -o circuitscape_4_0.pdf t2.tex; \
+# rm -f t1.tex t2.tex circuitscape_4_0.html; \
+# cd ../..  
 
 doc:
 	cd docs/4.0; \
-    # no-tex-ligatures needed for quotation marks in next line
-    pandoc -f markdown --no-tex-ligatures -o circuitscape_4_0_user_guide.html circuitscape_4_0.md; \ 
-    # removing pdf conversion and sticking with html for now
-	# pandoc -o t1.tex circuitscape_4_0.html; \
-	# cat t1.tex  | python -c "import sys; map(lambda x: sys.stdout.write(x.replace('√2', '$$\sqrt2$$')), sys.stdin);" > t2.tex; \
-	# pandoc --smart -o circuitscape_4_0.pdf t2.tex; \
-	# rm -f t1.tex t2.tex circuitscape_4_0.html; \
-	cd ../..  
+    pandoc -f markdown --no-tex-ligatures -o circuitscape_4_0_user_guide.html circuitscape_4_0.md; \
+	cd ../..
 
 clean:
 	rm -fr circuitscape/verify/output/*.ini 
@@ -69,3 +74,4 @@ cleanall: clean
 	mkdir -p output
 	
 all: mac src
+
