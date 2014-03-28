@@ -187,7 +187,7 @@ resistor:
 
 **Fig. 5.** Example network. This network would be input as a **text list** 
 specifying resistances between each pair of connected nodes (0-1, 1-2, 1-3, 
-2-3, and 2-4; see the "Input file formats" section below). 
+2-3, and 2-4; see the *Input file formats* section below). 
 
 For **pairwise analysis** we would also supply a list of focal nodes 
 (containing at least two node numbers, but as many as five, the number of 
@@ -895,7 +895,17 @@ can be defined by the following text list:
 	3	4	1
 ```
 
-This file can be found in the examples directory (network_graph.txt).
+This file can be found in the examples directory (network_graph.txt). **Please note:** typically, there should just be one entry for each pair of connected nodes. If there are two entries for a single pair in the form of (node1, node2, value1) and (node2, node1, value2), these will be considered parallel resistors and their conductances will be summed. For example, if the above text list had an extra entry for node pair (4, 3) like this:
+
+```
+	0	1	1
+	1	2	1
+	1	3	1
+	2	4	1
+	3	4	1
+	4	3	1
+```
+then the resistance between nodes 3 and 4 in the resulting graph would be 1/2 ohm.  
 
 For advanced mode, current sources and grounds are also stored as text lists. 
 The above circuit can be expanded to include a current source and grounds with 
