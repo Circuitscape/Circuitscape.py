@@ -1,6 +1,6 @@
 <a href="http://www.circuitscape.org/home/sa_sb2.jpg"><img src="http://www.circuitscape.org/home/sa_sb2.jpg"/></a>
 
-## Circuitscape v4 (in development)
+## Circuitscape v4 
 
 Circuitscape is a free, open-source program which borrows algorithms
 from electronic circuit theory to predict patterns of movement, gene
