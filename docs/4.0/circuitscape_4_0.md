@@ -2,7 +2,7 @@
 
 **Brad McRae, Viral Shah, and Tanmay Mohapatra**
 
-**Version 4.0 - Updated March 24, 2014**
+**Version 4.0 - Updated March 28, 2014**
 
 ***How to cite this document:***
 <br/>McRae, B.H., V.B. Shah, and T.K. Mohapatra. 2013\.  Circuitscape 4 User 
