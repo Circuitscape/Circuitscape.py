@@ -20,7 +20,7 @@ pypi: clean pypi_readme
 
 # upload the python distribution 
 pypi_upload: clean pypi_readme
-	python setup.py sdist upload
+	python setup.py register sdist upload
 	rm -f README.txt
 
 # register the python distribution
