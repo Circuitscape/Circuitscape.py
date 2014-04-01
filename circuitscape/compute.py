@@ -1,4 +1,4 @@
-__version__ = '4.0.1'
+__version__ = '4.0.2'
 __author__ = 'Brad McRae, Viral B. Shah, and Tanmay Mohapatra'
 __email__ = 'mcrae@circuitscape.org'
 
@@ -114,20 +114,19 @@ class Compute(ComputeBase):
                 conductances = 1/data
             else:
                 conductances = data
-                
+            # run thru 3-col, reverse 1st and 2nd if 1>2. sort. combine dups.     
+
             numnodes = node_names.shape[0]
             G = sparse.csr_matrix((conductances, (node1, node2)), shape = (numnodes, numnodes))
+            G = G + G.T
 
-            Gdense=G.todense()
-            g_graph = np.maximum(Gdense, Gdense.T) # To handle single or double entries for elements BHM 06/28/11
-            g_graph = sparse.csr_matrix(g_graph)
         except:
             raise RuntimeError('Error processing graph/network file.  Please check file format')
         
         if zeros_in_resistance_graph == True:
             raise RuntimeError('Error: zero resistance values are not currently allowed in network/graph input file.')
         
-        return g_graph, node_names
+        return G, node_names
 
 
     def read_focal_nodes(self, filename):
@@ -614,7 +613,8 @@ class Compute(ComputeBase):
                 self.get_voltmatrix(pt1_idx, pt2_idx, numpoints, local_node_map, voltages, fp, resistances, voltmatrix)
             else:
                 cv_map_name = str(frompoint)+'_'+str(topoint)
-                cs.write_v_map(cv_map_name, False, voltages, local_node_map)
+                if options.write_volt_maps == True:
+                    cs.write_v_map(cv_map_name, False, voltages, local_node_map)
                 if options.write_cur_maps:
                     finitegrounds = [-9999] #create dummy value for pairwise case
                     if options.write_cum_cur_map_only:

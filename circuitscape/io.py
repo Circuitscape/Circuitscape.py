@@ -58,7 +58,7 @@ class CSIO:
             
         if hdr.startswith(CSIO.FILE_HDR_NPY):
             filetype = CSIO.FILE_TYPE_NPY
-        elif hdr.startswith(CSIO.FILE_HDR_AAGRID):
+        elif hdr.lower().startswith(CSIO.FILE_HDR_AAGRID):
             filetype = CSIO.FILE_TYPE_AAGRID
         elif hdr.startswith(CSIO.FILE_HDR_INCL_PAIRS_AAGRID):
             filetype = CSIO.FILE_TYPE_INCL_PAIRS_AAGRID
