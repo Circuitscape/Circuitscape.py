@@ -1,0 +1,4 @@
+Id,Test whether...,Steps,Expected Result
+1,"verification succeeds",,
+2,"logo and version numbers are correct",,
+3,"batch is working fine","Select multiple ini files from verification tests and run them through batch mode.",
