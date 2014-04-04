@@ -243,7 +243,7 @@ class GUI(model.Background):
                 self.statusBar.SetStatusText('Batch start ' + str(startTimeHMS) + '. Running job ' + str(job) +'/' + str(numjobs), 0)
                 
                 try:
-                    cs = Compute(selection, self)
+                    cs = Compute(selection, GUI.log_handler)
                 except RuntimeError as error:
                     wx.EndBusyCursor()  # @UndefinedVariable
                     message = str(error)
