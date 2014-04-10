@@ -221,7 +221,7 @@ class IncludeExcludePairs:
         mode, point_ids, mat = CSIO.read_included_pairs(filename)
         self.is_include = (mode == "include")
         self.point_ids = point_ids
-        self.mat = mat.tolil()
+        self.mat = mat.tolil() #FIXME- causing crashes when point IDs are large (8 digits)
         self.max_id = int(np.max(point_ids)) + 1
 
     def is_included_pair(self, point_id1, point_id2):
