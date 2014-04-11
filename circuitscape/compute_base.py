@@ -221,25 +221,51 @@ class IncludeExcludePairs:
         mode, point_ids, mat = CSIO.read_included_pairs(filename)
         self.is_include = (mode == "include")
         self.point_ids = point_ids
-        self.mat = mat.tolil() #FIXME- causing crashes when point IDs are large (8 digits)
+        self.mat = mat.tocoo()
         self.max_id = int(np.max(point_ids)) + 1
 
+    def has_pair(self, r, c):
+        if not ((r < self.max_id) and (c < self.max_id)):
+            return 0
+        has_rows = (self.mat.row == r)
+        if not any(has_rows):
+            return 0
+        has_cols = (self.mat.col[has_rows] == c)
+        if not any(has_rows):
+            return 0
+        valid_data = self.mat.data[has_rows]
+        return sum(valid_data[has_cols])
+
+    def has(self, r):
+        if not (r < self.max_id):
+            return 0
+        has_rows = (self.mat.row == r)
+        has_cols = (self.mat.col == r)
+        has_any = has_rows | has_cols
+        if not any(has_any):
+            return 0
+        return sum(self.mat.data[has_any])
+
     def is_included_pair(self, point_id1, point_id2):
-        return (point_id1 < self.max_id) and (point_id2 < self.max_id) and (((self.mat[point_id1, point_id2] + self.mat[point_id2, point_id1]) > 0) == self.is_include)
+        return ((self.has_pair(point_id1, point_id2) + self.has_pair(point_id2, point_id1)) > 0) == self.is_include
 
     def is_included(self, point_id):
-        return (point_id < self.max_id) and (((self.mat[point_id,:].sum() + self.mat[:,point_id].sum()) > 0) == self.is_include)
+        return ((self.has(point_id) > 0) == self.is_include)
     
     def is_present(self, point_id):
         return (point_id in self.point_ids)
     
     def delete_point(self, point_id):
         if(point_id < self.max_id):
-            self.mat[point_id, :] = 0
-            self.mat[:, point_id] = 0
+            keep_idxs = (self.mat.col != point_id) & (self.mat.row != point_id)
+            self.mat.data = self.mat.data[keep_idxs]
+            self.mat.row = self.mat.row[keep_idxs]
+            self.mat.col = self.mat.col[keep_idxs]
+            self.point_ids = self.point_ids[self.point_ids != point_id]
 
     def keep_only_points(self, points):
-        for point_id in range(0, self.max_id):
+        ptids = self.point_ids.copy()
+        for point_id in ptids:
             if point_id not in points:
                 self.delete_point(point_id)
 
