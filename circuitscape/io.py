@@ -457,6 +457,10 @@ class CSIO:
                     mode = string.split(f.readline())[1]
                 pair_list = np.loadtxt(filename, skiprows=1, dtype='int32')
                 point_ids = np.unique(pair_list)
+                if len(pair_list.shape) == 1:
+                    pl = np.zeros((1,2))
+                    pl[0,:] = pair_list
+                    pair_list = pl
                 
             I = pair_list[:,0]
             J = pair_list[:,1]
