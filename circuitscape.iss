@@ -1,5 +1,5 @@
 ;ENTER VERSION INFO HERE
-#define Version "4.0.3"  
+#define Version "4.0.4"  
 
 [Setup]
 ; NOTE: The value of AppId uniquely identifies this application.

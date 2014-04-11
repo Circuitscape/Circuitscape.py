@@ -1,4 +1,5 @@
 #Windows 8 causing problems with font size. partial attempt to correct in this version.
+# try tahoma,  try removing u before facename
 GUI_RSRC = {'application':{'type':'Application',
           'name':'Minimal',
     'backgrounds': [
