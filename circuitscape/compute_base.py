@@ -18,6 +18,7 @@ class ComputeBase(object):
         #gc.set_debug(gc.DEBUG_STATS | gc.DEBUG_UNCOLLECTABLE | gc.DEBUG_SAVEALL)
         np.seterr(invalid='ignore')
         np.seterr(divide='ignore')
+        np.set_printoptions(linewidth=150)
 
         self.state = CSState()
         self.options = CSConfig(configFile)
@@ -234,7 +235,25 @@ class IncludeExcludePairs:
         if not any(has_rows):
             return 0
         valid_data = self.mat.data[has_rows]
-        return sum(valid_data[has_cols])
+        return np.sum(valid_data[has_cols])
+
+    def get_possible_pair(self, r):
+        pt2list = np.array([])
+        
+        if (r >= self.max_id):
+            return pt2list
+        
+        has_ids = np.where(self.mat.row == r)
+        if np.any(has_ids):
+            pt2list = np.append(pt2list, self.mat.col[has_ids])
+        
+        has_ids = np.where(self.mat.col == r)
+        if np.any(has_ids):
+            pt2list = np.append(pt2list, self.mat.row[has_ids])
+        
+        pt2list = np.unique(pt2list)
+        return pt2list[np.where(pt2list > r)]
+        
 
     def has(self, r):
         if not (r < self.max_id):
@@ -242,9 +261,9 @@ class IncludeExcludePairs:
         has_rows = (self.mat.row == r)
         has_cols = (self.mat.col == r)
         has_any = has_rows | has_cols
-        if not any(has_any):
+        if not np.any(has_any):
             return 0
-        return sum(self.mat.data[has_any])
+        return np.sum(self.mat.data[has_any])
 
     def is_included_pair(self, point_id1, point_id2):
         return ((self.has_pair(point_id1, point_id2) + self.has_pair(point_id2, point_id1)) > 0) == self.is_include
@@ -467,9 +486,17 @@ class FocalPoints:
                 dst = self.get_graph_node_idx(pt1_idx, node_map)
                 if (dst <  0 or components[dst] != comp):
                     continue
-                for pt2_idx in range(pt1_idx+1, numpoints):
-                    if (None != self.incl_pairs) and not self.incl_pairs.is_included_pair(self.points_rc[pt1_idx, 0], self.points_rc[pt2_idx, 0]):
-                        continue
+                if (None != self.incl_pairs):
+                    ccv = self.points_rc[:, 0]
+                    inc = np.array([])
+                    for pt in self.incl_pairs.get_possible_pair(self.points_rc[pt1_idx, 0]):
+                        cc = np.where(ccv == pt)
+                        if len(cc) > 0:
+                            inc = np.append(inc, cc[0])
+                else:
+                    inc = range(pt1_idx+1, numpoints)
+
+                for pt2_idx in inc:
                     src = self.get_graph_node_idx(pt2_idx, node_map)
                     if (src >=  0 and components[src] == comp):
                         yield (pt1_idx, pt2_idx)
@@ -620,13 +647,15 @@ class HabitatGraph:
 
     @staticmethod
     def _neighbors_horiz(g_map):
-        """Returns values of horizontal neighbors in conductance map."""  
+        """Returns values of horizontal neighbors in conductance map."""
+        
         m = g_map.shape[0]
         n = g_map.shape[1]
 
         g_map_l = g_map[:, 0:(n-1)]
         g_map_r = g_map[:, 1:n]
         g_map_lr = np.double(np.logical_and(g_map_l, g_map_r))
+        
         s_horiz = np.where(np.c_[g_map_lr, np.zeros((m,1), dtype='int32')].flatten())
         t_horiz = np.where(np.c_[np.zeros((m,1), dtype='int32'), g_map_lr].flatten())
 
