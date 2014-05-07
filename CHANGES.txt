@@ -1,3 +1,4 @@
+v4.0.5,      07 May 2014 -- Slight speedup in pairwise mode. Fixed handling of failed solves in all-to-one modes.
 v4.0.4,      12 Apr 2014 -- Fixed bugs in handling include/exclude pairs.
 v4.0.3,      06 Apr 2014 -- Fixed batch mode for GUI 
 v4.0.1,      28 Mar 2014 -- Stable version with bug fixes and user interface tweaks.

@@ -1,4 +1,4 @@
-VER=4.0.4
+VER=4.0.5
 
 # run standard verify routines
 test:
