@@ -290,10 +290,11 @@ class Compute(ComputeBase):
                     Compute.logger.warning('Solver failed for at least one focal node. Focal nodes with failed solves will be marked with value of -777 in output resistance list.')
     
                 resistance_vector[pt_idx,0] = src
-                resistance_vector[pt_idx,1] = resistance
-                    
                 if solver_failed==True:
                     solver_failed_somewhere = True
+                    resistance_vector[pt_idx,1] = -777
+                else:
+                    resistance_vector[pt_idx,1] = resistance
 
             (hours,mins,_secs) = ComputeBase.elapsed_time(last_write_time)
             if mins > 2 or hours > 0: 
