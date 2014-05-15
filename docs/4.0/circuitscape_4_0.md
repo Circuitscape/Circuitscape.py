@@ -706,13 +706,20 @@ the toolbox.
 
 #6\. Running Circuitscape from the command line 
 
-On Linux machines, running Circuitscape from the command line can be useful, 
-especially when running over a network. Whether Circuitscape is called from 
+On Linux machines, Circuitscape is run from the command line. On other platforms,
+running from the command line is useful when calling different Circuitscape from
+scripts (e.g., written in Python or R) or external programs. 
+
+Whether Circuitscape is called from 
 the command line or the graphical user interface, settings (such as input file 
 names) are passed to the main Circuitscape module using a configuration file. 
-The configuration file has a .ini extension, and can be edited and saved from 
+The configuration file has a .ini extension, and can be created and saved from 
 the user interface. The file may also be edited directly in a standard text 
-editor. 
+editor. We don't yet have documentation for each of the settings, but if you 
+save some different configurations from the user interface and edit the 
+resulting .ini files, you can quickly get the hang of which options correspond 
+to which settings in the interface. 
+
 
 To call Circuitscape from the command line in Linux, use the command 
 ```
@@ -735,7 +742,8 @@ provide the full path to `cs_run.exe`.
 
 #7\. Calling Circuitscape from other programs 
 
-Circuitscape can be invoked from external programs to do computations on 
+Circuitscape can be invoked from external programs and scripts (e.g., Python 
+and R) to do computations on 
 rasters and networks and return results. It reads user settings from a 
 configuration (.ini) file that can be either created manually or saved from 
 the user interface (under File >> Save settings). 
@@ -761,9 +769,10 @@ python csrun.py [configuration.ini]
 ````
 
 Alternatively, the cs_run.exe executable can be invoked from external programs 
-on Windows. 
+and scripts on Windows. Linkage Mapper calls Circuitscape this way from the 
+Pinchpoint and Centrality modules, as does the Circuitscape for ArcGIS toolbox. 
 
-In the cases above, results are written out to files which can be read back
+In the cases above, results are written out to files which are then read back
 by the external program. 
 
 
