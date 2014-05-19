@@ -8,7 +8,7 @@ setup(
     author = __author__,
     author_email = __email__,
     packages = ['circuitscape', 'circuitscape.verify'],
-    scripts = ['bin/csrun.py','bin/csverify.py'],
+    scripts = ['bin/csrun.py','bin/csgui.py','bin/csverify.py'],
     url = 'http://www.circuitscape.org/',
     license = 'LICENSE.txt',
     description = 'Circuitscape borrows algorithms from electronic circuit theory to predict patterns of movement, gene flow, and genetic differentiation among plant and animal populations in heterogeneous landscapes.',

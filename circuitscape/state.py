@@ -44,6 +44,8 @@ class CSState:
         else:
             try:
                 result = function(*args)
+            except MemoryError:
+                raise MemoryError
             except:
                 result = None
             callback(result)

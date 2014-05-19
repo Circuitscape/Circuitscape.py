@@ -566,6 +566,8 @@ class Compute(ComputeBase):
                 else:
                     try:
                         result = Compute.single_ground_solver(G, local_src, local_dst, options.solver, self.state.amg_hierarchy)
+                    except MemoryError:
+                        raise MemoryError
                     except:
                         result = None
                     post_solve(result)
