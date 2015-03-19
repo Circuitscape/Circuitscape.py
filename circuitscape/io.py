@@ -549,12 +549,13 @@ class CSIO:
         if resistances_3columns != None:
             CSIO.write_resistances_3columns(outfile_template, resistances_3columns)
         
-        #remove partial result file        
-        old_file = out_base + '_resistances_incomplete' + out_extn
-        try:
-            os.remove(old_file)
-        except:
-            pass 
+        #remove partial result file 
+        if not incomplete:
+            old_file = out_base + '_resistances_incomplete' + out_extn
+            try:
+                os.remove(old_file)
+            except:
+                pass 
     
     @staticmethod
     @print_rusage
