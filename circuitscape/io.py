@@ -295,7 +295,7 @@ class CSIO:
         (ncols, nrows, xllcorner, yllcorner, cellsize, nodata, _filetype) = header = CSIO._ascii_grid_read_header(filename)
         
         poly_map = CSIO._ascii_grid_reader(filename, data_type)
-        if nodata_as != None:
+        if nodata_as is not None:
             poly_map = np.where(poly_map==nodata, nodata_as, poly_map)
     
         if cellsize != habitat_size.cellsize:
@@ -511,7 +511,7 @@ class CSIO:
         cell_map = CSIO._ascii_grid_reader(habitat_map, 'float64')
     
         # Reclassification code
-        if reclass_file != None:
+        if reclass_file is not None:
             try:
                 reclass_table = CSIO.read_point_strengths(reclass_file)
             except:
@@ -546,7 +546,7 @@ class CSIO:
         out_file = out_base + '_resistances' + ('_incomplete' if incomplete else '') + out_extn
         np.savetxt(out_file, resistances, fmt='%.10g')
         
-        if resistances_3columns != None:
+        if resistances_3columns is not None:
             CSIO.write_resistances_3columns(outfile_template, resistances_3columns)
         
         #remove partial result file 
@@ -570,7 +570,7 @@ class CSIO:
             fileadd = ('_' + fileadd)
         elif options.scenario != 'advanced':
             fileadd = '_cum' #For backward compatibility
-        if branch_currents != None:
+        if branch_currents is not None:
             filename = out_base + '_branch_currents' + fileadd + '.txt'
             np.savetxt(filename, branch_currents, fmt='%.10g')
         filename = out_base + '_node_currents' + fileadd + '.txt'
@@ -581,7 +581,7 @@ class CSIO:
     def write_voltages(outfile_template, voltages, node_names, fileadd):
         """Saves voltage values from solving arbitrary graphs to disk."""
         output_voltages = np.zeros((len(voltages),2), dtype='float64')
-        if node_names != None:
+        if node_names is not None:
             output_voltages[:,0] = node_names[:]
         output_voltages[:,1] = voltages[:]
 

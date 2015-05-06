@@ -48,7 +48,7 @@ def set_paths(root_path=None, out_path=None):
     
     TESTS_CFG       = os.path.join(TESTS_ROOT,  'verify', 'config_files')
     TESTS_BASELINE  = os.path.join(TESTS_ROOT,  'verify', 'baseline_results')
-    if None == TESTS_OUT:
+    if TESTS_OUT is None:
         TESTS_OUT   = os.path.join(TESTS_ROOT,  'verify', 'output')
 
 def cs_verifyall(root_path=None, out_path=None, ext_logger=None, stream=None):
@@ -56,7 +56,7 @@ def cs_verifyall(root_path=None, out_path=None, ext_logger=None, stream=None):
     EXT_LOGGER = ext_logger
     set_paths(root_path, out_path)
     suite = unittest.TestLoader().loadTestsFromTestCase(cs_verify)
-    if stream == None:
+    if stream is None:
         stream = sys.stderr
     testResult = unittest.TextTestRunner(verbosity=0, stream=stream).run(suite)
     EXT_LOGGER = None

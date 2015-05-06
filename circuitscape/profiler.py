@@ -229,7 +229,7 @@ class LowMemRetry:
         if isinstance(value, MemoryError):
             LowMemRetry.is_memory_error = True
             LowMemRetry.retry_count += 1
-            if (None != LowMemRetry.callback):
+            if (LowMemRetry.callback is not None):
                 LowMemRetry.callback(etype, value, traceback)
 
             if LowMemRetry.retry():

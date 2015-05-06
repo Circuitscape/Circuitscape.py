@@ -96,7 +96,7 @@ class CSConfig:
             o.update(olist)
         self.options = o
         
-        if None == cfgfile:
+        if cfgfile is None:
             return
         
         if not os.path.isfile(cfgfile):
@@ -123,9 +123,9 @@ class CSConfig:
             for option in CSConfig.DEFAULTS[section].keys():
                 val = self.options[option]
                 if option in CSConfig.FILE_PATH_PROPS:
-                    if (val == None) or (val == CSConfig.DEFAULTS[section][option]):
+                    if (val is None) or (val == CSConfig.DEFAULTS[section][option]):
                         val = ''
-                    elif (not os.path.isabs(val)) and (rel_to_abs != None):
+                    elif (not os.path.isabs(val)) and (rel_to_abs is not None):
                         val = os.path.join(rel_to_abs, val)
                 result[option] = val
         return result
@@ -136,7 +136,7 @@ class CSConfig:
             defaults.update(olist)
             
         for name in CSConfig.FILE_PATH_PROPS:
-            if not ((name in self.options) and (self.options[name] != defaults[name]) and (self.options[name] != None)):
+            if not ((name in self.options) and (self.options[name] != defaults[name]) and (self.options[name] is not None)):
                 continue
             
             if os.path.isabs(self.options[name]):

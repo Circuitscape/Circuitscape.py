@@ -160,7 +160,7 @@ class GUI(model.Background):
             testsPassed = False
         finally:
             os.chdir(cwd)
-            if None != outdir:
+            if outdir is not None:
                 for root, dirs, files in os.walk(outdir, topdown=False):
                     for name in files:
                         os.remove(os.path.join(root, name))
@@ -216,7 +216,7 @@ class GUI(model.Background):
         self.components.calcButton.SetFocus()
         
         options_file_name = self.save_file_dlg('Choose a file name', '*.ini')
-        if options_file_name != None:                
+        if options_file_name is not None:                
             try:
                 self.options.write(options_file_name, True)
             except RuntimeError as ex:
@@ -374,7 +374,7 @@ class GUI(model.Background):
     def on_outBrowse_mouseClick(self, event):
         wildcard = "OUT Files (*.out)|*.out|All Files (*.*)|*.*"
         file_name = self.save_file_dlg('Choose a Base Output File Name', wildcard)
-        if file_name != None:
+        if file_name is not None:
             self.components.outFile.text = file_name
             self.options.output_file = file_name
 
@@ -421,7 +421,7 @@ class GUI(model.Background):
         
         out_base, _out_ext = os.path.splitext(self.options.output_file)
 
-        #if (self.options.log_file == None) or (not os.path.exists(self.options.log_file)): 
+        #if (self.options.log_file is None) or (not os.path.exists(self.options.log_file)): 
         self.options.log_file = out_base + '.log' # For now, just write log file to output directory.
 
         if (self.options.print_rusages and not sys.platform.startswith('win')) or (self.options.print_timings): 
@@ -721,10 +721,10 @@ class GUI(model.Background):
        
         idx = GUI.OPTIONS_LOG_LEVEL.index(self.options.log_level)
         self.components.logLevelChoice.SetSelection(idx)
-        if GUI.logger != None:
+        if GUI.logger is not None:
             GUI.logger.setLevel(getattr(logging, self.options.log_level.upper()))
 
-        if GUI.log_handler != None:
+        if GUI.log_handler is not None:
             GUI.log_handler.setLevel(getattr(logging, self.options.log_level.upper()))
 
         self.components.parallelSpin.value = self.components.parallelSpin.max = 1
@@ -804,7 +804,7 @@ class GUI(model.Background):
 
     def onLogEvent(self, event):
         self.components.logMessages.appendText(event.message + '\n')
-        if event.status_msg != None:
+        if event.status_msg is not None:
             self.statusBar.SetStatusText(event.status_msg[0], event.status_msg[1])
             if event.status_msg[1] == 1:
                 self.statusBar.SetStatusText('', 2)

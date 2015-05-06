@@ -50,7 +50,7 @@ class ComputeBase(object):
         logger = logging.getLogger(logger_name)
         logger.setLevel(log_lvl)
         
-        if formatter == None:
+        if formatter is None:
             formatter = ComputeBase._create_formatter(log_lvl)
 
         handlers = []
@@ -83,7 +83,7 @@ class ComputeBase(object):
             handler.close()
             
     def _setup_loggers(self, ext_log_handler):
-        if None != ComputeBase.logger:  # logger has already been setup
+        if ComputeBase.logger is not None:  # logger has already been setup
             ComputeBase._close_handlers(ComputeBase.logger)
             ComputeBase._close_handlers(ResourceLogger.rlogger)
         
@@ -308,7 +308,7 @@ class FocalPoints:
 
     def _prune_included_pairs(self):
         """Remove excluded points from focal node list when using extra file that lists pairs to include/exclude."""
-        if self.incl_pairs == None:
+        if self.incl_pairs is None:
             return
 
         idx = 0
@@ -364,7 +364,7 @@ class FocalPoints:
         if self.is_network:
             raise RuntimeError('Not available in network mode')
           
-        if pt_idx != None:
+        if pt_idx is not None:
             return (self.points_rc[pt_idx,1], self.points_rc[pt_idx,2])
             
         return self.points_rc
@@ -451,7 +451,7 @@ class FocalPoints:
             
             for pt1_idx in range(0, numpoints): 
                 for pt2_idx in range(pt1_idx+1, numpoints):
-                    if (None != self.incl_pairs) and not self.incl_pairs.is_included_pair(self.point_ids[pt1_idx], self.point_ids[pt2_idx]):
+                    if (self.incl_pairs is not None) and not self.incl_pairs.is_included_pair(self.point_ids[pt1_idx], self.point_ids[pt2_idx]):
                         continue
                     yield (pt1_idx, pt2_idx)
                 yield(pt1_idx, -1)
@@ -486,7 +486,7 @@ class FocalPoints:
                 dst = self.get_graph_node_idx(pt1_idx, node_map)
                 if (dst <  0 or components[dst] != comp):
                     continue
-                if (None != self.incl_pairs):
+                if (self.incl_pairs is not None):
                     ccv = self.points_rc[:, 0]
                     inc = np.array([])
                     for pt in self.incl_pairs.get_possible_pair(self.points_rc[pt1_idx, 0]):
@@ -507,7 +507,7 @@ class FocalPoints:
 
 class HabitatGraph:
     def __init__(self, g_map=None, poly_map=None, connect_using_avg_resistances=False, connect_four_neighbors_only=False, g_graph=None, node_names=None):
-        if None != g_map:
+        if g_map is not None:
             self.is_network = False
             self.g_map = g_map
             self.poly_map = poly_map
@@ -770,7 +770,7 @@ class Output:
         self.state = state
         self.report_status = report_status
         self.node_names = node_names
-        self.nn_sorted = node_names[np.argsort(node_names)] if (None != node_names) else None
+        self.nn_sorted = node_names[np.argsort(node_names)] if (node_names is not None) else None
         
         self.is_network = (self.options.data_type == 'network')
         self.scenario = self.options.scenario
@@ -827,7 +827,7 @@ class Output:
         
     def _write_store_c_map(self, name, remove, write, accumulate, voltages, G, node_map, finitegrounds, local_src, local_dst):
         if self.is_network:
-            if voltages != None:
+            if voltages is not None:
                 (node_currents, branch_currents) = self._create_current_maps(voltages, G, finitegrounds)
                 branch_currents_array = Output._convert_graph_to_3_col(branch_currents, node_map)
             else:
@@ -852,7 +852,7 @@ class Output:
             else:
                 self.current_maps[name] = (branch_currents, node_currents, branch_currents_array, node_map)
         else:
-            if voltages != None:
+            if voltages is not None:
                 while LowMemRetry.retry():
                     with LowMemRetry():
                         current_map = self._create_current_maps(voltages, G, finitegrounds, node_map)   
@@ -917,7 +917,7 @@ class Output:
             ComputeBase.logger.info('writing voltage map ' + name)
             
         if self.is_network:
-            if voltages == None:
+            if voltages is None:
                 vm = self.voltage_maps[name]
                 nn = self.node_names
             else:
@@ -926,7 +926,7 @@ class Output:
             CSIO.write_voltages(self.options.output_file, vm, nn, name)
         else:
             fileadd = name if (name=='') else ('_'+name)
-            if voltages == None:
+            if voltages is None:
                 vm = self.voltage_maps[name]
             else:
                 vm = self._create_voltage_map(node_map, voltages)
@@ -934,7 +934,7 @@ class Output:
             
         if remove:
             self.rm_v_map(name)
-        elif voltages != None:
+        elif voltages is not None:
             if self.is_network:
                 self.alloc_v_map(name)
                 self.accumulate_v_map(name, voltages, node_map)
@@ -1064,7 +1064,7 @@ class Output:
         
         graph_n_col = np.zeros((Gcoo.row[mask].size, 3), dtype="float64") #Fixme: this may result in zero-current nodes being left out.  Needed to make change so dimensions would match Gcoo.data[mask]
         
-        if node_names == None:
+        if node_names is None:
             graph_n_col[:,0] = Gcoo.row[mask]
             graph_n_col[:,1] = Gcoo.col[mask]
         else:
