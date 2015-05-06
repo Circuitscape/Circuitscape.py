@@ -48,11 +48,11 @@ class OptionsWindow(model.CustomDialog):
         self.components.includePairsBox.checked     = self.childOptions.use_included_pairs and pairwise_enabled and is_pairwise_scenario
 
         self.components.polygonFile.text            = str(self.childOptions.polygon_file)
-        if self.childOptions.included_pairs_file != None:
+        if self.childOptions.included_pairs_file is not None:
             self.components.includePairsFile.text   = str(self.childOptions.included_pairs_file)
-        if self.childOptions.mask_file != None:
+        if self.childOptions.mask_file is not None:
             self.components.maskFile.text           = str(self.childOptions.mask_file) 
-        if self.childOptions.variable_source_file != None:
+        if self.childOptions.variable_source_file is not None:
             self.components.varSrcFile.text         = str(self.childOptions.variable_source_file)
 
         self.enable_disable_child_widgets(pairwise_enabled, advanced_enabled)

@@ -28,7 +28,7 @@ class CSState:
         self.yllcorner = None
 
     def worker_pool_create(self, max_workers, reuse=False):
-        if(None != self.worker_pool):
+        if(self.worker_pool is not None):
             if reuse:
                 return
             else:
@@ -39,7 +39,7 @@ class CSState:
 
 
     def worker_pool_submit(self, function, callback, *args):
-        if(None != self.worker_pool):
+        if(self.worker_pool is not None):
             self.worker_pool.apply_async(self.async(function), args=args, callback=callback)
         else:
             try:
@@ -52,7 +52,7 @@ class CSState:
             
 
     def worker_pool_wait(self):
-        if self.worker_pool != None:
+        if self.worker_pool is not None:
             self.worker_pool.close()
             self.worker_pool.join()
             self.worker_pool = None
@@ -60,7 +60,7 @@ class CSState:
         
     @gc_after
     def del_amg_hierarchy(self):
-        if self.amg_hierarchy != None:
+        if self.amg_hierarchy is not None:
             self.amg_hierarchy = None
 
     @print_rusage

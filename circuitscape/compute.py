@@ -453,7 +453,7 @@ class Compute(ComputeBase):
 
     def _post_pairwise_polygon_solve(self, resistances, pt1_idx, pt2_idx, solver_failed, msg):
         def _post_callback(pairwise_resistance):
-            if None != pairwise_resistance:
+            if pairwise_resistance is not None:
                 resistances[pt2_idx, pt1_idx] = resistances[pt1_idx, pt2_idx] = pairwise_resistance[0,1]
                 Compute.logger.info("Solved focal pair " + msg)
             else:
@@ -527,7 +527,7 @@ class Compute(ComputeBase):
                         self.state.worker_pool_wait()                        
                     self.state.del_amg_hierarchy()
                     
-                    if (local_dst != None) and (G_dst_dst != None):
+                    if (local_dst is not None) and (G_dst_dst is not None):
                         G[local_dst, local_dst] = G_dst_dst
                         local_dst = G_dst_dst = None
                     
@@ -548,12 +548,12 @@ class Compute(ComputeBase):
                     Compute.logger.info('Solving ' + msg)
                 
                 local_src = fp.get_graph_node_idx(pt2_idx, local_node_map)
-                if None == local_dst:
+                if local_dst is None:
                     local_dst = fp.get_graph_node_idx(pt1_idx, local_node_map)
                     G_dst_dst = G[local_dst, local_dst]
                     G[local_dst, local_dst] = 0
 
-                if self.state.amg_hierarchy == None:
+                if self.state.amg_hierarchy is None:
                     self.state.create_amg_hierarchy(G, self.options.solver)
 
                 if use_resistance_calc_shortcut:
@@ -595,10 +595,10 @@ class Compute(ComputeBase):
         def _post_callback(voltages):
             options = self.options
             
-            if msg != None:
+            if msg is not None:
                 self.logger.debug("solved " + msg)
             
-            if voltages == None:
+            if voltages is None:
                 solver_failed_somewhere[0] = True
                 resistances[pt2_idx, pt1_idx] = resistances[pt1_idx, pt2_idx] = -777
                 if use_resistance_calc_shortcut:
@@ -652,22 +652,22 @@ class Compute(ComputeBase):
         solver_called = False
         solver_failed = False
         node_map = None 
-        if component_with_points != None:
+        if component_with_points is not None:
             G = g_habitat.get_graph()
             G = ComputeBase.laplacian(G)
             node_map = g_habitat.node_map
         
-        vc_map_id = '' if source_id==None else str(source_id)
+        vc_map_id = '' if (source_id is None) else str(source_id)
         out.alloc_v_map(vc_map_id)
         
         if self.options.write_cur_maps:
             out.alloc_c_map(vc_map_id)
             
         for comp in range(1, g_habitat.num_components+1):
-            if (component_with_points != None) and (comp != component_with_points):
+            if (component_with_points is not None) and (comp != component_with_points):
                 continue
 
-            if component_with_points == None:
+            if component_with_points is None:
                 (G, node_map) = g_habitat.prune_nodes_for_component(comp)
                 G = ComputeBase.laplacian(G)
 
@@ -692,7 +692,7 @@ class Compute(ComputeBase):
                 else:
                     grounds = np.where(grounds == -9999, 0, grounds)
                     
-                if component_with_points == None:
+                if component_with_points is None:
                     sources = g_habitat.prune_for_component(comp, sources)
                     grounds = g_habitat.prune_for_component(comp, grounds)
                                                             
@@ -753,7 +753,7 @@ class Compute(ComputeBase):
         if solver_failed==False and self.options.write_volt_maps:
             out.write_v_map(vc_map_id)
             
-        if (self.options.write_cur_maps) and ((source_id == None) or ((source_id != None) and (self.options.write_cum_cur_map_only==False))):
+        if (self.options.write_cur_maps) and ((source_id is None) or ((source_id is not None) and (self.options.write_cum_cur_map_only==False))):
             out.write_c_map(vc_map_id, node_map=g_habitat.node_map)
             
         if self.options.scenario=='one-to-all':
