@@ -26,7 +26,7 @@ class ResourceLogger:
         
         if ResourceLogger.psutil_available and ResourceLogger.print_rusages:
             ResourceLogger.proc = psutil.Process(os.getpid())
-            ResourceLogger.proc_has_io_counters = hasattr(ResourceLogger.proc, 'get_io_counters')
+            ResourceLogger.proc_has_io_counters = hasattr(ResourceLogger.proc, 'io_counters')
 
     @staticmethod
     def print_timing_enabled(is_enabled):
@@ -50,11 +50,11 @@ class ResourceLogger:
             if ResourceLogger.resource_available:
                 ResourceLogger.rusage1.append(resource.getrusage(resource.RUSAGE_SELF))
             elif ResourceLogger.proc:
-                ResourceLogger.rusage1.append(ResourceLogger.proc.get_cpu_times())
+                ResourceLogger.rusage1.append(ResourceLogger.proc.cpu_times())
                 
             if ResourceLogger.proc:
-                ResourceLogger.mem1.append(ResourceLogger.proc.get_ext_memory_info())
-                ResourceLogger.io1.append(ResourceLogger.proc.get_io_counters() if ResourceLogger.proc_has_io_counters else psutil.disk_io_counters())
+                ResourceLogger.mem1.append(ResourceLogger.proc.memory_info())
+                ResourceLogger.io1.append(ResourceLogger.proc.io_counters() if ResourceLogger.proc_has_io_counters else psutil.disk_io_counters())
     
     @staticmethod
     def do_post(func_name):
@@ -74,7 +74,7 @@ class ResourceLogger:
                 ResourceLogger.append_diff(cpu_diffs, 'elapsed',    t2-ResourceLogger.t1.pop())
             elif ResourceLogger.proc:
                 rusage1 = ResourceLogger.rusage1.pop()
-                rusage2 = ResourceLogger.proc.get_cpu_times()
+                rusage2 = ResourceLogger.proc.cpu_times()
                 for attr in ['user', 'system']:
                     if hasattr(rusage1, attr):
                         ResourceLogger.append_diff(cpu_diffs, attr, getattr(rusage2, attr) - getattr(rusage1, attr))
@@ -83,8 +83,8 @@ class ResourceLogger:
             if ResourceLogger.proc:
                 mem1 = ResourceLogger.mem1.pop()
                 io1 = ResourceLogger.io1.pop()
-                mem2 = ResourceLogger.proc.get_ext_memory_info()
-                io2 = ResourceLogger.proc.get_io_counters() if ResourceLogger.proc_has_io_counters else psutil.disk_io_counters()
+                mem2 = ResourceLogger.proc.memory_info()
+                io2 = ResourceLogger.proc.io_counters() if ResourceLogger.proc_has_io_counters else psutil.disk_io_counters()
                 for attr in ['rss', 'vms', 'shared', 'text', 'data']:
                     if hasattr(mem1, attr):
                         ResourceLogger.append_diff(mem_diffs, attr, getattr(mem2, attr) - getattr(mem1, attr))
