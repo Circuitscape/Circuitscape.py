@@ -335,7 +335,7 @@ class Compute(ComputeBase):
             poly_map_temp = point_map
         else:
             poly_map_temp = poly_map
-            new_poly_num = np.max(poly_map)
+            new_poly_num = np.max(poly_map) + 1
             #burn in src pt_idx to polygon map
             poly_map_temp = self.get_overlap_polymap(points_rc[pt1_idx,0], point_map, poly_map_temp, new_poly_num)                     
             for pt_idx in range(0, points_rc.shape[0]): #burn in dst points to polygon map
