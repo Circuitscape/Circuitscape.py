@@ -238,7 +238,7 @@ class IncludeExcludePairs:
         return np.sum(valid_data[has_cols])
 
     def get_possible_pair(self, r):
-        pt2list = np.array([])
+        pt2list = np.array([], dtype = 'int32')
         
         if (r >= self.max_id):
             return pt2list
@@ -488,7 +488,7 @@ class FocalPoints:
                     continue
                 if (self.incl_pairs is not None):
                     ccv = self.points_rc[:, 0]
-                    inc = np.array([])
+                    inc = np.array([], dtype = 'int32')
                     for pt in self.incl_pairs.get_possible_pair(self.points_rc[pt1_idx, 0]):
                         cc = np.where(ccv == pt)
                         if len(cc) > 0:
