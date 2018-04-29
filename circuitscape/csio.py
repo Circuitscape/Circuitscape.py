@@ -116,17 +116,17 @@ class CSIO:
             else:
                 pmap = np.loadtxt(filename, skiprows=6, dtype=data_type)
                 pmap = np.where(pmap==nodata, -9999, pmap)
-        
-        if nrows == 1:
+
+        if nrows == 1 and pmap.ndim == 1:
             temp = np.zeros((1,pmap.size))
             temp[0,:] = pmap
             pmap = temp
-            
-        if ncols == 1:
+
+        if ncols == 1 and pmap.ndim == 1:
             temp = np.zeros((pmap.size,1))
             temp[:,0] = pmap
-            pmap = temp       
-      
+            pmap = temp
+
         return pmap
 
 
