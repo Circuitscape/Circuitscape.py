@@ -11,15 +11,12 @@ from distutils.core import setup
 
 from circuitscape import __version__, __author__, __email__
 
-# INCLUDES =[]
-INCLUDES =['scipy.sparse.csgraph._validation','pyamg.aggregation.__init__','pyamg.__config__',
-           'pyamg.amg_core','pyamg.aggregation']
-PACKAGES = ['PythonCard', 'wx', 'wxversion', 'numpy', 'scipy', 'pyamg', "scipy.io.matlab.streams"]
 
-DATA_FILES = ['circuitscape/cs_logo.jpg', 'circuitscape/gui_rsrc.py', 'cs_logo.ico'] 
- 
-OPTIONS = {'includes': PACKAGES}
-
+DATA_FILES = ['circuitscape/cs_logo.jpg', 'circuitscape/gui_rsrc.py',
+              'cs_logo.ico']
+OPTIONS = {'includes': ['PythonCard', 'wx', 'wxversion', 'numpy', 'scipy',
+                        'pyamg', 'scipy.io.matlab.streams'],
+           'excludes': ['Tkconstants', 'Tkinter']}
 
 # Compile cs_run.py first to ensure that dependencies needed for cs_gui also included.
 setup(
