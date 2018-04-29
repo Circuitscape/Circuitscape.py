@@ -6,7 +6,7 @@ from scipy.sparse.csgraph import connected_components, _validation #_validation 
 
 from cfg import CSConfig
 from state import CSState
-from io import CSIO
+from csio import CSIO
 from profiler import ResourceLogger, print_rusage, gc_before, GCPreempt, LowMemRetry
 
 

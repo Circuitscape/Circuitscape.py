@@ -9,7 +9,7 @@ from scipy import sparse
 
 from compute_base import ComputeBase, FocalPoints, IncludeExcludePairs, HabitatGraph, Output
 from profiler import print_rusage, gc_after, LowMemRetry
-from io import CSIO
+from csio import CSIO
 
 class Compute(ComputeBase):
     def __init__(self, configFile, ext_log_handler):
