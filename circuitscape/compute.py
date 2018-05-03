@@ -720,12 +720,18 @@ class Compute(ComputeBase):
                 num_local_grounds = local_grounds_rc.shape[0]
     
                 for source in range(0, num_local_sources):
-                    src = self.grid_to_graph(local_sources_rc[source,1], local_sources_rc[source,2], node_map)
+                    src = self.grid_to_graph(
+                        int(local_sources_rc[source,1]),
+                        int(local_sources_rc[source,2]), 
+                        node_map)
                     # Possible to have more than one source at a node when there are polygons
                     sources[src] += local_sources_rc[source,0] 
     
                 for ground in range(0, num_local_grounds):
-                    gnd = self.grid_to_graph (local_grounds_rc[ground,1], local_grounds_rc[ground,2], node_map)
+                    gnd = self.grid_to_graph(
+                        int(local_grounds_rc[ground,1]),
+                        int(local_grounds_rc[ground,2]),
+                        node_map)
                     # Possible to have more than one ground at a node when there are polygons
                     grounds[gnd] += local_grounds_rc[ground,0] 
 
