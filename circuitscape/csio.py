@@ -354,6 +354,9 @@ class CSIO:
             points_rc = np.c_[values, rows, cols]
         else:
             raise RuntimeError('Focal node file must be in one of text list, ascii grid or numpy array format.')
+
+        if points_rc.size == 0:
+            raise RuntimeError('Focal node file does not contain any data.')
     
         try:
             i = np.argsort(points_rc[:,0])
